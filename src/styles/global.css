@@ -205,6 +205,14 @@ button {
 .left-sidebar__project-name {
   font-weight: 600;
   font-size: 15px;
+  cursor: text;
+  outline: none;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  border-radius: 4px;
+}
+.left-sidebar__project-name:focus {
+  background: #f3f3f3;
 }
 .free-badge {
   background: #ececec;
@@ -338,6 +346,50 @@ button {
   padding: 7px 12px;
   font-size: 13px;
   color: #a5a5a5;
+}
+.search:focus-within {
+  box-shadow: 0 0 0 1.5px #0099ff;
+}
+.search__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  color: #1a1a1a;
+  padding: 0;
+}
+.search__input::placeholder {
+  color: #a5a5a5;
+}
+.search__clear {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a5a5a5;
+  cursor: pointer;
+}
+.search__clear:hover { color: #5a5a5a; }
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  background: #f3f3f3;
+  border-radius: 5px;
 }
 .home-dropdown {
   display: flex;

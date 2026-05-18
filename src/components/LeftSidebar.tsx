@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Chevron, Plus, Search, ViewDay, PageIcon, MonitorPC } from '../icons';
+import { Chevron, Plus, Search, ViewDay, PageIcon, MonitorPC, Close } from '../icons';
 
 const TABS = ['Pages', 'Assets', 'Code'] as const;
 type TabName = typeof TABS[number];
@@ -11,11 +11,23 @@ type Props = {
 
 export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
   const [activeTab, setActiveTab] = useState<TabName>('Pages');
+  const [searchQuery, setSearchQuery] = useState('');
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const homeMatches = isSearching && 'home'.includes(query);
+  const desktopMatches = isSearching && 'desktop'.includes(query);
 
   return (
     <aside className="left-sidebar">
       <div className="left-sidebar__project">
-        <span className="left-sidebar__project-name">Project Name</span>
+        <span
+          className="left-sidebar__project-name"
+          contentEditable
+          suppressContentEditableWarning
+          spellCheck={false}
+        >
+          Project Name
+        </span>
         <span className="free-badge">FREE</span>
       </div>
 
@@ -61,9 +73,42 @@ export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
 
       <div className="search">
         <Search size={18} />
-        <span>Search this file...</span>
+        <input
+          type="text"
+          className="search__input"
+          placeholder="Search this file..."
+          spellCheck={false}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        {isSearching && (
+          <button
+            type="button"
+            className="search__clear"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+          >
+            <Close size={14} />
+          </button>
+        )}
       </div>
 
+      {isSearching ? (
+        <div className="search-results">
+          {homeMatches && (
+            <div className="search-result-row">
+              <PageIcon size={14} />
+              <span>Home</span>
+            </div>
+          )}
+          {desktopMatches && (
+            <div className="search-result-row">
+              <MonitorPC size={14} />
+              <span>Desktop</span>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className={'home-dropdown' + (homeExpanded ? ' home-dropdown--expanded' : '')}>
         <button
           className="home-dropdown__row home-dropdown__row--home"
@@ -85,6 +130,7 @@ export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
           </div>
         </div>
       </div>
+      )}
     </aside>
   );
 }
