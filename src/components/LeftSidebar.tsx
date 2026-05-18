@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import { Chevron, Plus, Search, ViewDay, PageIcon, MonitorPC, Close } from '../icons';
 
 const TABS = ['Pages', 'Assets', 'Code'] as const;
@@ -12,6 +12,14 @@ type Props = {
 export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
   const [activeTab, setActiveTab] = useState<TabName>('Pages');
   const [searchQuery, setSearchQuery] = useState('');
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = tabRefs.current[TABS.indexOf(activeTab)];
+    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
+  }, [activeTab]);
+
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
   const homeMatches = isSearching && 'home'.includes(query);
@@ -31,23 +39,18 @@ export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
         <span className="free-badge">FREE</span>
       </div>
 
-      <div
-        className="segmented"
-        style={{ ['--active-index' as string]: TABS.indexOf(activeTab) }}
-      >
-        <div className="segmented__indicator" />
+      <div className="pill-tabs">
+        <div
+          className="pill-tabs__indicator"
+          style={{ left: indicator.left, width: indicator.width, opacity: indicator.ready ? 1 : 0 }}
+        />
         {TABS.map((tab, i) => {
           const isActive = tab === activeTab;
-          const next = TABS[i + 1];
-          const showDivider = !isActive && next !== undefined && next !== activeTab;
           return (
             <button
               key={tab}
-              className={
-                'segmented__item' +
-                (isActive ? ' segmented__item--active' : '') +
-                (showDivider ? ' segmented__item--with-divider' : '')
-              }
+              ref={el => { tabRefs.current[i] = el; }}
+              className={'pill-tab' + (isActive ? ' pill-tab--active' : '')}
               onClick={() => setActiveTab(tab)}
             >
               {tab}

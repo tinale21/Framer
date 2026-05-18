@@ -1,3 +1,4 @@
+import { useState, useRef, useLayoutEffect } from 'react';
 import type { Scene, SceneSetter } from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
@@ -13,6 +14,9 @@ const PROPS_PANEL_SCENES: Scene[] = [
   'demo-final',
 ];
 
+const INSERT_TABS = ['Design', 'Prototype'] as const;
+type InsertTab = typeof INSERT_TABS[number];
+
 export default function RightSidebar({ scene, onSceneChange }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
     return <PropsPanel scene={scene} />;
@@ -21,17 +25,39 @@ export default function RightSidebar({ scene, onSceneChange }: Props) {
 }
 
 function InsertPanel({ scene, onSceneChange }: Props) {
+  const [activeTab, setActiveTab] = useState<InsertTab>('Design');
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+
+  useLayoutEffect(() => {
+    const el = tabRefs.current[INSERT_TABS.indexOf(activeTab)];
+    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
+  }, [activeTab]);
+
   const tilesDimmed = scene === 'demo-5-insert-highlighted' ? { opacity: 0.55 } : undefined;
   const baseHovered = scene === 'base-hover' || scene === 'stack-tutorial-modal' || scene === 'disabled-tutorial-modal';
   const highlightTriple = scene === 'demo-5-insert-highlighted';
 
   return (
     <aside className="right-sidebar">
-      <div className="right-sidebar__header">
-        <div className="right-sidebar__header-left">
-          <span className="tab tab--active">Design</span>
-          <span className="tab">Prototype</span>
-        </div>
+      <div className="pill-tabs">
+        <div
+          className="pill-tabs__indicator"
+          style={{ left: indicator.left, width: indicator.width, opacity: indicator.ready ? 1 : 0 }}
+        />
+        {INSERT_TABS.map((tab, i) => {
+          const isActive = tab === activeTab;
+          return (
+            <button
+              key={tab}
+              ref={el => { tabRefs.current[i] = el; }}
+              className={'pill-tab' + (isActive ? ' pill-tab--active' : '')}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
 
       <div className="section-title">Insert</div>
