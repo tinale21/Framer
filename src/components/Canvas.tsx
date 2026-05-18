@@ -1,7 +1,8 @@
 import type { Scene, SceneSetter } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
-type Props = { scene: Scene; onSceneChange: SceneSetter };
+type Props = { scene: Scene; onSceneChange: SceneSetter; onHomeClick?: () => void };
+type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
 const CANVAS_DIMMED: Scene[] = [
   'demo-5-insert-highlighted',
@@ -16,16 +17,20 @@ const CHROME_DIMMED: Scene[] = [
   'demo-7-layout-panel',
 ];
 
-export default function Canvas({ scene, onSceneChange }: Props) {
+export default function Canvas({ scene, onSceneChange, onHomeClick }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
 
   return (
     <main className="canvas-wrap">
-      <div className="frame-card" style={chromeDimmed ? { opacity: 0.55 } : undefined}>
+      <div
+        className="frame-card"
+        style={chromeDimmed ? { opacity: 0.55 } : undefined}
+        onClick={onHomeClick}
+      >
         <div className="frame-card__title-row">
           <span>Home</span>
-          <button className="plus-btn"><Plus size={12} /></button>
+          <button className="plus-btn" onClick={e => e.stopPropagation()}><Plus size={12} /></button>
         </div>
         <div className="frame-card__bar">
           <span className="frame-card__bar-play"><Play size={11} /></span>
@@ -40,7 +45,7 @@ export default function Canvas({ scene, onSceneChange }: Props) {
   );
 }
 
-function CanvasContent({ scene, onSceneChange }: Props) {
+function CanvasContent({ scene, onSceneChange }: ContentProps) {
   switch (scene) {
     case 'demo-2-cursor':
       return (
