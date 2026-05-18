@@ -60,7 +60,9 @@ function InsertPanel({ scene, onSceneChange }: Props) {
         })}
       </div>
 
-      <div className="section-title">Insert</div>
+      <div className="divider" />
+
+      <div className="section-title" style={{ marginTop: 6 }}>Insert</div>
 
       <div className="insert-list" style={tilesDimmed}>
         <button
@@ -92,6 +94,8 @@ function InsertPanel({ scene, onSceneChange }: Props) {
           Component
         </button>
       </div>
+
+      <div className="divider" style={{ marginTop: 6 }} />
 
       <p className="marketplace-note">
         Looking for something specific? Browse <a href="#">Framer Marketplace</a> for effects, components, and more.

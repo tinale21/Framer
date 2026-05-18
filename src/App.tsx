@@ -11,24 +11,6 @@ import DisabledStackTutorialModal from './components/modals/DisabledStackTutoria
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
 import type { Scene } from './types';
 
-const SCENE_ORDER: Scene[] = [
-  'base',
-  'base-hover',
-  'stack-tutorial-modal',
-  'demo-1-stack-highlighted',
-  'demo-2-cursor',
-  'demo-3-drawing-frame',
-  'demo-4-stack-created',
-  'demo-5-insert-highlighted',
-  'demo-6-rect-with-text',
-  'demo-7-layout-panel',
-  'demo-8-restacked',
-  'demo-completed-modal',
-  'demo-final',
-  'disabled-tutorial-modal',
-  'tutorial-overlays-settings',
-];
-
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
   'stack-tutorial-modal',
@@ -39,7 +21,6 @@ const SHOW_POPOUT: Scene[] = [
 export default function App() {
   const [scene, setScene] = useState<Scene>('base');
   const [homeExpanded, setHomeExpanded] = useState(false);
-  const idx = SCENE_ORDER.indexOf(scene);
   const toggleHome = () => setHomeExpanded(prev => !prev);
   const openHome = () => setHomeExpanded(true);
   const closeHome = () => setHomeExpanded(false);
@@ -69,14 +50,6 @@ export default function App() {
       {showCompletedModal && <StackDemoCompletedModal onSceneChange={setScene} />}
       {showDisabledModal && <DisabledStackTutorialModal onSceneChange={setScene} />}
       {showOverlaysSettings && <TutorialOverlaysModal onSceneChange={setScene} />}
-
-      <div className="dev-nav">
-        <span>{idx + 1}/{SCENE_ORDER.length}</span>
-        <span style={{ opacity: 0.7 }}>{scene}</span>
-        <button onClick={() => setScene(SCENE_ORDER[Math.max(0, idx - 1)])} disabled={idx === 0}>‹</button>
-        <button onClick={() => setScene(SCENE_ORDER[Math.min(SCENE_ORDER.length - 1, idx + 1)])} disabled={idx === SCENE_ORDER.length - 1}>›</button>
-        <button onClick={() => setScene('base')}>reset</button>
-      </div>
     </div>
   );
 }
