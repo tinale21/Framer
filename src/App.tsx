@@ -41,6 +41,8 @@ export default function App() {
   const [homeExpanded, setHomeExpanded] = useState(false);
   const idx = SCENE_ORDER.indexOf(scene);
   const toggleHome = () => setHomeExpanded(prev => !prev);
+  const openHome = () => setHomeExpanded(true);
+  const closeHome = () => setHomeExpanded(false);
 
   const showPopout = SHOW_POPOUT.includes(scene);
   const showStackTutorial = scene === 'stack-tutorial-modal';
@@ -53,7 +55,12 @@ export default function App() {
       <TopBar />
       <div className="main">
         <LeftSidebar homeExpanded={homeExpanded} onToggleHome={toggleHome} />
-        <Canvas scene={scene} onSceneChange={setScene} onHomeClick={toggleHome} />
+        <Canvas
+          scene={scene}
+          onSceneChange={setScene}
+          onCanvasClick={openHome}
+          onSurroundClick={closeHome}
+        />
         <RightSidebar scene={scene} onSceneChange={setScene} />
       </div>
       <BottomToolbar />

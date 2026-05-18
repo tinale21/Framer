@@ -1,7 +1,12 @@
 import type { Scene, SceneSetter } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
-type Props = { scene: Scene; onSceneChange: SceneSetter; onHomeClick?: () => void };
+type Props = {
+  scene: Scene;
+  onSceneChange: SceneSetter;
+  onCanvasClick?: () => void;
+  onSurroundClick?: () => void;
+};
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
 const CANVAS_DIMMED: Scene[] = [
@@ -17,16 +22,19 @@ const CHROME_DIMMED: Scene[] = [
   'demo-7-layout-panel',
 ];
 
-export default function Canvas({ scene, onSceneChange, onHomeClick }: Props) {
+export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurroundClick }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
 
   return (
-    <main className="canvas-wrap">
+    <main className="canvas-wrap" onClick={onSurroundClick}>
       <div
         className="frame-card"
         style={chromeDimmed ? { opacity: 0.55 } : undefined}
-        onClick={onHomeClick}
+        onClick={e => {
+          e.stopPropagation();
+          onCanvasClick?.();
+        }}
       >
         <div className="frame-card__title-row">
           <span>Home</span>

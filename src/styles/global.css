@@ -342,8 +342,9 @@ button {
 .home-dropdown {
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: 5px;
   overflow: hidden;
+  margin-top: 2px;
 }
 .home-dropdown__row {
   display: flex;
@@ -366,13 +367,13 @@ button {
 }
 .home-dropdown__row--home {
   background: transparent;
-  border-radius: 8px;
+  border-radius: 5px;
   transition: background 0.28s cubic-bezier(0.4, 0, 0.2, 1),
               border-radius 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .home-dropdown--expanded .home-dropdown__row--home {
   background: #e3f4ff;
-  border-radius: 8px 8px 0 0;
+  border-radius: 5px 5px 0 0;
 }
 
 .home-dropdown__sub-wrap {
@@ -386,7 +387,7 @@ button {
 
 .home-dropdown__row--sub {
   background: #f3f7fa;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 5px 5px;
   padding-left: 32px;
   opacity: 0;
   transform: translateY(-4px);
