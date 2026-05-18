@@ -101,54 +101,89 @@ button {
   z-index: 10;
 }
 .topbar__logo {
-  width: 28px;
-  height: 28px;
-  background: #1a1a1a;
-  color: white;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 18px;
-  line-height: 1;
+  width: 29px;
+  height: 29px;
+  display: block;
 }
 .topbar__right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
-.topbar__icon {
-  width: 36px;
-  height: 36px;
+.topbar__pill {
+  width: 35px;
+  height: 34px;
+  display: block;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.04));
+}
+
+.topbar__avatar-wrap {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  color: #5a5a5a;
 }
-.topbar__icon:hover { background: var(--bg-pill-hover); }
-.topbar__avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #7a7a7a;
+.topbar__tooltip {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #0099ff;
   color: white;
+  padding: 15px 21px;
+  border-radius: 14px;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+}
+.topbar__tooltip::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: #0099ff;
+  border-radius: 2px;
+}
+.topbar__avatar-wrap:hover .topbar__tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.topbar__tooltip-name {
+  font-size: 14px;
+  font-weight: 400;
+  color: #ffffff;
+}
+.topbar__tooltip-sub {
   font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: 0.5px;
+  font-weight: 300;
+  color: #a0d1ff;
+  margin-top: 2px;
 }
 .topbar__btn {
-  padding: 8px 14px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #1a1a1a;
+  background: #e9e9e9;
+  color: #141414;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04);
 }
-.topbar__btn:hover { background: var(--bg-pill-hover); }
+.topbar__btn:hover { background: #dddddd; }
+.topbar__btn--primary {
+  background: #0099ff;
+  color: #ffffff;
+}
+.topbar__btn--primary:hover { background: #0088e5; }
 
 /* ===== LeftSidebar ===== */
 .left-sidebar {
