@@ -6,6 +6,8 @@ import {
 } from '../icons';
 import GridPopout from './GridPopout';
 import ElementPopout from './ElementPopout';
+import VectorPopout from './VectorPopout';
+import ComponentPopout from './ComponentPopout';
 
 type Props = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -30,8 +32,12 @@ function InsertPanel({ scene, onSceneChange }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const [elementHovered, setElementHovered] = useState(false);
+  const [vectorHovered, setVectorHovered] = useState(false);
+  const [componentHovered, setComponentHovered] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
   const hideElementTimerRef = useRef<number | null>(null);
+  const hideVectorTimerRef = useRef<number | null>(null);
+  const hideComponentTimerRef = useRef<number | null>(null);
   const sceneRef = useRef(scene);
   useEffect(() => { sceneRef.current = scene; }, [scene]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -40,6 +46,8 @@ function InsertPanel({ scene, onSceneChange }: Props) {
   useEffect(() => () => {
     if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
     if (hideElementTimerRef.current !== null) clearTimeout(hideElementTimerRef.current);
+    if (hideVectorTimerRef.current !== null) clearTimeout(hideVectorTimerRef.current);
+    if (hideComponentTimerRef.current !== null) clearTimeout(hideComponentTimerRef.current);
   }, []);
 
   const showElementPopout = () => {
@@ -54,6 +62,36 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     hideElementTimerRef.current = window.setTimeout(() => {
       setElementHovered(false);
       hideElementTimerRef.current = null;
+    }, 120);
+  };
+
+  const showVectorPopout = () => {
+    if (hideVectorTimerRef.current !== null) {
+      clearTimeout(hideVectorTimerRef.current);
+      hideVectorTimerRef.current = null;
+    }
+    setVectorHovered(true);
+  };
+  const hideVectorPopoutSoon = () => {
+    if (hideVectorTimerRef.current !== null) clearTimeout(hideVectorTimerRef.current);
+    hideVectorTimerRef.current = window.setTimeout(() => {
+      setVectorHovered(false);
+      hideVectorTimerRef.current = null;
+    }, 120);
+  };
+
+  const showComponentPopout = () => {
+    if (hideComponentTimerRef.current !== null) {
+      clearTimeout(hideComponentTimerRef.current);
+      hideComponentTimerRef.current = null;
+    }
+    setComponentHovered(true);
+  };
+  const hideComponentPopoutSoon = () => {
+    if (hideComponentTimerRef.current !== null) clearTimeout(hideComponentTimerRef.current);
+    hideComponentTimerRef.current = window.setTimeout(() => {
+      setComponentHovered(false);
+      hideComponentTimerRef.current = null;
     }, 120);
   };
 
@@ -148,10 +186,21 @@ function InsertPanel({ scene, onSceneChange }: Props) {
           <span className="insert-tile__icon"><IconText /></span>
           Text
         </button>
-        <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
-          <span className="insert-tile__icon"><IconVector /></span>
-          Vector
-        </button>
+        <div
+          className="insert-tile-wrap"
+          onMouseEnter={showVectorPopout}
+          onMouseLeave={hideVectorPopoutSoon}
+        >
+          <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
+            <span className="insert-tile__icon"><IconVector /></span>
+            Vector
+          </button>
+          {vectorHovered && (
+            <div onMouseEnter={showVectorPopout} onMouseLeave={hideVectorPopoutSoon}>
+              <VectorPopout />
+            </div>
+          )}
+        </div>
         <div
           className="insert-tile-wrap"
           onMouseEnter={showElementPopout}
@@ -167,10 +216,21 @@ function InsertPanel({ scene, onSceneChange }: Props) {
             </div>
           )}
         </div>
-        <button className="insert-tile">
-          <span className="insert-tile__icon"><IconComponent /></span>
-          Component
-        </button>
+        <div
+          className="insert-tile-wrap"
+          onMouseEnter={showComponentPopout}
+          onMouseLeave={hideComponentPopoutSoon}
+        >
+          <button className="insert-tile">
+            <span className="insert-tile__icon"><IconComponent /></span>
+            Component
+          </button>
+          {componentHovered && (
+            <div onMouseEnter={showComponentPopout} onMouseLeave={hideComponentPopoutSoon}>
+              <ComponentPopout />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="divider" style={{ marginTop: 6 }} />

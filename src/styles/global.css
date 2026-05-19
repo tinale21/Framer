@@ -592,7 +592,8 @@ button {
   margin-top: 0;
 }
 .marketplace-note a {
-  color: #555555;
+  color: #0099ff;
+  font-weight: 600;
   text-decoration: underline;
 }
 
@@ -1044,6 +1045,104 @@ button {
 }
 .popout-element__zone:hover { outline-color: #0099ff; }
 
+/* Vector popout — same option-box pattern as grid popout, but scrollable */
+.popout-vector {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  width: 270px;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 9px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 30;
+  transform: scale(0.9);
+  transform-origin: top right;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.popout-vector__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid #eaeaea;
+  border-radius: 9px;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: #767676;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.035);
+  flex-shrink: 0;
+}
+.popout-vector__item:hover { background: #0099ff; color: #ffffff; }
+.popout-vector__item:hover .popout-vector__item-icon { color: #ffffff; }
+.popout-vector__item-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #767676;
+  flex-shrink: 0;
+}
+.app--dark .popout-vector {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Component popout — single pill cropped from a card SVG */
+.popout-component {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  width: 270px;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 9px;
+  padding: 16px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 30;
+  transform: scale(0.9);
+  transform-origin: top right;
+}
+.popout-component__strip {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+.popout-component__strip-img {
+  position: absolute;
+  display: block;
+}
+.popout-component__zone {
+  position: absolute;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.15s ease;
+}
+.popout-component__zone:hover { outline-color: #0099ff; }
+.app--dark .popout-component {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
 /* Dark mode for element popout */
 .app--dark .popout-element {
   background: #1f1f1f;
@@ -1458,7 +1557,7 @@ button {
 
 /* Marketplace note */
 .app--dark .marketplace-note { color: #888888; }
-.app--dark .marketplace-note a { color: #cccccc; }
+.app--dark .marketplace-note a { color: #0099ff; }
 
 /* Right sidebar — Insert popout */
 .app--dark .popout-base { background: #1f1f1f; border: 1px solid #2a2a2a; }
