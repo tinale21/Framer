@@ -988,6 +988,69 @@ button {
 .app--dark .popout-grid__item--selected .popout-grid__item-icon { color: #ffffff; }
 .app--dark .popout-grid__item-icon { color: #a6a6a6; }
 
+/* Element hover popout — uses the same frame size as the Grid popup
+   but renders the Elements SVG (with embedded image previews) and
+   scrolls when the SVG overflows the frame height */
+.popout-element {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  width: 270px;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 9px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 30;
+  transform: scale(0.9);
+  transform-origin: top right;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.popout-element__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.popout-element__label {
+  color: #767676;
+  font-size: 14px;
+  font-weight: 600;
+}
+.popout-element__strip {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+.popout-element__strip-img {
+  position: absolute;
+  left: 0;
+  display: block;
+}
+.popout-element__zone {
+  position: absolute;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 0.15s ease;
+}
+.popout-element__zone:hover { outline-color: #0099ff; }
+
+/* Dark mode for element popout */
+.app--dark .popout-element {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
 /* ===== Popouts / Overlays ===== */
 .popout-base {
   position: absolute;

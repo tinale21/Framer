@@ -5,6 +5,7 @@ import {
   AlignTop, AlignMidV, AlignBottom, AlignLeft, AlignMidH, AlignRight, Diamond,
 } from '../icons';
 import GridPopout from './GridPopout';
+import ElementPopout from './ElementPopout';
 
 type Props = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -28,7 +29,9 @@ export default function RightSidebar({ scene, onSceneChange }: Props) {
 function InsertPanel({ scene, onSceneChange }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
+  const [elementHovered, setElementHovered] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
+  const hideElementTimerRef = useRef<number | null>(null);
   const sceneRef = useRef(scene);
   useEffect(() => { sceneRef.current = scene; }, [scene]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -36,7 +39,23 @@ function InsertPanel({ scene, onSceneChange }: Props) {
 
   useEffect(() => () => {
     if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    if (hideElementTimerRef.current !== null) clearTimeout(hideElementTimerRef.current);
   }, []);
+
+  const showElementPopout = () => {
+    if (hideElementTimerRef.current !== null) {
+      clearTimeout(hideElementTimerRef.current);
+      hideElementTimerRef.current = null;
+    }
+    setElementHovered(true);
+  };
+  const hideElementPopoutSoon = () => {
+    if (hideElementTimerRef.current !== null) clearTimeout(hideElementTimerRef.current);
+    hideElementTimerRef.current = window.setTimeout(() => {
+      setElementHovered(false);
+      hideElementTimerRef.current = null;
+    }, 120);
+  };
 
   // While the Stack tutorial modal is open, force the popout to stay mounted.
   // When it closes, reset hover state so the popout doesn't linger.
@@ -133,10 +152,21 @@ function InsertPanel({ scene, onSceneChange }: Props) {
           <span className="insert-tile__icon"><IconVector /></span>
           Vector
         </button>
-        <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
-          <span className="insert-tile__icon"><IconElement /></span>
-          Element
-        </button>
+        <div
+          className="insert-tile-wrap"
+          onMouseEnter={showElementPopout}
+          onMouseLeave={hideElementPopoutSoon}
+        >
+          <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
+            <span className="insert-tile__icon"><IconElement /></span>
+            Element
+          </button>
+          {elementHovered && (
+            <div onMouseEnter={showElementPopout} onMouseLeave={hideElementPopoutSoon}>
+              <ElementPopout />
+            </div>
+          )}
+        </div>
         <button className="insert-tile">
           <span className="insert-tile__icon"><IconComponent /></span>
           Component
