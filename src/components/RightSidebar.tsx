@@ -1,9 +1,10 @@
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import type { Scene, SceneSetter } from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
   AlignTop, AlignMidV, AlignBottom, AlignLeft, AlignMidH, AlignRight, Diamond,
 } from '../icons';
+import GridPopout from './GridPopout';
 
 type Props = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -26,8 +27,29 @@ export default function RightSidebar({ scene, onSceneChange }: Props) {
 
 function InsertPanel({ scene, onSceneChange }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
+  const [gridHovered, setGridHovered] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+
+  useEffect(() => () => {
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+  }, []);
+
+  const showGridPopout = () => {
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setGridHovered(true);
+  };
+  const hideGridPopoutSoon = () => {
+    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => {
+      setGridHovered(false);
+      hideTimerRef.current = null;
+    }, 120);
+  };
 
   useLayoutEffect(() => {
     const el = tabRefs.current[INSERT_TABS.indexOf(activeTab)];
@@ -67,16 +89,26 @@ function InsertPanel({ scene, onSceneChange }: Props) {
       <div className="insert-list" style={tilesDimmed}>
         <button
           className={`insert-tile ${baseHovered ? 'insert-tile--selected' : ''}`}
-          onMouseEnter={() => { if (scene === 'base') onSceneChange('base-hover'); }}
           onClick={() => { if (scene === 'base') onSceneChange('base-hover'); }}
         >
           <span className="insert-tile__icon"><IconBase /></span>
           Base
         </button>
-        <button className="insert-tile">
-          <span className="insert-tile__icon"><IconGrid /></span>
-          Grid
-        </button>
+        <div
+          className="insert-tile-wrap"
+          onMouseEnter={showGridPopout}
+          onMouseLeave={hideGridPopoutSoon}
+        >
+          <button className="insert-tile">
+            <span className="insert-tile__icon"><IconGrid /></span>
+            Grid
+          </button>
+          {gridHovered && (
+            <div onMouseEnter={showGridPopout} onMouseLeave={hideGridPopoutSoon}>
+              <GridPopout />
+            </div>
+          )}
+        </div>
         <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
           <span className="insert-tile__icon"><IconText /></span>
           Text
