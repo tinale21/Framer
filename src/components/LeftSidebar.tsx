@@ -17,7 +17,15 @@ export default function LeftSidebar({ homeExpanded, onToggleHome }: Props) {
 
   useLayoutEffect(() => {
     const el = tabRefs.current[TABS.indexOf(activeTab)];
-    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const parentRect = el.parentElement!.getBoundingClientRect();
+      setIndicator({
+        left: rect.left - parentRect.left,
+        width: rect.width,
+        ready: true,
+      });
+    }
   }, [activeTab]);
 
   const query = searchQuery.trim().toLowerCase();
