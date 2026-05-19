@@ -1062,7 +1062,7 @@ button {
   width: 90%;
 }
 .modal--narrow { max-width: 420px; }
-.modal--wide { max-width: 600px; }
+.modal--wide { max-width: 900px; padding-top: 32px; padding-bottom: 24px; border-radius: 12px; }
 .modal__close {
   position: absolute;
   top: 18px;
@@ -1095,14 +1095,17 @@ button {
 }
 .btn {
   padding: 10px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  background: #ececec;
-  color: #1a1a1a;
+  background: transparent;
+  color: #0099ff;
+  border: 1px solid #0099ff;
 }
-.btn:hover { background: #e2e2e2; }
+.btn:hover {
+  background: rgba(0, 153, 255, 0.08);
+}
 .btn--primary {
   background: var(--blue-button);
   color: white;
@@ -1133,7 +1136,7 @@ button {
   grid-column: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 0 14px;
 }
 .stack-compare__card {
   background: white;

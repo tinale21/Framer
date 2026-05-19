@@ -4,7 +4,7 @@ import { Close } from '../../icons';
 export default function StackTutorialModal({ onSceneChange }: { onSceneChange: SceneSetter }) {
   return (
     <div className="modal-backdrop">
-      <div className="modal modal--wide">
+      <div className="modal modal--wide" style={{ transform: 'scale(0.85)' }}>
         <button className="modal__close" onClick={() => onSceneChange('base')}><Close /></button>
         <h2 className="modal__title">Using Stacks</h2>
         <p className="modal__body">
@@ -52,7 +52,7 @@ export default function StackTutorialModal({ onSceneChange }: { onSceneChange: S
 
         <div className="modal__footer">
           <button className="btn" onClick={() => onSceneChange('disabled-tutorial-modal')}>Don't Show Again</button>
-          <button className="btn btn--primary" onClick={() => onSceneChange('demo-1-stack-highlighted')}>Practice/Demo</button>
+          <button className="btn btn--primary" onClick={() => onSceneChange('demo-1-stack-highlighted')}>Practice Demo</button>
         </div>
       </div>
     </div>
