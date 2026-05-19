@@ -1,5 +1,12 @@
+import { useState, useRef, useEffect } from 'react';
 import type { Scene, SceneSetter } from '../types';
 import { Play, Plus, Cursor } from '../icons';
+
+const INITIAL_Y = 84;
+const INITIAL_SCALE = 0.85;
+const MIN_SCALE = 0.15;
+const MAX_SCALE = 3;
+const DRAG_THRESHOLD = 5;
 
 type Props = {
   scene: Scene;
@@ -26,15 +33,93 @@ export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurround
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
 
+  const [offset, setOffset] = useState({ x: 0, y: INITIAL_Y });
+  const [scale, setScale] = useState(INITIAL_SCALE);
+  const [isDragging, setIsDragging] = useState(false);
+  const wrapRef = useRef<HTMLElement>(null);
+  const dragRef = useRef<
+    { startMx: number; startMy: number; startOx: number; startOy: number; moved: boolean } | null
+  >(null);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const s = dragRef.current;
+      if (!s) return;
+      const dx = e.clientX - s.startMx;
+      const dy = e.clientY - s.startMy;
+      if (!s.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+        s.moved = true;
+        setIsDragging(true);
+      }
+      if (s.moved) setOffset({ x: s.startOx + dx, y: s.startOy + dy });
+    };
+    const handleUp = () => {
+      if (dragRef.current?.moved) {
+        // defer so click handlers see isDragging=true and bail out
+        setTimeout(() => setIsDragging(false), 0);
+      }
+      dragRef.current = null;
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const handleWheel = (e: WheelEvent) => {
+      // Cmd/Ctrl + wheel (or trackpad pinch, which sets ctrlKey in browsers) = zoom
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.01);
+        setScale(s => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * factor)));
+      }
+    };
+    wrap.addEventListener('wheel', handleWheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Don't start drag from buttons (demo hints, plus btn, etc.)
+    if ((e.target as HTMLElement).closest('button')) return;
+    dragRef.current = {
+      startMx: e.clientX,
+      startMy: e.clientY,
+      startOx: offset.x,
+      startOy: offset.y,
+      moved: false,
+    };
+  };
+
+  const handleSurroundClick = () => {
+    if (isDragging) return;
+    onSurroundClick?.();
+  };
+
+  const handleFrameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDragging) return;
+    onCanvasClick?.();
+  };
+
   return (
-    <main className="canvas-wrap" onClick={onSurroundClick}>
+    <main
+      ref={wrapRef}
+      className={'canvas-wrap' + (isDragging ? ' canvas-wrap--dragging' : '')}
+      onMouseDown={handleMouseDown}
+      onClick={handleSurroundClick}
+    >
       <div
         className="frame-card"
-        style={chromeDimmed ? { opacity: 0.55 } : undefined}
-        onClick={e => {
-          e.stopPropagation();
-          onCanvasClick?.();
+        style={{
+          ...(chromeDimmed ? { opacity: 0.55 } : {}),
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
         }}
+        onClick={handleFrameClick}
       >
         <div className="frame-card__title-row">
           <span>Home</span>
