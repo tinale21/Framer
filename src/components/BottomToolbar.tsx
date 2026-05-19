@@ -1,6 +1,11 @@
 const ICON_GRAY = '#878787';
 
-export default function BottomToolbar() {
+type Props = {
+  darkMode?: boolean;
+  onToggleDarkMode?: () => void;
+};
+
+export default function BottomToolbar({ darkMode = false, onToggleDarkMode }: Props) {
   return (
     <div className="bottom-toolbar">
       <button className="bottom-toolbar__cursor-pill">
@@ -20,10 +25,21 @@ export default function BottomToolbar() {
         </svg>
       </button>
 
-      <button className="bottom-toolbar__icon" aria-label="Dark mode">
-        <svg width="17" height="20" viewBox="144 16 21 23" fill={ICON_GRAY}>
-          <path d="M155.429 27.2448C154.23 26.046 153.414 24.5189 153.083 22.8565C152.753 21.1941 152.922 19.4709 153.571 17.9048C151.722 18.2686 150.024 19.1756 148.694 20.5095C144.975 24.2286 144.975 30.2591 148.694 33.9781C152.414 37.6981 158.444 37.6972 162.164 33.9781C163.497 32.6481 164.404 30.9508 164.769 29.1029C163.202 29.751 161.479 29.9204 159.817 29.5897C158.155 29.259 156.627 28.443 155.429 27.2448Z" />
-        </svg>
+      <button
+        className="bottom-toolbar__icon"
+        aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        onClick={onToggleDarkMode}
+      >
+        {darkMode ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ICON_GRAY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="4" fill={ICON_GRAY} stroke="none" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        ) : (
+          <svg width="17" height="20" viewBox="144 16 21 23" fill={ICON_GRAY}>
+            <path d="M155.429 27.2448C154.23 26.046 153.414 24.5189 153.083 22.8565C152.753 21.1941 152.922 19.4709 153.571 17.9048C151.722 18.2686 150.024 19.1756 148.694 20.5095C144.975 24.2286 144.975 30.2591 148.694 33.9781C152.414 37.6981 158.444 37.6972 162.164 33.9781C163.497 32.6481 164.404 30.9508 164.769 29.1029C163.202 29.751 161.479 29.9204 159.817 29.5897C158.155 29.259 156.627 28.443 155.429 27.2448Z" />
+          </svg>
+        )}
       </button>
 
       <button className="bottom-toolbar__icon" aria-label="Grid">

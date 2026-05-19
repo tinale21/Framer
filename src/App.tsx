@@ -23,11 +23,13 @@ export type CanvasSelection = 'none' | 'frame' | 'canvas';
 export default function App() {
   const [scene, setScene] = useState<Scene>('base');
   const [selection, setSelection] = useState<CanvasSelection>('none');
+  const [darkMode, setDarkMode] = useState(false);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
   const selectFrame = () => setSelection('frame');
   const selectCanvas = () => setSelection('canvas');
   const deselect = () => setSelection('none');
+  const toggleDarkMode = () => setDarkMode(d => !d);
 
   const showPopout = SHOW_POPOUT.includes(scene);
   const showStackTutorial = scene === 'stack-tutorial-modal';
@@ -36,7 +38,7 @@ export default function App() {
   const showOverlaysSettings = scene === 'tutorial-overlays-settings';
 
   return (
-    <div className="app">
+    <div className={'app' + (darkMode ? ' app--dark' : '')}>
       <TopBar />
       <div className="main">
         <LeftSidebar homeExpanded={homeExpanded} onToggleHome={toggleHome} />
@@ -50,7 +52,7 @@ export default function App() {
         />
         <RightSidebar scene={scene} onSceneChange={setScene} />
       </div>
-      <BottomToolbar />
+      <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
       {showPopout && <BasePopout scene={scene} onSceneChange={setScene} />}
       {showStackTutorial && <StackTutorialModal onSceneChange={setScene} />}
       {showCompletedModal && <StackDemoCompletedModal onSceneChange={setScene} />}

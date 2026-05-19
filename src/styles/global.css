@@ -1204,3 +1204,152 @@ button {
 }
 .dev-nav button:hover { background: rgba(255, 255, 255, 0.25); }
 .dev-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ======================================================================
+   DARK MODE — Framer-style palette
+   Triggered when .app--dark is applied at the root.
+   ====================================================================== */
+
+.app--dark {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+/* TopBar */
+.app--dark .topbar {
+  background: #1a1a1a;
+  border-bottom-color: #2a2a2a;
+}
+.app--dark .topbar__logo { filter: invert(1); }
+.app--dark .topbar__btn {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+.app--dark .topbar__btn:hover { background: #353535; }
+.app--dark .topbar__btn--primary { background: #0099ff; color: #ffffff; }
+.app--dark .topbar__btn--primary:hover { background: #0088e5; }
+/* Topbar pill icons (globe, hexagon, signal, play): invert so the white pill becomes dark */
+.app--dark .topbar__pill[alt="globe"],
+.app--dark .topbar__pill[alt="hexagon"],
+.app--dark .topbar__pill[alt="signal"],
+.app--dark .topbar__pill[alt="play"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* Avatar stays blue */
+
+/* Left + Right sidebars */
+.app--dark .left-sidebar,
+.app--dark .right-sidebar {
+  background: #1a1a1a;
+  border-color: #2a2a2a;
+}
+.app--dark .left-sidebar__project-name { color: #ffffff; }
+.app--dark .free-badge { background: #2a2a2a; color: #999999; }
+
+/* Pill-tabs (Pages/Assets/Code + Design/Prototype) */
+.app--dark .pill-tab { color: #888888; }
+.app--dark .pill-tab:hover:not(.pill-tab--active) { color: #cccccc; }
+.app--dark .pill-tab--active { color: #ffffff; }
+.app--dark .pill-tabs__indicator { background: #2a2a2a; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+
+/* Divider */
+.app--dark .divider { background: #2a2a2a; }
+
+/* Viewport dropdown (Desktop - 1200) */
+.app--dark .viewport-dropdown {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+.app--dark .viewport-dropdown__chevron { color: #888888; }
+
+/* Section header (Pages) */
+.app--dark .section-header__label { color: #ffffff; }
+.app--dark .section-header .icon-btn { color: #999999; }
+.app--dark .section-header .icon-btn:hover { background: #2a2a2a; }
+
+/* Search bar */
+.app--dark .search {
+  background: #2a2a2a;
+  color: #888888;
+}
+.app--dark .search__input { color: #ffffff; }
+.app--dark .search__input::placeholder { color: #777777; }
+.app--dark .search:focus-within { box-shadow: 0 0 0 1.5px #0099ff; }
+.app--dark .search__clear { color: #888888; }
+.app--dark .search__clear:hover { color: #cccccc; }
+
+/* Search results */
+.app--dark .search-result-row { background: #2a2a2a; color: #ffffff; }
+
+/* Home dropdown */
+.app--dark .home-dropdown__row { color: #ffffff; }
+.app--dark .home-dropdown--expanded .home-dropdown__row--home {
+  background: #14304a;
+}
+.app--dark .home-dropdown__row--sub { background: #1a2a36; }
+.app--dark .home-dropdown__chevron { color: #888888; }
+
+/* Right sidebar — section title */
+.app--dark .section-title { color: #ffffff; }
+
+/* Insert tiles */
+.app--dark .insert-tile {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.app--dark .insert-tile:hover { border-color: #3a3a3a; }
+.app--dark .insert-tile__icon { background: #3a3a3a; color: #ffffff; }
+
+/* Marketplace note */
+.app--dark .marketplace-note { color: #888888; }
+.app--dark .marketplace-note a { color: #cccccc; }
+
+/* Right sidebar — Insert popout */
+.app--dark .popout-base { background: #1f1f1f; border: 1px solid #2a2a2a; }
+.app--dark .popout-base__item { background: #2a2a2a; border-color: #2a2a2a; color: #ffffff; }
+.app--dark .popout-base__item:hover { background: #353535; }
+.app--dark .popout-base__item--selected { background: #353535; }
+.app--dark .popout-base__item-icon { color: #cccccc; }
+
+/* Canvas surround */
+.app--dark .canvas-wrap { background: #1a1a1a; }
+
+/* Frame card */
+.app--dark .frame-card { background: #2a2a2a; }
+.app--dark .frame-card__title-row { color: #888888; }
+.app--dark .frame-card__title-row .plus-btn { background: #3a3a3a; color: #ffffff; }
+.app--dark .frame-card__bar { background: #353535; }
+.app--dark .frame-card__bar-desktop { color: #ffffff; }
+.app--dark .frame-card__bar-size { color: #888888; }
+.app--dark .frame-card__bar-play { background: #3a3a3a; color: #ffffff; }
+/* Canvas content stays white — it represents the user's design surface */
+
+/* Frame card selection/hover overrides in dark mode keep blue accents */
+.app--dark .frame-card:hover:not(.frame-card--canvas-selected) .frame-card__title-row { color: #0099ff; }
+.app--dark .frame-card--selected .frame-card__title-row { color: #0099ff; }
+.app--dark .frame-card:hover:not(.frame-card--canvas-selected) .plus-btn,
+.app--dark .frame-card--selected .plus-btn { background: #0099ff; }
+.app--dark .frame-card:has(.canvas-content:hover) .frame-card__title-row,
+.app--dark .frame-card--canvas-selected .frame-card__title-row { color: #888888; }
+.app--dark .frame-card:has(.canvas-content:hover) .plus-btn,
+.app--dark .frame-card--canvas-selected .plus-btn { background: #3a3a3a; }
+.app--dark .frame-card:has(.canvas-content:hover) .frame-card__bar,
+.app--dark .frame-card--canvas-selected .frame-card__bar { background: #14304a; }
+
+/* Bottom toolbar */
+.app--dark .bottom-toolbar {
+  background: #1a1a1a;
+  border-color: #2a2a2a;
+}
+.app--dark .bottom-toolbar__cursor-pill { background: #2a2a2a; }
+.app--dark .bottom-toolbar__cursor-pill:hover { background: #353535; }
+.app--dark .bottom-toolbar__cursor-pill svg path[fill="#222222"] { fill: #ffffff; }
+.app--dark .bottom-toolbar__divider { background: #2a2a2a; }
+.app--dark .bottom-toolbar__icon:hover { background: #2a2a2a; }
+.app--dark .bottom-toolbar__view-toggles { background: #2a2a2a; }
+.app--dark .bottom-toolbar__view-toggle--active {
+  background: #3a3a3a;
+  box-shadow: none;
+}
