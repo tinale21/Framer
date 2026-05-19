@@ -18,12 +18,16 @@ const SHOW_POPOUT: Scene[] = [
   'disabled-tutorial-modal',
 ];
 
+export type CanvasSelection = 'none' | 'frame' | 'canvas';
+
 export default function App() {
   const [scene, setScene] = useState<Scene>('base');
-  const [homeExpanded, setHomeExpanded] = useState(false);
-  const toggleHome = () => setHomeExpanded(prev => !prev);
-  const openHome = () => setHomeExpanded(true);
-  const closeHome = () => setHomeExpanded(false);
+  const [selection, setSelection] = useState<CanvasSelection>('none');
+  const homeExpanded = selection !== 'none';
+  const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
+  const selectFrame = () => setSelection('frame');
+  const selectCanvas = () => setSelection('canvas');
+  const deselect = () => setSelection('none');
 
   const showPopout = SHOW_POPOUT.includes(scene);
   const showStackTutorial = scene === 'stack-tutorial-modal';
@@ -39,8 +43,10 @@ export default function App() {
         <Canvas
           scene={scene}
           onSceneChange={setScene}
-          onCanvasClick={openHome}
-          onSurroundClick={closeHome}
+          selection={selection}
+          onSelectFrame={selectFrame}
+          onSelectCanvas={selectCanvas}
+          onDeselect={deselect}
         />
         <RightSidebar scene={scene} onSceneChange={setScene} />
       </div>

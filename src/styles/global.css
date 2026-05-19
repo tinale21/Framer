@@ -652,7 +652,7 @@ button {
   max-width: 940px;
   background: var(--bg-frame-label);
   border-radius: 10px;
-  padding: 20px 22px 18px;
+  padding: 26px 28px 24px;
   transform-origin: top center;
   display: flex;
   flex-direction: column;
@@ -688,17 +688,17 @@ button {
   align-items: center;
   gap: 10px;
   background: var(--bg-frame-label-inner);
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-radius: 8px;
   color: #6b6b6b;
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 6px;
 }
 .frame-card__bar-play {
   background: #999999;
   color: #ffffff;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -711,6 +711,7 @@ button {
 .frame-card__bar-size {
   font-weight: 500;
   color: #a1a1a1;
+  margin-left: -2px;
 }
 .canvas-content {
   background: white;
@@ -719,7 +720,48 @@ button {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  outline: 0 solid transparent;
+  transition: outline 0.15s ease;
 }
+
+.frame-card {
+  outline: 0 solid transparent;
+  outline-offset: 0;
+  transition: outline 0.15s ease;
+}
+.frame-card__title-row { transition: color 0.15s ease; }
+.frame-card__title-row .plus-btn { transition: background 0.15s ease; }
+.frame-card__bar { transition: background 0.15s ease, color 0.15s ease; }
+
+/* ===== Sticky selection states (applied first; hover overrides) ===== */
+.frame-card--selected { outline: 2px solid #0099ff; }
+.frame-card--selected .frame-card__title-row { color: #0099ff; }
+.frame-card--selected .plus-btn { background: #0099ff; }
+
+.frame-card--canvas-selected .canvas-content { outline: 2px solid #0099ff; }
+.frame-card--canvas-selected .frame-card__bar { background: #d3e5f1; }
+.frame-card--canvas-selected .frame-card__bar-desktop,
+.frame-card--canvas-selected .frame-card__bar-size { color: #0099ff; }
+.frame-card--canvas-selected .frame-card__bar-play { background: #0099ff; }
+
+/* ===== Frame-area hover highlight (suppressed when canvas is selected) ===== */
+.frame-card:hover:not(.frame-card--canvas-selected) { outline: 1px solid #0099ff; }
+.frame-card--selected:hover { outline: 2px solid #0099ff; }
+.frame-card:hover:not(.frame-card--canvas-selected) .frame-card__title-row { color: #0099ff; }
+.frame-card:hover:not(.frame-card--canvas-selected) .plus-btn { background: #0099ff; }
+
+/* ===== Canvas-area hover highlight (overrides frame hover) ===== */
+.frame-card:has(.canvas-content:hover):not(.frame-card--selected) { outline: 0 solid transparent; }
+.frame-card:has(.canvas-content:hover):not(.frame-card--canvas-selected) .frame-card__title-row { color: #6b6b6b; }
+.frame-card:has(.canvas-content:hover):not(.frame-card--canvas-selected) .plus-btn { background: #999999; }
+.frame-card:has(.canvas-content:hover) .canvas-content { outline: 1px solid #0099ff; }
+.frame-card--canvas-selected .canvas-content,
+.frame-card--canvas-selected:has(.canvas-content:hover) .canvas-content { outline: 2px solid #0099ff; }
+.frame-card:has(.canvas-content:hover) .frame-card__bar { background: #d3e5f1; }
+.frame-card:has(.canvas-content:hover) .frame-card__bar-desktop,
+.frame-card:has(.canvas-content:hover) .frame-card__bar-size { color: #0099ff; }
+.frame-card:has(.canvas-content:hover) .frame-card__bar-play { background: #0099ff; }
+
 
 /* ===== BottomToolbar ===== */
 .bottom-toolbar {

@@ -3,16 +3,20 @@ import type { Scene, SceneSetter } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
-const INITIAL_SCALE = 0.85;
+const INITIAL_SCALE = 0.765;
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5;
 
+type Selection = 'none' | 'frame' | 'canvas';
+
 type Props = {
   scene: Scene;
   onSceneChange: SceneSetter;
-  onCanvasClick?: () => void;
-  onSurroundClick?: () => void;
+  selection?: Selection;
+  onSelectFrame?: () => void;
+  onSelectCanvas?: () => void;
+  onDeselect?: () => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -29,7 +33,14 @@ const CHROME_DIMMED: Scene[] = [
   'demo-7-layout-panel',
 ];
 
-export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurroundClick }: Props) {
+export default function Canvas({
+  scene,
+  onSceneChange,
+  selection = 'none',
+  onSelectFrame,
+  onSelectCanvas,
+  onDeselect,
+}: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
 
@@ -97,13 +108,19 @@ export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurround
 
   const handleSurroundClick = () => {
     if (isDragging) return;
-    onSurroundClick?.();
+    onDeselect?.();
   };
 
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDragging) return;
-    onCanvasClick?.();
+    onSelectFrame?.();
+  };
+
+  const handleCanvasContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDragging) return;
+    onSelectCanvas?.();
   };
 
   return (
@@ -114,7 +131,11 @@ export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurround
       onClick={handleSurroundClick}
     >
       <div
-        className="frame-card"
+        className={
+          'frame-card' +
+          (selection === 'frame' ? ' frame-card--selected' : '') +
+          (selection === 'canvas' ? ' frame-card--canvas-selected' : '')
+        }
         style={{
           ...(chromeDimmed ? { opacity: 0.55 } : {}),
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
@@ -126,11 +147,15 @@ export default function Canvas({ scene, onSceneChange, onCanvasClick, onSurround
           <button className="plus-btn" onClick={e => e.stopPropagation()}><Plus size={12} /></button>
         </div>
         <div className="frame-card__bar">
-          <span className="frame-card__bar-play"><Play size={11} /></span>
+          <span className="frame-card__bar-play"><Play size={12} /></span>
           <span className="frame-card__bar-desktop">Desktop</span>
           <span className="frame-card__bar-size">1200</span>
         </div>
-        <div className="canvas-content" style={canvasDimmed ? { opacity: 0.55 } : undefined}>
+        <div
+          className="canvas-content"
+          style={canvasDimmed ? { opacity: 0.55 } : undefined}
+          onClick={handleCanvasContentClick}
+        >
           <CanvasContent scene={scene} onSceneChange={onSceneChange} />
         </div>
       </div>
