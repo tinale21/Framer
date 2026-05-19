@@ -1,4 +1,8 @@
-export default function GridPopout() {
+type Props = {
+  onSelectStack?: () => void;
+};
+
+export default function GridPopout({ onSelectStack }: Props) {
   return (
     <div className="popout-grid">
       <button className="popout-grid__item">
@@ -9,7 +13,7 @@ export default function GridPopout() {
         </span>
         Frame
       </button>
-      <button className="popout-grid__item">
+      <button className="popout-grid__item" onClick={onSelectStack}>
         <span className="popout-grid__item-icon">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
             <rect x="0" width="10" height="22" />

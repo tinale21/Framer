@@ -29,12 +29,22 @@ function InsertPanel({ scene, onSceneChange }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
+  const sceneRef = useRef(scene);
+  useEffect(() => { sceneRef.current = scene; }, [scene]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
 
   useEffect(() => () => {
     if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
   }, []);
+
+  // While the Stack tutorial modal is open, force the popout to stay mounted.
+  // When it closes, reset hover state so the popout doesn't linger.
+  useEffect(() => {
+    if (scene === 'stack-tutorial-modal') {
+      return () => setGridHovered(false);
+    }
+  }, [scene]);
 
   const showGridPopout = () => {
     if (hideTimerRef.current !== null) {
@@ -44,12 +54,16 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     setGridHovered(true);
   };
   const hideGridPopoutSoon = () => {
+    if (sceneRef.current === 'stack-tutorial-modal') return;
     if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => {
+      if (sceneRef.current === 'stack-tutorial-modal') return;
       setGridHovered(false);
       hideTimerRef.current = null;
     }, 120);
   };
+
+  const showGridPopup = gridHovered || scene === 'stack-tutorial-modal';
 
   useLayoutEffect(() => {
     const el = tabRefs.current[INSERT_TABS.indexOf(activeTab)];
@@ -103,9 +117,11 @@ function InsertPanel({ scene, onSceneChange }: Props) {
             <span className="insert-tile__icon"><IconGrid /></span>
             Grid
           </button>
-          {gridHovered && (
+          {showGridPopup && (
             <div onMouseEnter={showGridPopout} onMouseLeave={hideGridPopoutSoon}>
-              <GridPopout />
+              <GridPopout
+                onSelectStack={() => onSceneChange('stack-tutorial-modal')}
+              />
             </div>
           )}
         </div>

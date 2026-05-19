@@ -13,9 +13,7 @@ import type { Scene } from './types';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
-  'stack-tutorial-modal',
   'demo-1-stack-highlighted',
-  'disabled-tutorial-modal',
 ];
 
 export type CanvasSelection = 'none' | 'frame' | 'canvas';
