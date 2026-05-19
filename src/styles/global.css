@@ -1143,6 +1143,52 @@ button {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
+/* Base hover popout — each tile stacked full-width, vertical scroll */
+.popout-base-hover {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  width: 270px;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 9px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 30;
+  transform: scale(0.9);
+  transform-origin: top right;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.popout-base-hover__tile {
+  width: 100%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+.popout-base-hover__tile:hover { box-shadow: 0 0 0 2px #0099ff; }
+.popout-base-hover__tile-img {
+  position: absolute;
+  display: block;
+}
+.app--dark .popout-base-hover {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
 /* Dark mode for element popout */
 .app--dark .popout-element {
   background: #1f1f1f;

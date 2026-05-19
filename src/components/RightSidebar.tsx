@@ -8,6 +8,7 @@ import GridPopout from './GridPopout';
 import ElementPopout from './ElementPopout';
 import VectorPopout from './VectorPopout';
 import ComponentPopout from './ComponentPopout';
+import BaseHoverPopout from './BaseHoverPopout';
 
 type Props = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -34,10 +35,12 @@ function InsertPanel({ scene, onSceneChange }: Props) {
   const [elementHovered, setElementHovered] = useState(false);
   const [vectorHovered, setVectorHovered] = useState(false);
   const [componentHovered, setComponentHovered] = useState(false);
+  const [baseHoverPopoutShown, setBaseHoverPopoutShown] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
   const hideElementTimerRef = useRef<number | null>(null);
   const hideVectorTimerRef = useRef<number | null>(null);
   const hideComponentTimerRef = useRef<number | null>(null);
+  const hideBaseTimerRef = useRef<number | null>(null);
   const sceneRef = useRef(scene);
   useEffect(() => { sceneRef.current = scene; }, [scene]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -48,6 +51,7 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     if (hideElementTimerRef.current !== null) clearTimeout(hideElementTimerRef.current);
     if (hideVectorTimerRef.current !== null) clearTimeout(hideVectorTimerRef.current);
     if (hideComponentTimerRef.current !== null) clearTimeout(hideComponentTimerRef.current);
+    if (hideBaseTimerRef.current !== null) clearTimeout(hideBaseTimerRef.current);
   }, []);
 
   const showElementPopout = () => {
@@ -92,6 +96,21 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     hideComponentTimerRef.current = window.setTimeout(() => {
       setComponentHovered(false);
       hideComponentTimerRef.current = null;
+    }, 120);
+  };
+
+  const showBaseHoverPopout = () => {
+    if (hideBaseTimerRef.current !== null) {
+      clearTimeout(hideBaseTimerRef.current);
+      hideBaseTimerRef.current = null;
+    }
+    setBaseHoverPopoutShown(true);
+  };
+  const hideBaseHoverPopoutSoon = () => {
+    if (hideBaseTimerRef.current !== null) clearTimeout(hideBaseTimerRef.current);
+    hideBaseTimerRef.current = window.setTimeout(() => {
+      setBaseHoverPopoutShown(false);
+      hideBaseTimerRef.current = null;
     }, 120);
   };
 
@@ -158,13 +177,24 @@ function InsertPanel({ scene, onSceneChange }: Props) {
       <div className="section-title" style={{ marginTop: 6 }}>Insert</div>
 
       <div className="insert-list" style={tilesDimmed}>
-        <button
-          className={`insert-tile ${baseHovered ? 'insert-tile--selected' : ''}`}
-          onClick={() => { if (scene === 'base') onSceneChange('base-hover'); }}
+        <div
+          className="insert-tile-wrap"
+          onMouseEnter={showBaseHoverPopout}
+          onMouseLeave={hideBaseHoverPopoutSoon}
         >
-          <span className="insert-tile__icon"><IconBase /></span>
-          Base
-        </button>
+          <button
+            className={`insert-tile ${baseHovered ? 'insert-tile--selected' : ''}`}
+            onClick={() => { if (scene === 'base') onSceneChange('base-hover'); }}
+          >
+            <span className="insert-tile__icon"><IconBase /></span>
+            Base
+          </button>
+          {baseHoverPopoutShown && !baseHovered && (
+            <div onMouseEnter={showBaseHoverPopout} onMouseLeave={hideBaseHoverPopoutSoon}>
+              <BaseHoverPopout />
+            </div>
+          )}
+        </div>
         <div
           className="insert-tile-wrap"
           onMouseEnter={showGridPopout}
