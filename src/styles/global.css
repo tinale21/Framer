@@ -1117,7 +1117,7 @@ button {
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .stack-compare__panel {
   border-radius: 14px;
