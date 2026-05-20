@@ -114,10 +114,14 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     }, 120);
   };
 
-  // While the Stack tutorial modal is open, force the popout to stay mounted.
+  // Scenes that pin the grid popout open regardless of hover.
+  const isGridPinnedScene = (s: Scene) =>
+    s === 'stack-tutorial-modal' || s === 'demo-1-stack-highlighted';
+
+  // While a pinned scene is active, force the popout to stay mounted.
   // When it closes, reset hover state so the popout doesn't linger.
   useEffect(() => {
-    if (scene === 'stack-tutorial-modal') {
+    if (isGridPinnedScene(scene)) {
       return () => setGridHovered(false);
     }
   }, [scene]);
@@ -130,16 +134,16 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     setGridHovered(true);
   };
   const hideGridPopoutSoon = () => {
-    if (sceneRef.current === 'stack-tutorial-modal') return;
+    if (isGridPinnedScene(sceneRef.current)) return;
     if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => {
-      if (sceneRef.current === 'stack-tutorial-modal') return;
+      if (isGridPinnedScene(sceneRef.current)) return;
       setGridHovered(false);
       hideTimerRef.current = null;
     }, 120);
   };
 
-  const showGridPopup = gridHovered || scene === 'stack-tutorial-modal';
+  const showGridPopup = gridHovered || isGridPinnedScene(scene);
 
   useLayoutEffect(() => {
     const el = tabRefs.current[INSERT_TABS.indexOf(activeTab)];
@@ -206,9 +210,7 @@ function InsertPanel({ scene, onSceneChange }: Props) {
           </button>
           {showGridPopup && (
             <div onMouseEnter={showGridPopout} onMouseLeave={hideGridPopoutSoon}>
-              <GridPopout
-                onSelectStack={() => onSceneChange('stack-tutorial-modal')}
-              />
+              <GridPopout scene={scene} onSceneChange={onSceneChange} />
             </div>
           )}
         </div>

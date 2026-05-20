@@ -13,7 +13,6 @@ import type { Scene } from './types';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
-  'demo-1-stack-highlighted',
 ];
 
 export type CanvasSelection = 'none' | 'frame' | 'canvas';
@@ -30,6 +29,7 @@ export default function App() {
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   const showPopout = SHOW_POPOUT.includes(scene);
+  const showDemoTint = scene === 'demo-1-stack-highlighted' || scene === 'demo-2-cursor';
   const showStackTutorial = scene === 'stack-tutorial-modal';
   const showCompletedModal = scene === 'demo-completed-modal';
   const showDisabledModal = scene === 'disabled-tutorial-modal';
@@ -51,6 +51,7 @@ export default function App() {
         <RightSidebar scene={scene} onSceneChange={setScene} />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
+      {showDemoTint && <div className="demo-tint" />}
       {showPopout && <BasePopout scene={scene} onSceneChange={setScene} />}
       {showStackTutorial && <StackTutorialModal onSceneChange={setScene} />}
       {showCompletedModal && <StackDemoCompletedModal onSceneChange={setScene} />}

@@ -989,6 +989,123 @@ button {
 .app--dark .popout-grid__item--selected .popout-grid__item-icon { color: #ffffff; }
 .app--dark .popout-grid__item-icon { color: #a6a6a6; }
 
+/* Practice-demo state — grid popout sits above the workspace tint,
+   the Stack item is spotlighted, the rest are dimmed */
+.demo-tint {
+  position: absolute;
+  inset: 0;
+  background: rgba(140, 140, 140, 0.4);
+  z-index: 40;
+}
+.popout-grid--demo { z-index: 50; }
+/* Veil tints the whole popout; the Stack item sits above it as a spotlight */
+.popout-grid__veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(140, 140, 140, 0.4);
+  border-radius: 9px;
+  z-index: 1;
+}
+.popout-grid__item--demo-target {
+  position: relative;
+  z-index: 2;
+  background: #ffffff;
+  border-radius: 2px;
+  --demo-halo: #ffffff;
+  animation: demo-pulse 2s ease-in-out infinite;
+}
+.app--dark .popout-grid__item--demo-target {
+  background: #2a2a2a;
+  --demo-halo: #2a2a2a;
+}
+@keyframes demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 1.5px #0099ff, 0 0 0 14px var(--demo-halo); }
+  50% { box-shadow: 0 0 0 2px #0099ff, 0 0 0 14px var(--demo-halo); }
+}
+.grid-demo-callout {
+  position: absolute;
+  top: 82px;
+  right: calc(100% + 12px);
+  width: 156px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  padding: 10px 12px;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  z-index: 51;
+}
+.grid-demo-callout__bold { font-weight: 600; }
+.grid-demo-callout::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right: 0;
+  border-left-color: #ffffff;
+}
+
+/* Demo step 2 — draw the stack on the white canvas */
+.frame-card--demo { z-index: 50; }
+.canvas-content--demo {
+  cursor: url('/Framer/plus-cursor.svg') 11 11, crosshair;
+}
+/* Pulse only while the mouse is away; on hover it stops and the
+   canvas's normal hover/click state takes over. */
+.canvas-content--demo-idle:not(:hover) {
+  animation: canvas-demo-pulse 2s ease-in-out infinite;
+}
+.canvas-demo-callout {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 170px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.canvas-demo-callout::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-right: 0;
+  border-left-color: #ffffff;
+}
+@keyframes canvas-demo-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 1.5px #0099ff; }
+  50% { box-shadow: inset 0 0 0 2.5px #0099ff; }
+}
+.demo-draw-rect {
+  position: absolute;
+  border: 1px solid #0099ff;
+  background: rgba(0, 153, 255, 0.04);
+  pointer-events: none;
+}
+.demo-stack {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  border: 1px solid #0099ff;
+  pointer-events: none;
+}
+.demo-stack__col { flex: 1; }
+.demo-stack__col--blue { background: #B6E0FF; }
+.demo-stack__col--teal { background: #CDEEF3; }
+
 /* Element hover popout — uses the same frame size as the Grid popup
    but renders the Elements SVG (with embedded image previews) and
    scrolls when the SVG overflows the frame height */

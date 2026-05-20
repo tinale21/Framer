@@ -1,10 +1,26 @@
+import type { Scene, SceneSetter } from '../types';
+
 type Props = {
-  onSelectStack?: () => void;
+  scene: Scene;
+  onSceneChange: SceneSetter;
 };
 
-export default function GridPopout({ onSelectStack }: Props) {
+export default function GridPopout({ scene, onSceneChange }: Props) {
+  const demoActive = scene === 'demo-1-stack-highlighted';
+
+  const handleStackClick = () => {
+    if (demoActive) onSceneChange('demo-2-cursor');
+    else onSceneChange('stack-tutorial-modal');
+  };
+
   return (
-    <div className="popout-grid">
+    <div className={`popout-grid ${demoActive ? 'popout-grid--demo' : ''}`}>
+      {demoActive && <div className="popout-grid__veil" />}
+      {demoActive && (
+        <div className="grid-demo-callout">
+          Click the <span className="grid-demo-callout__bold">Stack</span> button to continue.
+        </div>
+      )}
       <button className="popout-grid__item">
         <span className="popout-grid__item-icon">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
@@ -13,7 +29,10 @@ export default function GridPopout({ onSelectStack }: Props) {
         </span>
         Frame
       </button>
-      <button className="popout-grid__item" onClick={onSelectStack}>
+      <button
+        className={`popout-grid__item ${demoActive ? 'popout-grid__item--demo-target' : ''}`}
+        onClick={handleStackClick}
+      >
         <span className="popout-grid__item-icon">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
             <rect x="0" width="10" height="22" />

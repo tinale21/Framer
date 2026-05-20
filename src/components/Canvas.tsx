@@ -9,6 +9,10 @@ const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5;
 
 type Selection = 'none' | 'frame' | 'canvas';
+type DemoPhase = 'idle' | 'drawing' | 'placed';
+type DemoRect = { x: number; y: number; w: number; h: number };
+
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
 type Props = {
   scene: Scene;
@@ -26,7 +30,6 @@ const CANVAS_DIMMED: Scene[] = [
 ];
 
 const CHROME_DIMMED: Scene[] = [
-  'demo-2-cursor',
   'demo-3-drawing-frame',
   'demo-4-stack-created',
   'demo-5-insert-highlighted',
@@ -43,6 +46,7 @@ export default function Canvas({
 }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
+  const demoSpotlight = scene === 'demo-2-cursor';
 
   const [offset, setOffset] = useState({ x: 0, y: INITIAL_Y });
   const [scale, setScale] = useState(INITIAL_SCALE);
@@ -51,6 +55,19 @@ export default function Canvas({
   const dragRef = useRef<
     { startMx: number; startMy: number; startOx: number; startOy: number; moved: boolean } | null
   >(null);
+
+  // Practice-demo: click-drag on the white canvas to draw a stack.
+  const [demoPhase, setDemoPhase] = useState<DemoPhase>('idle');
+  const [demoRect, setDemoRect] = useState<DemoRect>({ x: 0, y: 0, w: 0, h: 0 });
+  const demoStartRef = useRef<{ x: number; y: number } | null>(null);
+  const canvasContentRef = useRef<HTMLDivElement>(null);
+
+  // Reset the draw state when leaving the draw scene (adjust-on-render).
+  const [prevScene, setPrevScene] = useState(scene);
+  if (prevScene !== scene) {
+    setPrevScene(scene);
+    if (scene !== 'demo-2-cursor' && demoPhase !== 'idle') setDemoPhase('idle');
+  }
 
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
@@ -79,6 +96,36 @@ export default function Canvas({
     };
   }, []);
 
+  // Drag-to-draw the stack during demo-2.
+  useEffect(() => {
+    if (demoPhase !== 'drawing') return;
+    const onMove = (e: MouseEvent) => {
+      const start = demoStartRef.current;
+      const el = canvasContentRef.current;
+      if (!start || !el) return;
+      const r = el.getBoundingClientRect();
+      const x = clamp01((e.clientX - r.left) / r.width);
+      const y = clamp01((e.clientY - r.top) / r.height);
+      setDemoRect({
+        x: Math.min(start.x, x),
+        y: Math.min(start.y, y),
+        w: Math.abs(x - start.x),
+        h: Math.abs(y - start.y),
+      });
+    };
+    const onUp = () => {
+      demoStartRef.current = null;
+      setDemoRect(r => (r.w < 0.08 || r.h < 0.08 ? { x: 0.12, y: 0.12, w: 0.66, h: 0.52 } : r));
+      setDemoPhase('placed');
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [demoPhase]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -95,6 +142,8 @@ export default function Canvas({
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // The demo draw owns the interaction during demo-2; no canvas panning.
+    if (demoSpotlight) return;
     // Don't start drag from buttons (demo hints, plus btn, etc.)
     if ((e.target as HTMLElement).closest('button')) return;
     dragRef.current = {
@@ -107,20 +156,39 @@ export default function Canvas({
   };
 
   const handleSurroundClick = () => {
-    if (isDragging) return;
+    if (demoSpotlight || isDragging) return;
     onDeselect?.();
   };
 
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isDragging) return;
+    if (demoSpotlight || isDragging) return;
     onSelectFrame?.();
   };
 
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isDragging) return;
+    if (demoSpotlight || isDragging) return;
     onSelectCanvas?.();
+  };
+
+  const handleDemoMouseDown = (e: React.MouseEvent) => {
+    if (demoPhase === 'placed') return;
+    const el = canvasContentRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = clamp01((e.clientX - r.left) / r.width);
+    const y = clamp01((e.clientY - r.top) / r.height);
+    demoStartRef.current = { x, y };
+    setDemoRect({ x, y, w: 0, h: 0 });
+    setDemoPhase('drawing');
+  };
+
+  const demoBoxStyle = {
+    left: `${demoRect.x * 100}%`,
+    top: `${demoRect.y * 100}%`,
+    width: `${demoRect.w * 100}%`,
+    height: `${demoRect.h * 100}%`,
   };
 
   return (
@@ -134,7 +202,8 @@ export default function Canvas({
         className={
           'frame-card' +
           (selection === 'frame' ? ' frame-card--selected' : '') +
-          (selection === 'canvas' ? ' frame-card--canvas-selected' : '')
+          (selection === 'canvas' ? ' frame-card--canvas-selected' : '') +
+          (demoSpotlight ? ' frame-card--demo' : '')
         }
         style={{
           ...(chromeDimmed ? { opacity: 0.55 } : {}),
@@ -142,6 +211,9 @@ export default function Canvas({
         }}
         onClick={handleFrameClick}
       >
+        {demoSpotlight && demoPhase === 'idle' && (
+          <div className="canvas-demo-callout">Click and drag to make a stack.</div>
+        )}
         <div className="frame-card__title-row">
           <span>Home</span>
           <button className="plus-btn" onClick={e => e.stopPropagation()}><Plus size={12} /></button>
@@ -152,11 +224,29 @@ export default function Canvas({
           <span className="frame-card__bar-size">1200</span>
         </div>
         <div
-          className="canvas-content"
+          ref={canvasContentRef}
+          className={
+            'canvas-content' +
+            (demoSpotlight ? ' canvas-content--demo' : '') +
+            (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '')
+          }
           style={canvasDimmed ? { opacity: 0.55 } : undefined}
           onClick={handleCanvasContentClick}
+          onMouseDown={demoSpotlight ? handleDemoMouseDown : undefined}
         >
-          <CanvasContent scene={scene} onSceneChange={onSceneChange} />
+          {demoSpotlight ? (
+            <>
+              {demoPhase === 'drawing' && <div className="demo-draw-rect" style={demoBoxStyle} />}
+              {demoPhase === 'placed' && (
+                <div className="demo-stack" style={demoBoxStyle}>
+                  <div className="demo-stack__col demo-stack__col--blue" />
+                  <div className="demo-stack__col demo-stack__col--teal" />
+                </div>
+              )}
+            </>
+          ) : (
+            <CanvasContent scene={scene} onSceneChange={onSceneChange} />
+          )}
         </div>
       </div>
     </main>
@@ -165,21 +255,6 @@ export default function Canvas({
 
 function CanvasContent({ scene, onSceneChange }: ContentProps) {
   switch (scene) {
-    case 'demo-2-cursor':
-      return (
-        <>
-          <div className="canvas-cursor">
-            <Cursor size={20} />
-            <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
-          </div>
-          <button
-            className="demo-hint"
-            style={{ top: '35%', left: '20%', width: '60%', height: '40%' }}
-            onClick={() => onSceneChange('demo-3-drawing-frame')}
-          />
-        </>
-      );
-
     case 'demo-3-drawing-frame':
       return (
         <>
