@@ -1,4 +1,7 @@
-type Props = { onSelect: (id: string) => void };
+type Props = {
+  onSelect: (id: string) => void;
+  onRequestImageUpload: () => void;
+};
 
 const SVG_W = 229;
 const SVG_H = 715;
@@ -14,7 +17,7 @@ const SECTIONS: Section[] = [
     yStart: 39,
     height: 110.859,
     tiles: [
-      { id: 'gif', x: 0, y: 39, w: 110, h: 110.859 },
+      { id: 'image', x: 0, y: 39, w: 110, h: 110.859 },
       { id: 'gif', x: 118, y: 39, w: 110, h: 110.859 },
     ],
   },
@@ -40,7 +43,14 @@ const SECTIONS: Section[] = [
   },
 ];
 
-export default function ElementPopout({ onSelect }: Props) {
+export default function ElementPopout({ onSelect, onRequestImageUpload }: Props) {
+  // The "Image" tile opens the OS file picker (handled by App, which stays
+  // mounted while the dialog is open); every other tile picks a bundled element.
+  const handleZone = (id: string) => {
+    if (id === 'image') onRequestImageUpload();
+    else onSelect(id);
+  };
+
   return (
     <div className="popout-element">
       {SECTIONS.map(section => (
@@ -62,7 +72,7 @@ export default function ElementPopout({ onSelect }: Props) {
                 key={i}
                 className="popout-element__zone"
                 aria-label={t.id}
-                onClick={() => onSelect(t.id)}
+                onClick={() => handleZone(t.id)}
                 style={{
                   left: `${t.x * SCALE}px`,
                   top: `${(t.y - section.yStart) * SCALE}px`,

@@ -13,7 +13,8 @@ import BaseHoverPopout from './BaseHoverPopout';
 type Props = {
   scene: Scene;
   onSceneChange: SceneSetter;
-  onPickElement: (id: string) => void;
+  onPickElement: (id: string, src?: string) => void;
+  onRequestImageUpload: () => void;
 };
 
 const PROPS_PANEL_SCENES: Scene[] = [
@@ -26,14 +27,21 @@ const PROPS_PANEL_SCENES: Scene[] = [
 const INSERT_TABS = ['Design', 'Prototype'] as const;
 type InsertTab = typeof INSERT_TABS[number];
 
-export default function RightSidebar({ scene, onSceneChange, onPickElement }: Props) {
+export default function RightSidebar({ scene, onSceneChange, onPickElement, onRequestImageUpload }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
     return <PropsPanel scene={scene} />;
   }
-  return <InsertPanel scene={scene} onSceneChange={onSceneChange} onPickElement={onPickElement} />;
+  return (
+    <InsertPanel
+      scene={scene}
+      onSceneChange={onSceneChange}
+      onPickElement={onPickElement}
+      onRequestImageUpload={onRequestImageUpload}
+    />
+  );
 }
 
-function InsertPanel({ scene, onSceneChange, onPickElement }: Props) {
+function InsertPanel({ scene, onSceneChange, onPickElement, onRequestImageUpload }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const [elementHovered, setElementHovered] = useState(false);
@@ -251,7 +259,7 @@ function InsertPanel({ scene, onSceneChange, onPickElement }: Props) {
           </button>
           {elementHovered && (
             <div onMouseEnter={showElementPopout} onMouseLeave={hideElementPopoutSoon}>
-              <ElementPopout onSelect={onPickElement} />
+              <ElementPopout onSelect={onPickElement} onRequestImageUpload={onRequestImageUpload} />
             </div>
           )}
         </div>

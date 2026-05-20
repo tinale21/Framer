@@ -281,7 +281,7 @@ export default function Canvas({
         {stackEls.map(el => (
           <img
             key={el.key}
-            src={elemSrc(el.id)}
+            src={el.src ?? elemSrc(el.id)}
             alt=""
             className={
               'demo-stack__element' +
@@ -371,7 +371,7 @@ export default function Canvas({
           {calloutEl === el.key && (
             <div className="demo-element__callout">Drag this into the stack.</div>
           )}
-          <img src={elemSrc(el.id)} alt="" className="demo-element__img" />
+          <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
         </div>
       ))}
     </main>

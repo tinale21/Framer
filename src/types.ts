@@ -19,11 +19,13 @@ export type Scene =
 export type SceneSetter = (scene: Scene) => void;
 
 // A demo element instance: a unique key, the element type, a free
-// position, and whether it's been dropped into the stack.
+// position, and whether it's been dropped into the stack. `src` holds a
+// user-uploaded image's data URL (set when the element is a picked file).
 export type DemoEl = {
   key: number;
   id: string;
   x: number;
   y: number;
   inStack: boolean;
+  src?: string;
 };
