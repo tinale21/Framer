@@ -10,7 +10,11 @@ import VectorPopout from './VectorPopout';
 import ComponentPopout from './ComponentPopout';
 import BaseHoverPopout from './BaseHoverPopout';
 
-type Props = { scene: Scene; onSceneChange: SceneSetter };
+type Props = {
+  scene: Scene;
+  onSceneChange: SceneSetter;
+  onPickElement: (id: string) => void;
+};
 
 const PROPS_PANEL_SCENES: Scene[] = [
   'demo-7-layout-panel',
@@ -22,14 +26,14 @@ const PROPS_PANEL_SCENES: Scene[] = [
 const INSERT_TABS = ['Design', 'Prototype'] as const;
 type InsertTab = typeof INSERT_TABS[number];
 
-export default function RightSidebar({ scene, onSceneChange }: Props) {
+export default function RightSidebar({ scene, onSceneChange, onPickElement }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
     return <PropsPanel scene={scene} />;
   }
-  return <InsertPanel scene={scene} onSceneChange={onSceneChange} />;
+  return <InsertPanel scene={scene} onSceneChange={onSceneChange} onPickElement={onPickElement} />;
 }
 
-function InsertPanel({ scene, onSceneChange }: Props) {
+function InsertPanel({ scene, onSceneChange, onPickElement }: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const [elementHovered, setElementHovered] = useState(false);
@@ -247,7 +251,7 @@ function InsertPanel({ scene, onSceneChange }: Props) {
           </button>
           {elementHovered && (
             <div onMouseEnter={showElementPopout} onMouseLeave={hideElementPopoutSoon}>
-              <ElementPopout />
+              <ElementPopout onSelect={onPickElement} />
             </div>
           )}
         </div>

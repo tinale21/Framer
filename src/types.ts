@@ -7,6 +7,7 @@ export type Scene =
   | 'demo-3-drawing-frame'
   | 'demo-4-stack-created'
   | 'demo-5-insert-highlighted'
+  | 'demo-6-place-element'
   | 'demo-6-rect-with-text'
   | 'demo-7-layout-panel'
   | 'demo-8-restacked'

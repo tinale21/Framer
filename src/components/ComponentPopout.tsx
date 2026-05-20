@@ -8,8 +8,8 @@ const CROP_H = 46;
 const VISIBLE_W = 238; // full popup inner so pill spans like grid pills
 const SCALE = VISIBLE_W / CROP_W;
 
-// One pill at native y=24, h=26
-const PILL = { y: 24, h: 26 };
+// The pill rect in the SVG (native coords)
+const PILL = { x: 14, y: 24, w: 125, h: 26 };
 
 export default function ComponentPopout() {
   return (
@@ -33,9 +33,9 @@ export default function ComponentPopout() {
           className="popout-component__zone"
           aria-label="Component option"
           style={{
-            left: 0,
+            left: `${(PILL.x - CROP_X) * SCALE}px`,
             top: `${(PILL.y - CROP_Y) * SCALE}px`,
-            width: `${VISIBLE_W}px`,
+            width: `${PILL.w * SCALE}px`,
             height: `${PILL.h * SCALE}px`,
           }}
         />

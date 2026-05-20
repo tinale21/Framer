@@ -1153,9 +1153,68 @@ button {
   border: 1px solid #0099ff;
   pointer-events: none;
 }
-.demo-stack__col { flex: 1; }
+.demo-stack__col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  min-width: 0;
+}
 .demo-stack__col--blue { background: #B6E0FF; }
 .demo-stack__col--teal { background: #CDEEF3; }
+.demo-stack__element {
+  width: 78%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+/* demo-6: the element waiting outside the canvas, draggable into the stack */
+.demo-element {
+  position: absolute;
+  z-index: 30;
+  width: 150px;
+  cursor: grab;
+}
+.demo-element--dragging { cursor: grabbing; }
+.demo-element__img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+.demo-element__callout {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.demo-element__callout::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-bottom: 0;
+  border-top-color: #ffffff;
+}
 
 /* Element hover popout — uses the same frame size as the Grid popup
    but renders the Elements SVG (with embedded image previews) and

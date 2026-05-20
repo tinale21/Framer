@@ -1,16 +1,21 @@
+type Props = { onSelect: (id: string) => void };
+
 const SVG_W = 229;
 const SVG_H = 715;
 const INNER_W = 238; // popout width 270 - 16 padding * 2
 const SCALE = INNER_W / SVG_W;
 
-const SECTIONS = [
+type Tile = { id: string; x: number; y: number; w: number; h: number };
+type Section = { name: string; yStart: number; height: number; tiles: Tile[] };
+
+const SECTIONS: Section[] = [
   {
     name: 'Image',
     yStart: 39,
     height: 110.859,
     tiles: [
-      { x: 0, y: 39, w: 110, h: 110.859 },
-      { x: 118, y: 39, w: 110, h: 110.859 },
+      { id: 'gif', x: 0, y: 39, w: 110, h: 110.859 },
+      { id: 'gif', x: 118, y: 39, w: 110, h: 110.859 },
     ],
   },
   {
@@ -18,9 +23,9 @@ const SECTIONS = [
     yStart: 209,
     height: 230,
     tiles: [
-      { x: 0, y: 209, w: 111, h: 111 },
-      { x: 118, y: 209, w: 111, h: 111 },
-      { x: 0, y: 328, w: 111, h: 111 },
+      { id: 'video', x: 0, y: 209, w: 111, h: 111 },
+      { id: 'youtube', x: 118, y: 209, w: 111, h: 111 },
+      { id: 'vimeo', x: 0, y: 328, w: 111, h: 111 },
     ],
   },
   {
@@ -28,14 +33,14 @@ const SECTIONS = [
     yStart: 485,
     height: 230,
     tiles: [
-      { x: 0, y: 485, w: 110, h: 110.859 },
-      { x: 118, y: 485, w: 110, h: 110.859 },
-      { x: 0, y: 604, w: 111, h: 111 },
+      { id: 'spotify', x: 0, y: 485, w: 110, h: 110.859 },
+      { id: 'applemusic', x: 118, y: 485, w: 110, h: 110.859 },
+      { id: 'mp3', x: 0, y: 604, w: 111, h: 111 },
     ],
   },
 ];
 
-export default function ElementPopout() {
+export default function ElementPopout({ onSelect }: Props) {
   return (
     <div className="popout-element">
       {SECTIONS.map(section => (
@@ -52,13 +57,14 @@ export default function ElementPopout() {
                 height: `${SVG_H * SCALE}px`,
               }}
             />
-            {section.tiles.map((t, tIdx) => (
+            {section.tiles.map((t, i) => (
               <button
-                key={tIdx}
+                key={i}
                 className="popout-element__zone"
-                aria-label={`${section.name} ${tIdx + 1}`}
+                aria-label={t.id}
+                onClick={() => onSelect(t.id)}
                 style={{
-                  left: `${(t.x - 0) * SCALE}px`,
+                  left: `${t.x * SCALE}px`,
                   top: `${(t.y - section.yStart) * SCALE}px`,
                   width: `${t.w * SCALE}px`,
                   height: `${t.h * SCALE}px`,

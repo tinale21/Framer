@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import TopBar from './components/TopBar';
 import LeftSidebar from './components/LeftSidebar';
 import Canvas from './components/Canvas';
@@ -21,6 +21,17 @@ export default function App() {
   const [scene, setScene] = useState<Scene>('base');
   const [selection, setSelection] = useState<CanvasSelection>('none');
   const [darkMode, setDarkMode] = useState(false);
+  const [pendingElement, setPendingElement] = useState<string | null>(null);
+  const [placedElements, setPlacedElements] = useState<string[]>([]);
+
+  const pickElement = (id: string) => {
+    setPendingElement(id);
+    setScene('demo-6-place-element');
+  };
+  const placeElement = useCallback((id: string) => {
+    setPlacedElements(prev => [...prev, id]);
+    setPendingElement(null);
+  }, []);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
   const selectFrame = () => setSelection('frame');
@@ -50,8 +61,11 @@ export default function App() {
           onSelectFrame={selectFrame}
           onSelectCanvas={selectCanvas}
           onDeselect={deselect}
+          pendingElement={pendingElement}
+          placedElements={placedElements}
+          onPlaceElement={placeElement}
         />
-        <RightSidebar scene={scene} onSceneChange={setScene} />
+        <RightSidebar scene={scene} onSceneChange={setScene} onPickElement={pickElement} />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
       {showDemoTint && <div className="demo-tint" />}

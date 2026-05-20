@@ -13,6 +13,7 @@ type DemoPhase = 'idle' | 'drawing' | 'placed';
 type DemoRect = { x: number; y: number; w: number; h: number };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const ELEMENT_START = { x: 24, y: 360 };
 
 type Props = {
   scene: Scene;
@@ -21,6 +22,9 @@ type Props = {
   onSelectFrame?: () => void;
   onSelectCanvas?: () => void;
   onDeselect?: () => void;
+  pendingElement?: string | null;
+  placedElements?: string[];
+  onPlaceElement?: (id: string) => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -41,10 +45,14 @@ export default function Canvas({
   onSelectFrame,
   onSelectCanvas,
   onDeselect,
+  pendingElement = null,
+  placedElements = [],
+  onPlaceElement,
 }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
   const demoSpotlight = scene === 'demo-2-cursor';
+  const demo6 = scene === 'demo-6-place-element';
 
   const [offset, setOffset] = useState({ x: 0, y: INITIAL_Y });
   const [scale, setScale] = useState(INITIAL_SCALE);
@@ -60,11 +68,24 @@ export default function Canvas({
   const demoStartRef = useRef<{ x: number; y: number } | null>(null);
   const canvasContentRef = useRef<HTMLDivElement>(null);
 
-  // Reset the draw state when leaving the draw scene (adjust-on-render).
+  // demo-6: drag the pending element from outside the canvas into the stack.
+  const [elementPos, setElementPos] = useState<{ x: number; y: number } | null>(null);
+  const [elementDragging, setElementDragging] = useState(false);
+  const elementGrabRef = useRef<{ dx: number; dy: number } | null>(null);
+  const elementRef = useRef<HTMLDivElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
+
+  // Reset transient demo state on scene / pending-element change (adjust-on-render).
   const [prevScene, setPrevScene] = useState(scene);
   if (prevScene !== scene) {
     setPrevScene(scene);
     if (scene !== 'demo-2-cursor' && demoPhase !== 'idle') setDemoPhase('idle');
+  }
+  // A freshly-picked element starts back at the default outside position.
+  const [prevPending, setPrevPending] = useState(pendingElement);
+  if (prevPending !== pendingElement) {
+    setPrevPending(pendingElement);
+    if (elementPos !== null) setElementPos(null);
   }
 
   useEffect(() => {
@@ -131,6 +152,39 @@ export default function Canvas({
     return () => clearTimeout(t);
   }, [demoPhase, onSceneChange]);
 
+  // demo-6: drag the element; on release over the stack, place it.
+  useEffect(() => {
+    if (!elementDragging) return;
+    const onMove = (e: MouseEvent) => {
+      const grab = elementGrabRef.current;
+      const wrap = wrapRef.current;
+      if (!grab || !wrap) return;
+      const wr = wrap.getBoundingClientRect();
+      setElementPos({ x: e.clientX - grab.dx - wr.left, y: e.clientY - grab.dy - wr.top });
+    };
+    const onUp = () => {
+      setElementDragging(false);
+      elementGrabRef.current = null;
+      const el = elementRef.current;
+      const stack = stackRef.current;
+      if (el && stack && pendingElement && onPlaceElement) {
+        const er = el.getBoundingClientRect();
+        const sr = stack.getBoundingClientRect();
+        const cx = er.left + er.width / 2;
+        const cy = er.top + er.height / 2;
+        if (cx >= sr.left && cx <= sr.right && cy >= sr.top && cy <= sr.bottom) {
+          onPlaceElement(pendingElement);
+        }
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [elementDragging, pendingElement, onPlaceElement]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -147,9 +201,8 @@ export default function Canvas({
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // The demo draw owns the interaction during demo-2; no canvas panning.
-    if (demoSpotlight) return;
-    // Don't start drag from buttons (demo hints, plus btn, etc.)
+    // Demo interactions own the pointer during their scenes; no canvas panning.
+    if (demoSpotlight || demo6) return;
     if ((e.target as HTMLElement).closest('button')) return;
     dragRef.current = {
       startMx: e.clientX,
@@ -161,19 +214,19 @@ export default function Canvas({
   };
 
   const handleSurroundClick = () => {
-    if (demoSpotlight || isDragging) return;
+    if (demoSpotlight || demo6 || isDragging) return;
     onDeselect?.();
   };
 
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (demoSpotlight || isDragging) return;
+    if (demoSpotlight || demo6 || isDragging) return;
     onSelectFrame?.();
   };
 
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (demoSpotlight || isDragging) return;
+    if (demoSpotlight || demo6 || isDragging) return;
     onSelectCanvas?.();
   };
 
@@ -189,20 +242,40 @@ export default function Canvas({
     setDemoPhase('drawing');
   };
 
+  const handleElementMouseDown = (e: React.MouseEvent) => {
+    const el = elementRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    elementGrabRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    setElementDragging(true);
+  };
+
   const demoBoxStyle = {
     left: `${demoRect.x * 100}%`,
     top: `${demoRect.y * 100}%`,
     width: `${demoRect.w * 100}%`,
     height: `${demoRect.h * 100}%`,
   };
+  const pendingSrc = pendingElement ? `${import.meta.env.BASE_URL}elem-${pendingElement}.svg` : '';
   const userStack = (
-    <div className="demo-stack" style={demoBoxStyle}>
-      <div className="demo-stack__col demo-stack__col--blue" />
+    <div className="demo-stack" style={demoBoxStyle} ref={stackRef}>
+      <div className="demo-stack__col demo-stack__col--blue">
+        {placedElements.map((id, i) => (
+          <img
+            key={i}
+            src={`${import.meta.env.BASE_URL}elem-${id}.svg`}
+            alt=""
+            className="demo-stack__element"
+          />
+        ))}
+      </div>
       <div className="demo-stack__col demo-stack__col--teal" />
     </div>
   );
   // After the draw, keep the stack exactly where the user placed it.
-  const keepUserStack = scene === 'demo-5-insert-highlighted' && demoRect.w > 0;
+  const keepUserStack =
+    (scene === 'demo-5-insert-highlighted' || demo6) && demoRect.w > 0;
+  const elPos = elementPos ?? ELEMENT_START;
 
   return (
     <main
@@ -225,7 +298,9 @@ export default function Canvas({
         onClick={handleFrameClick}
       >
         {demoSpotlight && demoPhase === 'idle' && (
-          <div className="canvas-demo-callout">Click and drag to make a stack.</div>
+          <div className="canvas-demo-callout">
+            Click and drag to make a stack.
+          </div>
         )}
         <div className="frame-card__title-row">
           <span>Home</span>
@@ -259,6 +334,18 @@ export default function Canvas({
           )}
         </div>
       </div>
+
+      {demo6 && pendingElement && pendingSrc && (
+        <div
+          ref={elementRef}
+          className={'demo-element' + (elementDragging ? ' demo-element--dragging' : '')}
+          style={{ left: `${elPos.x}px`, top: `${elPos.y}px` }}
+          onMouseDown={handleElementMouseDown}
+        >
+          <div className="demo-element__callout">Drag this into the stack.</div>
+          <img src={pendingSrc} alt="" className="demo-element__img" />
+        </div>
+      )}
     </main>
   );
 }
