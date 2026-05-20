@@ -9,6 +9,7 @@ export type Scene =
   | 'demo-5-insert-highlighted'
   | 'demo-6-place-element'
   | 'demo-6-rect-with-text'
+  | 'demo-7-layout-prompt'
   | 'demo-7-layout-panel'
   | 'demo-8-restacked'
   | 'demo-completed-modal'

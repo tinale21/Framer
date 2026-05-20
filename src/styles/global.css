@@ -231,13 +231,15 @@ button {
 .tab {
   font-size: 13px;
   font-weight: 500;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: #7f7f7f;
   cursor: pointer;
 }
 .tab--active {
-  background: var(--bg-pill-selected);
+  background: #f5f5f5;
+  color: #191919;
+  font-weight: 600;
 }
 
 .segmented {
@@ -482,8 +484,8 @@ button {
   min-width: 0;
   overflow: visible;
 }
-.right-sidebar__header { display: flex; gap: 4px; padding: 0 4px; align-items: center; justify-content: space-between; }
-.right-sidebar__header-left { display: flex; gap: 4px; }
+.right-sidebar__header { display: flex; gap: 4px; padding: 0; align-items: center; justify-content: space-between; }
+.right-sidebar__header-left { display: flex; gap: 8px; }
 
 .pill-tabs {
   display: flex;
@@ -548,10 +550,10 @@ button {
   flex-direction: column;
   gap: 14px;
   background: #ffffff;
-  padding: 14px;
-  /* cancel the padding so the highlight card grows outward without
-     resizing or shifting the tiles inside it */
-  margin: -14px;
+  /* extra room at the bottom; cancel the padding with margin so the highlight
+     card grows outward without resizing or shifting the tiles inside it */
+  padding: 14px 14px 17px;
+  margin: -14px -14px -17px;
   border-radius: 11px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
   position: relative;
@@ -657,9 +659,9 @@ button {
   flex-direction: column;
   gap: 12px;
 }
-.props-section { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
-.props-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-primary); }
-.props-row--sub { padding-left: 14px; color: var(--text-secondary); }
+.props-section { display: flex; flex-direction: column; gap: 14px; padding: 0; }
+.props-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.props-row--sub { padding-left: 16px; font-weight: 500; color: var(--text-secondary); }
 .props-row--muted { color: var(--text-tertiary); }
 .props-row--plus::after { content: "+"; color: var(--text-tertiary); }
 .props-section-title { font-weight: 600; font-size: 13px; padding: 0 4px; }
@@ -689,9 +691,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px;
+  padding: 0;
 }
-.shape-header__title { font-weight: 700; font-size: 14px; }
+.shape-header__title { font-weight: 600; font-size: 15px; }
 .shape-header__icon { color: #4a4a4a; }
 .layout-popout {
   background: white;
@@ -703,6 +705,47 @@ button {
   gap: 8px;
 }
 .layout-popout__title { font-weight: 600; font-size: 13px; }
+
+/* demo-7: spotlight the props panel above the demo tint + highlight Layout */
+.right-sidebar--demo { position: relative; z-index: 50; }
+.props-layout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.props-layout--demo {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.props-layout__title--clickable { cursor: pointer; }
+.props-layout__callout {
+  position: absolute;
+  right: calc(100% + 18px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 178px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.props-layout__callout::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-right: 0;
+  border-left-color: #ffffff;
+}
 
 /* ===== Canvas ===== */
 .canvas-wrap {
@@ -1161,6 +1204,39 @@ button {
   border: 1px solid #0099ff;
   pointer-events: none;
 }
+/* demo-6: once 2+ items are placed, the stack is clickable to open its layout */
+.demo-stack--clickable { pointer-events: auto; cursor: pointer; }
+/* let the stack callout escape the canvas clip so it isn't cut off */
+.canvas-wrap--callout-room,
+.canvas-content--callout-room { overflow: visible; }
+.demo-stack__callout {
+  position: absolute;
+  left: calc(100% + 16px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 168px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.demo-stack__callout::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -7px;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-left: 0;
+  border-right-color: #ffffff;
+}
 .demo-stack__col {
   flex: 1;
   display: flex;
@@ -1364,6 +1440,8 @@ button {
   position: absolute;
   left: 0;
   display: block;
+  width: 100%;
+  height: auto;
 }
 .popout-element__zone {
   position: absolute;

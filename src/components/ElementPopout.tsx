@@ -4,9 +4,6 @@ type Props = {
 };
 
 const SVG_W = 229;
-const SVG_H = 715;
-const INNER_W = 238; // popout width 270 - 16 padding * 2
-const SCALE = INNER_W / SVG_W;
 
 type Tile = { id: string; x: number; y: number; w: number; h: number };
 type Section = { name: string; yStart: number; height: number; tiles: Tile[] };
@@ -56,16 +53,15 @@ export default function ElementPopout({ onSelect, onRequestImageUpload }: Props)
       {SECTIONS.map(section => (
         <div key={section.name} className="popout-element__section">
           <div className="popout-element__label">{section.name}</div>
-          <div className="popout-element__strip" style={{ height: `${section.height * SCALE}px` }}>
+          <div
+            className="popout-element__strip"
+            style={{ aspectRatio: `${SVG_W} / ${section.height}` }}
+          >
             <img
               src={`${import.meta.env.BASE_URL}elements-popup.svg`}
               alt=""
               className="popout-element__strip-img"
-              style={{
-                top: `${-section.yStart * SCALE}px`,
-                width: `${INNER_W}px`,
-                height: `${SVG_H * SCALE}px`,
-              }}
+              style={{ top: `${(-section.yStart / section.height) * 100}%` }}
             />
             {section.tiles.map((t, i) => (
               <button
@@ -74,10 +70,10 @@ export default function ElementPopout({ onSelect, onRequestImageUpload }: Props)
                 aria-label={t.id}
                 onClick={() => handleZone(t.id)}
                 style={{
-                  left: `${t.x * SCALE}px`,
-                  top: `${(t.y - section.yStart) * SCALE}px`,
-                  width: `${t.w * SCALE}px`,
-                  height: `${t.h * SCALE}px`,
+                  left: `${(t.x / SVG_W) * 100}%`,
+                  top: `${((t.y - section.yStart) / section.height) * 100}%`,
+                  width: `${(t.w / SVG_W) * 100}%`,
+                  height: `${(t.h / section.height) * 100}%`,
                 }}
               />
             ))}

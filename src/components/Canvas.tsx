@@ -439,8 +439,18 @@ export default function Canvas({
   // placeholder that keeps its slot), so it never remounts mid-drag.
   const freeEls = demoElements.filter(el => !el.inStack || el.key === draggingKey);
   const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
+  // demo-6: once 2+ items are in the stack, prompt the user to click it.
+  const stackReady = demo6 && stackEls.length + stackTexts.length >= 2;
   const userStack = (
-    <div className="demo-stack" style={demoBoxStyle} ref={stackRef}>
+    <div
+      className={'demo-stack' + (stackReady ? ' demo-stack--clickable' : '')}
+      style={demoBoxStyle}
+      ref={stackRef}
+      onClick={stackReady ? () => onSceneChange('demo-7-layout-prompt') : undefined}
+    >
+      {stackReady && (
+        <div className="demo-stack__callout">Click the stack to change its layout.</div>
+      )}
       <div className="demo-stack__col demo-stack__col--blue">
         {stackEls.map(el => (
           <img
@@ -474,9 +484,12 @@ export default function Canvas({
       <div className="demo-stack__col demo-stack__col--teal" />
     </div>
   );
-  // After the draw, keep the stack exactly where the user placed it.
+  // After the draw, keep the stack exactly where the user placed it —
+  // through the Insert step, placement, and the layout-panel steps.
   const keepUserStack =
-    (scene === 'demo-5-insert-highlighted' || demo6) && demoRect.w > 0;
+    (scene === 'demo-5-insert-highlighted' || demo6 ||
+      scene === 'demo-7-layout-prompt' || scene === 'demo-7-layout-panel') &&
+    demoRect.w > 0;
 
   return (
     <main
@@ -484,7 +497,8 @@ export default function Canvas({
       className={
         'canvas-wrap' +
         (isDragging ? ' canvas-wrap--dragging' : '') +
-        (textMode ? ' canvas-wrap--text' : '')
+        (textMode ? ' canvas-wrap--text' : '') +
+        (stackReady ? ' canvas-wrap--callout-room' : '')
       }
       onMouseDown={handleMouseDown}
       onClick={handleSurroundClick}
@@ -524,7 +538,8 @@ export default function Canvas({
             'canvas-content' +
             (demoSpotlight ? ' canvas-content--demo' : '') +
             (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
-            (dropOutline === 'content' ? ' canvas-content--drop' : '')
+            (dropOutline === 'content' ? ' canvas-content--drop' : '') +
+            (stackReady ? ' canvas-content--callout-room' : '')
           }
           style={canvasDimmed ? { opacity: 0.55 } : undefined}
           onClick={handleCanvasContentClick}

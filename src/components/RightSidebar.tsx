@@ -20,6 +20,7 @@ type Props = {
 };
 
 const PROPS_PANEL_SCENES: Scene[] = [
+  'demo-7-layout-prompt',
   'demo-7-layout-panel',
   'demo-8-restacked',
   'demo-completed-modal',
@@ -33,7 +34,7 @@ export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
 }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
-    return <PropsPanel scene={scene} />;
+    return <PropsPanel scene={scene} onSceneChange={onSceneChange} />;
   }
   return (
     <InsertPanel
@@ -305,25 +306,27 @@ function InsertPanel({
   );
 }
 
-function PropsPanel({ scene }: { scene: Scene }) {
+function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: SceneSetter }) {
   const layoutOpen = scene === 'demo-7-layout-panel';
+  const promptLayout = scene === 'demo-7-layout-prompt';
+  const demoLayout = promptLayout || layoutOpen;
   return (
-    <aside className="right-sidebar">
+    <aside className={'right-sidebar' + (demoLayout ? ' right-sidebar--demo' : '')}>
       <div className="right-sidebar__header">
         <div className="right-sidebar__header-left">
           <span className="tab tab--active">Design</span>
-          <span className="tab">Interaction</span>
+          <span className="tab">Prototype</span>
         </div>
       </div>
 
       <div className="shape-header">
-        <span className="shape-header__title">Shape</span>
+        <span className="shape-header__title">Image</span>
         <span className="shape-header__icon"><Diamond /></span>
       </div>
 
       <div className="props-section">
         <div className="props-section-title" style={{ padding: 0 }}>Positioning</div>
-        <div className="props-row props-row--sub" style={{ paddingLeft: 0 }}>Alignment</div>
+        <div className="props-row">Alignment</div>
         <div className="alignment-group">
           <div className="alignment-group__cluster">
             <span className="alignment-icon"><AlignTop /></span>
@@ -336,38 +339,45 @@ function PropsPanel({ scene }: { scene: Scene }) {
             <span className="alignment-icon"><AlignRight /></span>
           </div>
         </div>
-        <div className="props-row props-row--sub" style={{ paddingLeft: 0 }}>Rotation</div>
+        <div className="props-row">Rotation</div>
       </div>
 
-      {layoutOpen ? (
-        <div className="layout-popout" style={{ marginTop: 4 }}>
-          <div className="layout-popout__title">Layout</div>
-          <div className="props-row props-row--sub props-row--muted">Type</div>
-          <div className="props-row props-row--sub props-row--muted">Direction</div>
-          <div className="props-row props-row--sub props-row--muted">Distribute</div>
-          <div className="props-row props-row--sub props-row--muted">Align</div>
-          <div className="props-row props-row--sub props-row--muted">Wrap</div>
-          <div className="props-row props-row--sub props-row--muted">Gap</div>
-          <div className="props-row props-row--sub props-row--muted">Padding</div>
-        </div>
-      ) : (
-        <div className="props-section">
-          <div className="props-section-title" style={{ padding: 0 }}>Layout</div>
-          <div className="props-row props-row--sub">Type</div>
-          <div className="props-row props-row--sub">Direction</div>
-          <div className="props-row props-row--sub">Distribute</div>
-          <div className="props-row props-row--sub">Align</div>
-          <div className="props-row props-row--sub">Wrap</div>
-          <div className="props-row props-row--sub">Gap</div>
-          <div className="props-row props-row--sub">Padding</div>
-        </div>
-      )}
+      <div className="divider" />
 
       <div className="props-section">
+        <div className={'props-layout' + (demoLayout ? ' props-layout--demo' : '')}>
+          <div
+            className={'props-section-title' + (promptLayout ? ' props-layout__title--clickable' : '')}
+            style={{ padding: 0 }}
+            onClick={promptLayout ? () => onSceneChange('demo-7-layout-panel') : undefined}
+          >
+            Layout
+          </div>
+          {layoutOpen && (
+            <>
+              <div className="props-row props-row--sub props-row--muted">Type</div>
+              <div className="props-row props-row--sub props-row--muted">Direction</div>
+              <div className="props-row props-row--sub props-row--muted">Distribute</div>
+              <div className="props-row props-row--sub props-row--muted">Align</div>
+              <div className="props-row props-row--sub props-row--muted">Wrap</div>
+              <div className="props-row props-row--sub props-row--muted">Gap</div>
+              <div className="props-row props-row--sub props-row--muted">Padding</div>
+            </>
+          )}
+          {demoLayout && (
+            <div className="props-layout__callout">
+              {promptLayout
+                ? 'Click “Layout” to change the stack’s layout.'
+                : 'These are the stack’s layout options.'}
+            </div>
+          )}
+        </div>
         <div className="props-row">Size</div>
         <div className="props-row">Stack</div>
         <div className="props-row">Gaps/Padding</div>
       </div>
+
+      <div className="divider" />
 
       <div className="props-section">
         <div className="props-section-title" style={{ padding: 0 }}>Appearance</div>

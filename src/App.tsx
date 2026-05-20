@@ -177,7 +177,9 @@ export default function App() {
   const showDemoTint =
     scene === 'demo-1-stack-highlighted' ||
     scene === 'demo-2-cursor' ||
-    scene === 'demo-5-insert-highlighted';
+    scene === 'demo-5-insert-highlighted' ||
+    scene === 'demo-7-layout-prompt' ||
+    scene === 'demo-7-layout-panel';
   const showStackTutorial = scene === 'stack-tutorial-modal';
   const showCompletedModal = scene === 'demo-completed-modal';
   const showDisabledModal = scene === 'disabled-tutorial-modal';
