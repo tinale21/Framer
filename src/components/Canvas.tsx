@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { Scene, SceneSetter } from '../types';
+import type { Scene, SceneSetter, DemoEl } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -13,7 +13,6 @@ type DemoPhase = 'idle' | 'drawing' | 'placed';
 type DemoRect = { x: number; y: number; w: number; h: number };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-const ELEMENT_START = { x: 24, y: 360 };
 
 type Props = {
   scene: Scene;
@@ -22,9 +21,12 @@ type Props = {
   onSelectFrame?: () => void;
   onSelectCanvas?: () => void;
   onDeselect?: () => void;
-  pendingElement?: string | null;
-  placedElements?: string[];
-  onPlaceElement?: (id: string) => void;
+  demoElements?: DemoEl[];
+  selectedEl?: number | null;
+  calloutEl?: number | null;
+  onSelectEl?: (key: number | null) => void;
+  onMoveElement?: (key: number, x: number, y: number) => void;
+  onDropElementInStack?: (key: number) => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -45,9 +47,12 @@ export default function Canvas({
   onSelectFrame,
   onSelectCanvas,
   onDeselect,
-  pendingElement = null,
-  placedElements = [],
-  onPlaceElement,
+  demoElements = [],
+  selectedEl = null,
+  calloutEl = null,
+  onSelectEl,
+  onMoveElement,
+  onDropElementInStack,
 }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
@@ -68,24 +73,19 @@ export default function Canvas({
   const demoStartRef = useRef<{ x: number; y: number } | null>(null);
   const canvasContentRef = useRef<HTMLDivElement>(null);
 
-  // demo-6: drag the pending element from outside the canvas into the stack.
-  const [elementPos, setElementPos] = useState<{ x: number; y: number } | null>(null);
-  const [elementDragging, setElementDragging] = useState(false);
-  const elementGrabRef = useRef<{ dx: number; dy: number } | null>(null);
-  const elementRef = useRef<HTMLDivElement>(null);
+  // demo-6: drag a free element around the canvas / into the stack.
+  const [draggingKey, setDraggingKey] = useState<number | null>(null);
+  const elementGrabRef = useRef<
+    { dx: number; dy: number; sx: number; sy: number; moved: boolean } | null
+  >(null);
+  const draggingElRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
 
-  // Reset transient demo state on scene / pending-element change (adjust-on-render).
+  // Reset transient demo state on scene change (adjust-on-render).
   const [prevScene, setPrevScene] = useState(scene);
   if (prevScene !== scene) {
     setPrevScene(scene);
     if (scene !== 'demo-2-cursor' && demoPhase !== 'idle') setDemoPhase('idle');
-  }
-  // A freshly-picked element starts back at the default outside position.
-  const [prevPending, setPrevPending] = useState(pendingElement);
-  if (prevPending !== pendingElement) {
-    setPrevPending(pendingElement);
-    if (elementPos !== null) setElementPos(null);
   }
 
   useEffect(() => {
@@ -152,28 +152,39 @@ export default function Canvas({
     return () => clearTimeout(t);
   }, [demoPhase, onSceneChange]);
 
-  // demo-6: drag the element; on release over the stack, place it.
+  // demo-6: a quick press selects an element; a drag moves it, and
+  // dropping it over the stack drops it in.
   useEffect(() => {
-    if (!elementDragging) return;
+    if (draggingKey === null) return;
+    const key = draggingKey;
     const onMove = (e: MouseEvent) => {
       const grab = elementGrabRef.current;
       const wrap = wrapRef.current;
       if (!grab || !wrap) return;
+      if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
+        grab.moved = true;
+      }
+      if (!grab.moved) return;
       const wr = wrap.getBoundingClientRect();
-      setElementPos({ x: e.clientX - grab.dx - wr.left, y: e.clientY - grab.dy - wr.top });
+      onMoveElement?.(key, e.clientX - grab.dx - wr.left, e.clientY - grab.dy - wr.top);
     };
     const onUp = () => {
-      setElementDragging(false);
+      const grab = elementGrabRef.current;
+      setDraggingKey(null);
       elementGrabRef.current = null;
-      const el = elementRef.current;
+      if (grab && !grab.moved) {
+        onSelectEl?.(key);
+        return;
+      }
+      const el = draggingElRef.current;
       const stack = stackRef.current;
-      if (el && stack && pendingElement && onPlaceElement) {
+      if (el && stack && onDropElementInStack) {
         const er = el.getBoundingClientRect();
         const sr = stack.getBoundingClientRect();
         const cx = er.left + er.width / 2;
         const cy = er.top + er.height / 2;
         if (cx >= sr.left && cx <= sr.right && cy >= sr.top && cy <= sr.bottom) {
-          onPlaceElement(pendingElement);
+          onDropElementInStack(key);
         }
       }
     };
@@ -183,7 +194,7 @@ export default function Canvas({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [elementDragging, pendingElement, onPlaceElement]);
+  }, [draggingKey, onMoveElement, onSelectEl, onDropElementInStack]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -226,7 +237,8 @@ export default function Canvas({
 
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (demoSpotlight || demo6 || isDragging) return;
+    if (demo6) { onSelectEl?.(null); return; }
+    if (demoSpotlight || isDragging) return;
     onSelectCanvas?.();
   };
 
@@ -242,12 +254,16 @@ export default function Canvas({
     setDemoPhase('drawing');
   };
 
-  const handleElementMouseDown = (e: React.MouseEvent) => {
-    const el = elementRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    elementGrabRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    setElementDragging(true);
+  const handleElementMouseDown = (e: React.MouseEvent, key: number) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    elementGrabRef.current = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+    };
+    setDraggingKey(key);
   };
 
   const demoBoxStyle = {
@@ -256,16 +272,22 @@ export default function Canvas({
     width: `${demoRect.w * 100}%`,
     height: `${demoRect.h * 100}%`,
   };
-  const pendingSrc = pendingElement ? `${import.meta.env.BASE_URL}elem-${pendingElement}.svg` : '';
+  const elemSrc = (id: string) => `${import.meta.env.BASE_URL}elem-${id}.svg`;
+  const stackEls = demoElements.filter(el => el.inStack);
+  const freeEls = demoElements.filter(el => !el.inStack);
   const userStack = (
     <div className="demo-stack" style={demoBoxStyle} ref={stackRef}>
       <div className="demo-stack__col demo-stack__col--blue">
-        {placedElements.map((id, i) => (
+        {stackEls.map(el => (
           <img
-            key={i}
-            src={`${import.meta.env.BASE_URL}elem-${id}.svg`}
+            key={el.key}
+            src={elemSrc(el.id)}
             alt=""
-            className="demo-stack__element"
+            className={
+              'demo-stack__element' +
+              (selectedEl === el.key ? ' demo-stack__element--selected' : '')
+            }
+            onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
           />
         ))}
       </div>
@@ -275,7 +297,6 @@ export default function Canvas({
   // After the draw, keep the stack exactly where the user placed it.
   const keepUserStack =
     (scene === 'demo-5-insert-highlighted' || demo6) && demoRect.w > 0;
-  const elPos = elementPos ?? ELEMENT_START;
 
   return (
     <main
@@ -335,17 +356,24 @@ export default function Canvas({
         </div>
       </div>
 
-      {demo6 && pendingElement && pendingSrc && (
+      {demo6 && freeEls.map(el => (
         <div
-          ref={elementRef}
-          className={'demo-element' + (elementDragging ? ' demo-element--dragging' : '')}
-          style={{ left: `${elPos.x}px`, top: `${elPos.y}px` }}
-          onMouseDown={handleElementMouseDown}
+          key={el.key}
+          ref={el.key === draggingKey ? draggingElRef : undefined}
+          className={
+            'demo-element' +
+            (draggingKey === el.key ? ' demo-element--dragging' : '') +
+            (selectedEl === el.key ? ' demo-element--selected' : '')
+          }
+          style={{ left: `${el.x}px`, top: `${el.y}px` }}
+          onMouseDown={e => handleElementMouseDown(e, el.key)}
         >
-          <div className="demo-element__callout">Drag this into the stack.</div>
-          <img src={pendingSrc} alt="" className="demo-element__img" />
+          {calloutEl === el.key && (
+            <div className="demo-element__callout">Drag this into the stack.</div>
+          )}
+          <img src={elemSrc(el.id)} alt="" className="demo-element__img" />
         </div>
-      )}
+      ))}
     </main>
   );
 }

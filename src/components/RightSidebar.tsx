@@ -242,7 +242,7 @@ function InsertPanel({ scene, onSceneChange, onPickElement }: Props) {
         </div>
         <div
           className="insert-tile-wrap"
-          onMouseEnter={showElementPopout}
+          onMouseOver={showElementPopout}
           onMouseLeave={hideElementPopoutSoon}
         >
           <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>

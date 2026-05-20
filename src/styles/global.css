@@ -1170,6 +1170,12 @@ button {
   height: auto;
   display: block;
   border-radius: 4px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.demo-stack__element--selected {
+  outline: 2px solid #0099ff;
+  outline-offset: 1px;
 }
 
 /* demo-6: the element waiting outside the canvas, draggable into the stack */
@@ -1180,6 +1186,10 @@ button {
   cursor: grab;
 }
 .demo-element--dragging { cursor: grabbing; }
+.demo-element--selected .demo-element__img {
+  outline: 2px solid #0099ff;
+  outline-offset: 2px;
+}
 .demo-element__img {
   width: 100%;
   height: auto;

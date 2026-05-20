@@ -17,3 +17,13 @@ export type Scene =
   | 'tutorial-overlays-settings';
 
 export type SceneSetter = (scene: Scene) => void;
+
+// A demo element instance: a unique key, the element type, a free
+// position, and whether it's been dropped into the stack.
+export type DemoEl = {
+  key: number;
+  id: string;
+  x: number;
+  y: number;
+  inStack: boolean;
+};
