@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { Scene, SceneSetter, DemoEl } from '../types';
+import type { Scene, SceneSetter, DemoEl, TextEl } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -27,6 +27,18 @@ type Props = {
   onSelectEl?: (key: number | null) => void;
   onMoveElement?: (key: number, x: number, y: number) => void;
   onDropElementInStack?: (key: number) => void;
+  textMode?: boolean;
+  texts?: TextEl[];
+  editingText?: number | null;
+  selectedText?: number | null;
+  onPlaceText?: (x: number, y: number) => void;
+  onChangeText?: (key: number, text: string) => void;
+  onMoveText?: (key: number, x: number, y: number) => void;
+  onDropTextInStack?: (key: number) => void;
+  onSelectText?: (key: number) => void;
+  onEditText?: (key: number) => void;
+  onDeselectText?: () => void;
+  onEndTextEdit?: (key: number, isEmpty: boolean) => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -53,6 +65,18 @@ export default function Canvas({
   onSelectEl,
   onMoveElement,
   onDropElementInStack,
+  textMode = false,
+  texts = [],
+  editingText = null,
+  selectedText = null,
+  onPlaceText,
+  onChangeText,
+  onMoveText,
+  onDropTextInStack,
+  onSelectText,
+  onEditText,
+  onDeselectText,
+  onEndTextEdit,
 }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
@@ -72,6 +96,7 @@ export default function Canvas({
   const [demoRect, setDemoRect] = useState<DemoRect>({ x: 0, y: 0, w: 0, h: 0 });
   const demoStartRef = useRef<{ x: number; y: number } | null>(null);
   const canvasContentRef = useRef<HTMLDivElement>(null);
+  const frameCardRef = useRef<HTMLDivElement>(null);
 
   // demo-6: drag a free element around the canvas / into the stack.
   const [draggingKey, setDraggingKey] = useState<number | null>(null);
@@ -80,6 +105,13 @@ export default function Canvas({
   >(null);
   const draggingElRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
+
+  // Drag a text box around the canvas.
+  const [draggingTextKey, setDraggingTextKey] = useState<number | null>(null);
+  const textGrabRef = useRef<
+    { tx: number; ty: number; sx: number; sy: number; moved: boolean } | null
+  >(null);
+  const draggingTextElRef = useRef<HTMLDivElement>(null);
 
   // Reset transient demo state on scene change (adjust-on-render).
   const [prevScene, setPrevScene] = useState(scene);
@@ -196,6 +228,45 @@ export default function Canvas({
     };
   }, [draggingKey, onMoveElement, onSelectEl, onDropElementInStack]);
 
+  // Drag a selected text box. Screen movement is divided by the zoom
+  // scale because text coords live in the frame-card's own space.
+  useEffect(() => {
+    if (draggingTextKey === null) return;
+    const key = draggingTextKey;
+    const onMove = (e: MouseEvent) => {
+      const grab = textGrabRef.current;
+      if (!grab) return;
+      const dx = e.clientX - grab.sx;
+      const dy = e.clientY - grab.sy;
+      if (!grab.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) grab.moved = true;
+      if (grab.moved) onMoveText?.(key, grab.tx + dx / scale, grab.ty + dy / scale);
+    };
+    const onUp = () => {
+      const grab = textGrabRef.current;
+      setDraggingTextKey(null);
+      textGrabRef.current = null;
+      // Dropping a dragged text over the demo stack drops it in.
+      if (!grab || !grab.moved) return;
+      const el = draggingTextElRef.current;
+      const stack = stackRef.current;
+      if (el && stack && onDropTextInStack) {
+        const er = el.getBoundingClientRect();
+        const sr = stack.getBoundingClientRect();
+        const cx = er.left + er.width / 2;
+        const cy = er.top + er.height / 2;
+        if (cx >= sr.left && cx <= sr.right && cy >= sr.top && cy <= sr.bottom) {
+          onDropTextInStack(key);
+        }
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [draggingTextKey, onMoveText, onDropTextInStack, scale]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -211,9 +282,19 @@ export default function Canvas({
     return () => wrap.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const placeTextAt = (e: React.MouseEvent) => {
+    const fc = frameCardRef.current;
+    if (!fc) return;
+    // Store coords in the frame-card's own (un-transformed) space so the
+    // text pans and zooms with it.
+    const r = fc.getBoundingClientRect();
+    onPlaceText?.((e.clientX - r.left) / scale, (e.clientY - r.top) / scale);
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Demo interactions own the pointer during their scenes; no canvas panning.
-    if (demoSpotlight || demo6) return;
+    // The stack-drawing step and the text tool own the pointer; otherwise
+    // (including the demo-6 placement step) the canvas can be panned.
+    if (demoSpotlight || textMode) return;
     if ((e.target as HTMLElement).closest('button')) return;
     dragRef.current = {
       startMx: e.clientX,
@@ -224,21 +305,27 @@ export default function Canvas({
     };
   };
 
-  const handleSurroundClick = () => {
+  const handleSurroundClick = (e: React.MouseEvent) => {
+    if (textMode) { placeTextAt(e); return; }
     if (demoSpotlight || demo6 || isDragging) return;
+    onDeselectText?.();
     onDeselect?.();
   };
 
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (textMode) { placeTextAt(e); return; }
     if (demoSpotlight || demo6 || isDragging) return;
+    onDeselectText?.();
     onSelectFrame?.();
   };
 
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (demo6) { onSelectEl?.(null); return; }
+    if (textMode) { placeTextAt(e); return; }
+    if (demo6) { if (!isDragging) onSelectEl?.(null); return; }
     if (demoSpotlight || isDragging) return;
+    onDeselectText?.();
     onSelectCanvas?.();
   };
 
@@ -254,7 +341,15 @@ export default function Canvas({
     setDemoPhase('drawing');
   };
 
+  const handleTextMouseDown = (e: React.MouseEvent, t: TextEl) => {
+    e.stopPropagation();
+    textGrabRef.current = { tx: t.x, ty: t.y, sx: e.clientX, sy: e.clientY, moved: false };
+    onSelectText?.(t.key);
+    setDraggingTextKey(t.key);
+  };
+
   const handleElementMouseDown = (e: React.MouseEvent, key: number) => {
+    e.stopPropagation(); // don't also start a canvas pan
     const r = e.currentTarget.getBoundingClientRect();
     elementGrabRef.current = {
       dx: e.clientX - r.left,
@@ -275,6 +370,8 @@ export default function Canvas({
   const elemSrc = (id: string) => `${import.meta.env.BASE_URL}elem-${id}.svg`;
   const stackEls = demoElements.filter(el => el.inStack);
   const freeEls = demoElements.filter(el => !el.inStack);
+  const stackTexts = texts.filter(t => t.inStack);
+  const freeTexts = texts.filter(t => !t.inStack);
   const userStack = (
     <div className="demo-stack" style={demoBoxStyle} ref={stackRef}>
       <div className="demo-stack__col demo-stack__col--blue">
@@ -287,8 +384,22 @@ export default function Canvas({
               'demo-stack__element' +
               (selectedEl === el.key ? ' demo-stack__element--selected' : '')
             }
+            onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
           />
+        ))}
+        {stackTexts.map(t => (
+          <div
+            key={t.key}
+            className={
+              'demo-stack__text' +
+              (selectedText === t.key ? ' demo-stack__text--selected' : '')
+            }
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
+          >
+            {t.text}
+          </div>
         ))}
       </div>
       <div className="demo-stack__col demo-stack__col--teal" />
@@ -301,11 +412,16 @@ export default function Canvas({
   return (
     <main
       ref={wrapRef}
-      className={'canvas-wrap' + (isDragging ? ' canvas-wrap--dragging' : '')}
+      className={
+        'canvas-wrap' +
+        (isDragging ? ' canvas-wrap--dragging' : '') +
+        (textMode ? ' canvas-wrap--text' : '')
+      }
       onMouseDown={handleMouseDown}
       onClick={handleSurroundClick}
     >
       <div
+        ref={frameCardRef}
         className={
           'frame-card' +
           (selection === 'frame' ? ' frame-card--selected' : '') +
@@ -354,6 +470,56 @@ export default function Canvas({
             <CanvasContent scene={scene} onSceneChange={onSceneChange} />
           )}
         </div>
+
+        {/* Text lives inside the frame-card so it pans and zooms with it. */}
+        <div className="text-layer">
+          {freeTexts.map(t => {
+            const editing = editingText === t.key;
+            const selected = selectedText === t.key;
+            return (
+              <div
+                key={t.key}
+                ref={t.key === draggingTextKey ? draggingTextElRef : undefined}
+                className={
+                  'text-el' +
+                  (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
+                }
+                style={{ left: `${t.x}px`, top: `${t.y}px` }}
+              >
+                {editing ? (
+                  <textarea
+                    className="text-el__input"
+                    value={t.text}
+                    autoFocus
+                    rows={1}
+                    onChange={e => onChangeText?.(t.key, e.target.value)}
+                    onBlur={() => onEndTextEdit?.(t.key, t.text.trim() === '')}
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => e.stopPropagation()}
+                    onKeyDown={e => { if (e.key === 'Escape') e.currentTarget.blur(); }}
+                  />
+                ) : (
+                  <div
+                    className="text-el__static"
+                    onMouseDown={e => handleTextMouseDown(e, t)}
+                    onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
+                    onDoubleClick={e => { e.stopPropagation(); onEditText?.(t.key); }}
+                  >
+                    {t.text}
+                  </div>
+                )}
+                {selected && !editing && (
+                  <>
+                    <span className="text-handle text-handle--tl" />
+                    <span className="text-handle text-handle--tr" />
+                    <span className="text-handle text-handle--bl" />
+                    <span className="text-handle text-handle--br" />
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {demo6 && freeEls.map(el => (
@@ -374,6 +540,7 @@ export default function Canvas({
           <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
         </div>
       ))}
+
     </main>
   );
 }

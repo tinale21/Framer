@@ -15,6 +15,8 @@ type Props = {
   onSceneChange: SceneSetter;
   onPickElement: (id: string, src?: string) => void;
   onRequestImageUpload: () => void;
+  onArmText: () => void;
+  textArmed: boolean;
 };
 
 const PROPS_PANEL_SCENES: Scene[] = [
@@ -27,7 +29,9 @@ const PROPS_PANEL_SCENES: Scene[] = [
 const INSERT_TABS = ['Design', 'Prototype'] as const;
 type InsertTab = typeof INSERT_TABS[number];
 
-export default function RightSidebar({ scene, onSceneChange, onPickElement, onRequestImageUpload }: Props) {
+export default function RightSidebar({
+  scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
+}: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
     return <PropsPanel scene={scene} />;
   }
@@ -37,11 +41,15 @@ export default function RightSidebar({ scene, onSceneChange, onPickElement, onRe
       onSceneChange={onSceneChange}
       onPickElement={onPickElement}
       onRequestImageUpload={onRequestImageUpload}
+      onArmText={onArmText}
+      textArmed={textArmed}
     />
   );
 }
 
-function InsertPanel({ scene, onSceneChange, onPickElement, onRequestImageUpload }: Props) {
+function InsertPanel({
+  scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
+}: Props) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const [elementHovered, setElementHovered] = useState(false);
@@ -229,7 +237,14 @@ function InsertPanel({ scene, onSceneChange, onPickElement, onRequestImageUpload
             </div>
           )}
         </div>
-        <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
+        <button
+          className={
+            'insert-tile' +
+            (highlightTriple ? ' insert-tile--highlighted' : '') +
+            (textArmed ? ' insert-tile--selected' : '')
+          }
+          onClick={onArmText}
+        >
           <span className="insert-tile__icon"><IconText /></span>
           Text
         </button>

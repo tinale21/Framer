@@ -9,7 +9,7 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
-import type { Scene, DemoEl } from './types';
+import type { Scene, DemoEl, TextEl } from './types';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -36,6 +36,13 @@ export default function App() {
   // The file input lives here (App never unmounts) so it survives the OS
   // file dialog — the Element popout would unmount mid-dialog and lose it.
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Text tool: textMode arms it, a canvas click drops a text box that the
+  // user types into; editingText is the key of the box being edited.
+  const [textMode, setTextMode] = useState(false);
+  const [texts, setTexts] = useState<TextEl[]>([]);
+  const [editingText, setEditingText] = useState<number | null>(null);
+  const [selectedText, setSelectedText] = useState<number | null>(null);
+  const textKeyRef = useRef(0);
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
@@ -49,6 +56,8 @@ export default function App() {
       { key, id, x: 24, y, inStack: false, src },
     ]);
     setSelectedEl(key);
+    setSelectedText(null); // only one thing is selected at a time
+    setEditingText(null);
     // The callout is only for the guided demo step — picking an element
     // from the highlighted Insert section.
     setCalloutEl(scene === 'demo-5-insert-highlighted' ? key : null);
@@ -71,18 +80,84 @@ export default function App() {
   const dropElementInStack = useCallback((key: number) => {
     setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: true } : el)));
   }, []);
+  // Selecting an element clears any text selection — only one at a time.
+  const selectEl = useCallback((key: number | null) => {
+    setSelectedEl(key);
+    setSelectedText(null);
+    setEditingText(null);
+  }, []);
+
+  const armText = () => setTextMode(m => !m); // clicking the tile toggles it
+  const placeText = useCallback((x: number, y: number) => {
+    const key = textKeyRef.current++;
+    setTexts(prev => [...prev, { key, x, y, text: '', inStack: false }]);
+    setEditingText(key);
+    setSelectedText(key);
+    setSelectedEl(null); // only one thing is selected at a time
+    setTextMode(false); // the text tool is one-shot, like Figma
+  }, []);
+  const changeText = useCallback((key: number, text: string) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, text } : t)));
+  }, []);
+  const moveText = useCallback((key: number, x: number, y: number) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, x, y } : t)));
+  }, []);
+  const dropTextInStack = useCallback((key: number) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
+  }, []);
+  const selectText = useCallback((key: number) => {
+    setSelectedText(key);
+    setEditingText(null);
+    setSelectedEl(null); // only one thing is selected at a time
+  }, []);
+  const editText = useCallback((key: number) => {
+    setSelectedText(key);
+    setEditingText(key);
+    setSelectedEl(null); // only one thing is selected at a time
+  }, []);
+  const deselectText = useCallback(() => {
+    setSelectedText(null);
+    setEditingText(null);
+  }, []);
+  const endTextEdit = useCallback((key: number, isEmpty: boolean) => {
+    setEditingText(null);
+    if (isEmpty) {
+      // Drop a text box the user placed but never typed into.
+      setTexts(prev => prev.filter(t => t.key !== key));
+      setSelectedText(s => (s === key ? null : s));
+    } else {
+      setSelectedText(key); // stays selected (blue) after committing
+    }
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack typing
+      // Escape disarms the text tool so the canvas can be panned again.
+      if (e.key === 'Escape') {
+        setTextMode(false);
+        return;
+      }
+      // "T" arms the text tool, just like clicking the Text tile.
+      if (e.key.toLowerCase() === 't' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        setTextMode(true);
+        return;
+      }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
-      if (selectedEl === null) return;
-      setDemoElements(prev => prev.filter(el => el.key !== selectedEl));
-      setSelectedEl(null);
+      if (selectedEl !== null) {
+        setDemoElements(prev => prev.filter(el => el.key !== selectedEl));
+        setSelectedEl(null);
+      }
+      if (selectedText !== null) {
+        setTexts(prev => prev.filter(t => t.key !== selectedText));
+        setSelectedText(null);
+        setEditingText(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl]);
+  }, [selectedEl, selectedText]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
   const selectFrame = () => setSelection('frame');
@@ -115,15 +190,29 @@ export default function App() {
           demoElements={demoElements}
           selectedEl={selectedEl}
           calloutEl={calloutEl}
-          onSelectEl={setSelectedEl}
+          onSelectEl={selectEl}
           onMoveElement={moveElement}
           onDropElementInStack={dropElementInStack}
+          textMode={textMode}
+          texts={texts}
+          editingText={editingText}
+          selectedText={selectedText}
+          onPlaceText={placeText}
+          onChangeText={changeText}
+          onMoveText={moveText}
+          onDropTextInStack={dropTextInStack}
+          onSelectText={selectText}
+          onEditText={editText}
+          onDeselectText={deselectText}
+          onEndTextEdit={endTextEdit}
         />
         <RightSidebar
           scene={scene}
           onSceneChange={setScene}
           onPickElement={pickElement}
           onRequestImageUpload={requestImageUpload}
+          onArmText={armText}
+          textArmed={textMode}
         />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />

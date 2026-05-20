@@ -1177,6 +1177,24 @@ button {
   outline: 2px solid #0099ff;
   outline-offset: 1px;
 }
+/* a text box dropped into the stack — centered with the other content */
+.demo-stack__text {
+  max-width: 88%;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #1a1a1a;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.demo-stack__text--selected {
+  outline: 2px solid #0099ff;
+  outline-offset: 2px;
+}
 
 /* demo-6: the element waiting outside the canvas, draggable into the stack */
 .demo-element {
@@ -1224,6 +1242,76 @@ button {
   border: 7px solid transparent;
   border-bottom: 0;
   border-top-color: #ffffff;
+}
+
+/* ===== Text tool ===== */
+/* While the text tool is armed, the whole canvas shows the I-beam cursor. */
+.canvas-wrap--text,
+.canvas-wrap--text * {
+  cursor: text !important;
+}
+.text-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.text-el {
+  position: absolute;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+/* light-gray box while the user is typing, blue box once selected */
+.text-el--editing { border-color: #b8b8b8; }
+.text-el--selected { border-color: var(--blue); }
+/* the 4 corner resize handles shown on a selected text box */
+.text-handle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border: 1px solid var(--blue);
+  border-radius: 1px;
+  pointer-events: none;
+}
+.text-handle--tl { top: -4px; left: -4px; }
+.text-handle--tr { top: -4px; right: -4px; }
+.text-handle--bl { bottom: -4px; left: -4px; }
+.text-handle--br { bottom: -4px; right: -4px; }
+.text-el__input,
+.text-el__static {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+}
+.text-el__input {
+  display: block; /* match the static div so editing/selected boxes are equal size */
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  min-width: 6px;
+  /* the blinking native caret is the "type bar" */
+  caret-color: #1a1a1a;
+}
+.text-el__static {
+  cursor: text;
+}
+/* a selected text box can be dragged to move it */
+.text-el--selected .text-el__static {
+  cursor: move;
+}
+.app--dark .text-el__input,
+.app--dark .text-el__static {
+  color: #f0f0f0;
 }
 
 /* Element hover popout — uses the same frame size as the Grid popup

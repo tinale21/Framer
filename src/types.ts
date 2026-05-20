@@ -18,6 +18,16 @@ export type Scene =
 
 export type SceneSetter = (scene: Scene) => void;
 
+// A text element placed on the canvas: a unique key, a free position,
+// its typed content, and whether it's been dropped into the demo stack.
+export type TextEl = {
+  key: number;
+  x: number;
+  y: number;
+  text: string;
+  inStack: boolean;
+};
+
 // A demo element instance: a unique key, the element type, a free
 // position, and whether it's been dropped into the stack. `src` holds a
 // user-uploaded image's data URL (set when the element is a picked file).
