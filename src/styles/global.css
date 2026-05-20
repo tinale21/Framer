@@ -549,6 +549,9 @@ button {
   gap: 14px;
   background: #ffffff;
   padding: 14px;
+  /* cancel the padding so the highlight card grows outward without
+     resizing or shifting the tiles inside it */
+  margin: -14px;
   border-radius: 11px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
   position: relative;
@@ -788,6 +791,8 @@ button {
   outline: 0 solid transparent;
   transition: outline 0.15s ease;
 }
+/* drop-zone outline on the white canvas while an element or text is dragged */
+.canvas-content--drop { outline: 2px solid #0099ff; }
 
 .frame-card {
   outline: 0 solid transparent;
@@ -811,6 +816,9 @@ button {
 
 /* ===== Frame-area hover highlight (suppressed when canvas is selected) ===== */
 .frame-card:hover:not(.frame-card--canvas-selected) { outline: 1px solid #0099ff; }
+
+/* drop-zone outline on the whole canvas while an element or text is dragged */
+.frame-card--drop { outline: 2px solid #0099ff !important; }
 .frame-card--selected:hover { outline: 2px solid #0099ff; }
 .frame-card:hover:not(.frame-card--canvas-selected) .frame-card__title-row { color: #0099ff; }
 .frame-card:hover:not(.frame-card--canvas-selected) .plus-btn { background: #0099ff; }
@@ -1181,7 +1189,7 @@ button {
 .demo-stack__text {
   max-width: 88%;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.35;
   color: #1a1a1a;

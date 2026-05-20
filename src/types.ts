@@ -38,4 +38,7 @@ export type DemoEl = {
   y: number;
   inStack: boolean;
   src?: string;
+  // On-screen width to render at while free — set when pulled out of the
+  // stack so the element keeps the size it had inside it.
+  width?: number;
 };

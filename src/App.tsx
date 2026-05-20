@@ -74,11 +74,16 @@ export default function App() {
     };
     reader.readAsDataURL(file);
   };
-  const moveElement = useCallback((key: number, x: number, y: number) => {
-    setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, x, y } : el)));
+  const moveElement = useCallback((key: number, x: number, y: number, width?: number) => {
+    setDemoElements(prev => prev.map(el => (el.key === key
+      ? { ...el, x, y, ...(width !== undefined ? { width } : {}) }
+      : el)));
   }, []);
   const dropElementInStack = useCallback((key: number) => {
     setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: true } : el)));
+  }, []);
+  const popElementFromStack = useCallback((key: number) => {
+    setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: false } : el)));
   }, []);
   // Selecting an element clears any text selection — only one at a time.
   const selectEl = useCallback((key: number | null) => {
@@ -104,6 +109,9 @@ export default function App() {
   }, []);
   const dropTextInStack = useCallback((key: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
+  }, []);
+  const popTextFromStack = useCallback((key: number) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: false } : t)));
   }, []);
   const selectText = useCallback((key: number) => {
     setSelectedText(key);
@@ -193,6 +201,7 @@ export default function App() {
           onSelectEl={selectEl}
           onMoveElement={moveElement}
           onDropElementInStack={dropElementInStack}
+          onPopElementFromStack={popElementFromStack}
           textMode={textMode}
           texts={texts}
           editingText={editingText}
@@ -201,6 +210,7 @@ export default function App() {
           onChangeText={changeText}
           onMoveText={moveText}
           onDropTextInStack={dropTextInStack}
+          onPopTextFromStack={popTextFromStack}
           onSelectText={selectText}
           onEditText={editText}
           onDeselectText={deselectText}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Scene, SceneSetter, DemoEl, TextEl } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
@@ -25,8 +25,9 @@ type Props = {
   selectedEl?: number | null;
   calloutEl?: number | null;
   onSelectEl?: (key: number | null) => void;
-  onMoveElement?: (key: number, x: number, y: number) => void;
+  onMoveElement?: (key: number, x: number, y: number, width?: number) => void;
   onDropElementInStack?: (key: number) => void;
+  onPopElementFromStack?: (key: number) => void;
   textMode?: boolean;
   texts?: TextEl[];
   editingText?: number | null;
@@ -35,6 +36,7 @@ type Props = {
   onChangeText?: (key: number, text: string) => void;
   onMoveText?: (key: number, x: number, y: number) => void;
   onDropTextInStack?: (key: number) => void;
+  onPopTextFromStack?: (key: number) => void;
   onSelectText?: (key: number) => void;
   onEditText?: (key: number) => void;
   onDeselectText?: () => void;
@@ -65,6 +67,7 @@ export default function Canvas({
   onSelectEl,
   onMoveElement,
   onDropElementInStack,
+  onPopElementFromStack,
   textMode = false,
   texts = [],
   editingText = null,
@@ -73,6 +76,7 @@ export default function Canvas({
   onChangeText,
   onMoveText,
   onDropTextInStack,
+  onPopTextFromStack,
   onSelectText,
   onEditText,
   onDeselectText,
@@ -101,7 +105,7 @@ export default function Canvas({
   // demo-6: drag a free element around the canvas / into the stack.
   const [draggingKey, setDraggingKey] = useState<number | null>(null);
   const elementGrabRef = useRef<
-    { dx: number; dy: number; sx: number; sy: number; moved: boolean } | null
+    { dx: number; dy: number; sx: number; sy: number; moved: boolean; fromStack: boolean } | null
   >(null);
   const draggingElRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -109,9 +113,29 @@ export default function Canvas({
   // Drag a text box around the canvas.
   const [draggingTextKey, setDraggingTextKey] = useState<number | null>(null);
   const textGrabRef = useRef<
-    { tx: number; ty: number; sx: number; sy: number; moved: boolean } | null
+    { tx: number; ty: number; sx: number; sy: number; moved: boolean; fromStack: boolean } | null
   >(null);
   const draggingTextElRef = useRef<HTMLDivElement>(null);
+
+  // Which drop-zone outline is shown during a drag. The outline sweeps one at
+  // a time: frame → white canvas when dragging in, white canvas → frame out.
+  const [dropOutline, setDropOutline] = useState<'frame' | 'content' | null>(null);
+  const sweepTimerRef = useRef<number | null>(null);
+  const startDropSweep = useCallback((fromStack: boolean) => {
+    if (sweepTimerRef.current !== null) clearTimeout(sweepTimerRef.current);
+    setDropOutline(fromStack ? 'content' : 'frame');
+    sweepTimerRef.current = window.setTimeout(() => {
+      setDropOutline(fromStack ? 'frame' : 'content');
+      sweepTimerRef.current = null;
+    }, 250);
+  }, []);
+  const endDropSweep = useCallback(() => {
+    if (sweepTimerRef.current !== null) {
+      clearTimeout(sweepTimerRef.current);
+      sweepTimerRef.current = null;
+    }
+    setDropOutline(null);
+  }, []);
 
   // Reset transient demo state on scene change (adjust-on-render).
   const [prevScene, setPrevScene] = useState(scene);
@@ -195,6 +219,10 @@ export default function Canvas({
       if (!grab || !wrap) return;
       if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
         grab.moved = true;
+        startDropSweep(grab.fromStack); // sweep the drop-zone outline
+        // A real drag began — take it out of the stack now (the stack
+        // re-centers); a plain click never reaches here.
+        if (grab.fromStack) onPopElementFromStack?.(key);
       }
       if (!grab.moved) return;
       const wr = wrap.getBoundingClientRect();
@@ -203,6 +231,7 @@ export default function Canvas({
     const onUp = () => {
       const grab = elementGrabRef.current;
       setDraggingKey(null);
+      endDropSweep();
       elementGrabRef.current = null;
       if (grab && !grab.moved) {
         onSelectEl?.(key);
@@ -226,7 +255,8 @@ export default function Canvas({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [draggingKey, onMoveElement, onSelectEl, onDropElementInStack]);
+  }, [draggingKey, onMoveElement, onSelectEl, onDropElementInStack, onPopElementFromStack,
+      startDropSweep, endDropSweep]);
 
   // Drag a selected text box. Screen movement is divided by the zoom
   // scale because text coords live in the frame-card's own space.
@@ -236,14 +266,20 @@ export default function Canvas({
     const onMove = (e: MouseEvent) => {
       const grab = textGrabRef.current;
       if (!grab) return;
-      const dx = e.clientX - grab.sx;
-      const dy = e.clientY - grab.sy;
-      if (!grab.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) grab.moved = true;
-      if (grab.moved) onMoveText?.(key, grab.tx + dx / scale, grab.ty + dy / scale);
+      if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
+        grab.moved = true;
+        startDropSweep(grab.fromStack); // sweep the drop-zone outline
+        // A real drag began — take it out of the stack now (the stack
+        // re-centers); a plain click never reaches here.
+        if (grab.fromStack) onPopTextFromStack?.(key);
+      }
+      if (!grab.moved) return;
+      onMoveText?.(key, grab.tx + (e.clientX - grab.sx) / scale, grab.ty + (e.clientY - grab.sy) / scale);
     };
     const onUp = () => {
       const grab = textGrabRef.current;
       setDraggingTextKey(null);
+      endDropSweep();
       textGrabRef.current = null;
       // Dropping a dragged text over the demo stack drops it in.
       if (!grab || !grab.moved) return;
@@ -265,7 +301,8 @@ export default function Canvas({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [draggingTextKey, onMoveText, onDropTextInStack, scale]);
+  }, [draggingTextKey, onMoveText, onDropTextInStack, onPopTextFromStack, scale,
+      startDropSweep, endDropSweep]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -343,20 +380,48 @@ export default function Canvas({
 
   const handleTextMouseDown = (e: React.MouseEvent, t: TextEl) => {
     e.stopPropagation();
-    textGrabRef.current = { tx: t.x, ty: t.y, sx: e.clientX, sy: e.clientY, moved: false };
+    textGrabRef.current = {
+      tx: t.x, ty: t.y, sx: e.clientX, sy: e.clientY, moved: false, fromStack: false,
+    };
+    onSelectText?.(t.key);
+    setDraggingTextKey(t.key);
+  };
+  // Press on an in-stack text: a plain click selects it; a real drag pulls it
+  // out. A free dragging copy is placed right over the in-stack text (offset
+  // by the free text's 5px/3px border+padding) so it never remounts mid-drag.
+  const handleStackTextMouseDown = (e: React.MouseEvent, t: TextEl) => {
+    e.stopPropagation();
+    const fc = frameCardRef.current;
+    if (!fc) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const fr = fc.getBoundingClientRect();
+    const tx = (r.left - fr.left) / scale - 5;
+    const ty = (r.top - fr.top) / scale - 3;
+    onMoveText?.(t.key, tx, ty);
+    textGrabRef.current = { tx, ty, sx: e.clientX, sy: e.clientY, moved: false, fromStack: true };
     onSelectText?.(t.key);
     setDraggingTextKey(t.key);
   };
 
-  const handleElementMouseDown = (e: React.MouseEvent, key: number) => {
+  const handleElementMouseDown = (e: React.MouseEvent, key: number, fromStack = false) => {
     e.stopPropagation(); // don't also start a canvas pan
     const r = e.currentTarget.getBoundingClientRect();
+    if (fromStack) {
+      // Render a free dragging copy right over the in-stack element so it
+      // never remounts mid-drag — then it drags exactly like a free element.
+      const wrap = wrapRef.current;
+      if (wrap) {
+        const wr = wrap.getBoundingClientRect();
+        onMoveElement?.(key, r.left - wr.left, r.top - wr.top, r.width);
+      }
+    }
     elementGrabRef.current = {
       dx: e.clientX - r.left,
       dy: e.clientY - r.top,
       sx: e.clientX,
       sy: e.clientY,
       moved: false,
+      fromStack,
     };
     setDraggingKey(key);
   };
@@ -369,9 +434,11 @@ export default function Canvas({
   };
   const elemSrc = (id: string) => `${import.meta.env.BASE_URL}elem-${id}.svg`;
   const stackEls = demoElements.filter(el => el.inStack);
-  const freeEls = demoElements.filter(el => !el.inStack);
   const stackTexts = texts.filter(t => t.inStack);
-  const freeTexts = texts.filter(t => !t.inStack);
+  // A stack item being dragged also renders as a free copy (over a hidden
+  // placeholder that keeps its slot), so it never remounts mid-drag.
+  const freeEls = demoElements.filter(el => !el.inStack || el.key === draggingKey);
+  const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
   const userStack = (
     <div className="demo-stack" style={demoBoxStyle} ref={stackRef}>
       <div className="demo-stack__col demo-stack__col--blue">
@@ -384,7 +451,8 @@ export default function Canvas({
               'demo-stack__element' +
               (selectedEl === el.key ? ' demo-stack__element--selected' : '')
             }
-            onMouseDown={e => e.stopPropagation()}
+            style={el.key === draggingKey ? { visibility: 'hidden' } : undefined}
+            onMouseDown={e => handleElementMouseDown(e, el.key, true)}
             onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
           />
         ))}
@@ -395,7 +463,8 @@ export default function Canvas({
               'demo-stack__text' +
               (selectedText === t.key ? ' demo-stack__text--selected' : '')
             }
-            onMouseDown={e => e.stopPropagation()}
+            style={t.key === draggingTextKey ? { visibility: 'hidden' } : undefined}
+            onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
           >
             {t.text}
@@ -426,7 +495,8 @@ export default function Canvas({
           'frame-card' +
           (selection === 'frame' ? ' frame-card--selected' : '') +
           (selection === 'canvas' ? ' frame-card--canvas-selected' : '') +
-          (demoSpotlight ? ' frame-card--demo' : '')
+          (demoSpotlight ? ' frame-card--demo' : '') +
+          (dropOutline === 'frame' ? ' frame-card--drop' : '')
         }
         style={{
           ...(chromeDimmed ? { opacity: 0.55 } : {}),
@@ -453,7 +523,8 @@ export default function Canvas({
           className={
             'canvas-content' +
             (demoSpotlight ? ' canvas-content--demo' : '') +
-            (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '')
+            (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
+            (dropOutline === 'content' ? ' canvas-content--drop' : '')
           }
           style={canvasDimmed ? { opacity: 0.55 } : undefined}
           onClick={handleCanvasContentClick}
@@ -531,7 +602,11 @@ export default function Canvas({
             (draggingKey === el.key ? ' demo-element--dragging' : '') +
             (selectedEl === el.key ? ' demo-element--selected' : '')
           }
-          style={{ left: `${el.x}px`, top: `${el.y}px` }}
+          style={{
+            left: `${el.x}px`,
+            top: `${el.y}px`,
+            width: el.width != null ? `${el.width}px` : undefined,
+          }}
           onMouseDown={e => handleElementMouseDown(e, el.key)}
         >
           {calloutEl === el.key && (
