@@ -25,14 +25,12 @@ type Props = {
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
 const CANVAS_DIMMED: Scene[] = [
-  'demo-5-insert-highlighted',
   'demo-7-layout-panel',
 ];
 
 const CHROME_DIMMED: Scene[] = [
   'demo-3-drawing-frame',
   'demo-4-stack-created',
-  'demo-5-insert-highlighted',
   'demo-7-layout-panel',
 ];
 
@@ -126,6 +124,13 @@ export default function Canvas({
     };
   }, [demoPhase]);
 
+  // Once the stack is placed, advance to the Insert-highlight step.
+  useEffect(() => {
+    if (demoPhase !== 'placed') return;
+    const t = window.setTimeout(() => onSceneChange('demo-5-insert-highlighted'), 650);
+    return () => clearTimeout(t);
+  }, [demoPhase, onSceneChange]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -190,6 +195,14 @@ export default function Canvas({
     width: `${demoRect.w * 100}%`,
     height: `${demoRect.h * 100}%`,
   };
+  const userStack = (
+    <div className="demo-stack" style={demoBoxStyle}>
+      <div className="demo-stack__col demo-stack__col--blue" />
+      <div className="demo-stack__col demo-stack__col--teal" />
+    </div>
+  );
+  // After the draw, keep the stack exactly where the user placed it.
+  const keepUserStack = scene === 'demo-5-insert-highlighted' && demoRect.w > 0;
 
   return (
     <main
@@ -237,13 +250,10 @@ export default function Canvas({
           {demoSpotlight ? (
             <>
               {demoPhase === 'drawing' && <div className="demo-draw-rect" style={demoBoxStyle} />}
-              {demoPhase === 'placed' && (
-                <div className="demo-stack" style={demoBoxStyle}>
-                  <div className="demo-stack__col demo-stack__col--blue" />
-                  <div className="demo-stack__col demo-stack__col--teal" />
-                </div>
-              )}
+              {demoPhase === 'placed' && userStack}
             </>
+          ) : keepUserStack ? (
+            userStack
           ) : (
             <CanvasContent scene={scene} onSceneChange={onSceneChange} />
           )}

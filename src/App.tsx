@@ -29,7 +29,10 @@ export default function App() {
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   const showPopout = SHOW_POPOUT.includes(scene);
-  const showDemoTint = scene === 'demo-1-stack-highlighted' || scene === 'demo-2-cursor';
+  const showDemoTint =
+    scene === 'demo-1-stack-highlighted' ||
+    scene === 'demo-2-cursor' ||
+    scene === 'demo-5-insert-highlighted';
   const showStackTutorial = scene === 'stack-tutorial-modal';
   const showCompletedModal = scene === 'demo-completed-modal';
   const showDisabledModal = scene === 'disabled-tutorial-modal';

@@ -150,7 +150,6 @@ function InsertPanel({ scene, onSceneChange }: Props) {
     if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
   }, [activeTab]);
 
-  const tilesDimmed = scene === 'demo-5-insert-highlighted' ? { opacity: 0.55 } : undefined;
   const baseHovered = scene === 'base-hover' || scene === 'stack-tutorial-modal' || scene === 'disabled-tutorial-modal';
   const highlightTriple = scene === 'demo-5-insert-highlighted';
 
@@ -178,9 +177,10 @@ function InsertPanel({ scene, onSceneChange }: Props) {
 
       <div className="divider" />
 
+      <div className={'insert-section' + (highlightTriple ? ' insert-section--demo' : '')}>
       <div className="section-title" style={{ marginTop: 6 }}>Insert</div>
 
-      <div className="insert-list" style={tilesDimmed}>
+      <div className="insert-list">
         <div
           className="insert-tile-wrap"
           onMouseEnter={showBaseHoverPopout}
@@ -263,6 +263,7 @@ function InsertPanel({ scene, onSceneChange }: Props) {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       <div className="divider" style={{ marginTop: 6 }} />

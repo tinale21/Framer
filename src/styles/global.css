@@ -541,6 +541,19 @@ button {
   flex-direction: column;
   gap: 8px;
 }
+/* Wraps the Insert label + tiles; transparent until the demo spotlights it */
+.insert-section { display: contents; }
+.insert-section--demo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #ffffff;
+  padding: 14px;
+  border-radius: 11px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
+  position: relative;
+  z-index: 50;
+}
 .insert-tile {
   display: flex;
   align-items: center;
@@ -565,7 +578,13 @@ button {
 }
 .insert-tile:hover .insert-tile__icon { background: #222222; }
 .insert-tile--highlighted {
-  border-color: var(--blue-tutorial);
+  border-color: #0099ff;
+  position: relative;
+  animation: insert-tile-pulse 2s ease-in-out infinite;
+}
+@keyframes insert-tile-pulse {
+  0%, 100% { box-shadow: 0 0 0 0.5px #0099ff, 0 1px 4px rgba(0, 0, 0, 0.035); }
+  50% { box-shadow: 0 0 0 1px #0099ff, 0 1px 4px rgba(0, 0, 0, 0.035); }
 }
 .insert-tile__icon {
   width: 22px;
