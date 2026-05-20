@@ -178,6 +178,9 @@ function InsertPanel({ scene, onSceneChange }: Props) {
       <div className="divider" />
 
       <div className={'insert-section' + (highlightTriple ? ' insert-section--demo' : '')}>
+      {highlightTriple && (
+        <div className="insert-demo-callout">Add several elements into the stack.</div>
+      )}
       <div className="section-title" style={{ marginTop: 6 }}>Insert</div>
 
       <div className="insert-list">

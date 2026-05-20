@@ -554,6 +554,38 @@ button {
   position: relative;
   z-index: 50;
 }
+.insert-demo-callout {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 262px;
+  transform: translateY(-50%);
+  width: 184px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  z-index: 51;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.insert-demo-callout::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-right: 0;
+  border-left-color: #ffffff;
+}
+/* Hide the callout while the user hovers any tile in the Insert section */
+.insert-section--demo:has(.insert-tile:hover) .insert-demo-callout {
+  opacity: 0;
+}
 .insert-tile {
   display: flex;
   align-items: center;
