@@ -660,32 +660,15 @@ button {
   gap: 12px;
 }
 .props-section { display: flex; flex-direction: column; gap: 14px; padding: 0; }
-.props-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.props-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--text-primary); }
 .props-row--sub { padding-left: 16px; font-weight: 500; color: var(--text-secondary); }
 .props-row--muted { color: var(--text-tertiary); }
 .props-row--plus::after { content: "+"; color: var(--text-tertiary); }
-.props-section-title { font-weight: 600; font-size: 13px; padding: 0 4px; }
-.alignment-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  padding: 0 4px;
-}
-.alignment-group__cluster {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-}
-.alignment-icon {
-  width: 32px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  color: #5a5a5a;
+.props-section-title { font-weight: 500; font-size: 12px; padding: 0 4px; }
+.alignment-controls {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .shape-header {
   display: flex;

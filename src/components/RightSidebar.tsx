@@ -2,7 +2,7 @@ import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import type { Scene, SceneSetter } from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
-  AlignTop, AlignMidV, AlignBottom, AlignLeft, AlignMidH, AlignRight, Diamond,
+  ComponentBadge,
 } from '../icons';
 import GridPopout from './GridPopout';
 import ElementPopout from './ElementPopout';
@@ -319,26 +319,21 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
         </div>
       </div>
 
-      <div className="shape-header">
-        <span className="shape-header__title">Image</span>
-        <span className="shape-header__icon"><Diamond /></span>
+      <div className="divider" />
+
+      <div className="shape-header" style={{ marginTop: 6 }}>
+        <span className="shape-header__title">Shape</span>
+        <span className="shape-header__icon"><ComponentBadge /></span>
       </div>
 
-      <div className="props-section">
+      <div className="props-section" style={{ marginTop: 2 }}>
         <div className="props-section-title" style={{ padding: 0 }}>Positioning</div>
         <div className="props-row">Alignment</div>
-        <div className="alignment-group">
-          <div className="alignment-group__cluster">
-            <span className="alignment-icon"><AlignTop /></span>
-            <span className="alignment-icon"><AlignMidV /></span>
-            <span className="alignment-icon"><AlignBottom /></span>
-          </div>
-          <div className="alignment-group__cluster">
-            <span className="alignment-icon"><AlignLeft /></span>
-            <span className="alignment-icon"><AlignMidH /></span>
-            <span className="alignment-icon"><AlignRight /></span>
-          </div>
-        </div>
+        <img
+          className="alignment-controls"
+          src={`${import.meta.env.BASE_URL}alignment-controls.svg`}
+          alt=""
+        />
         <div className="props-row">Rotation</div>
       </div>
 

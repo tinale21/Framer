@@ -226,50 +226,16 @@ export const IconMasonry = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
-export const Diamond = ({ size = 14 }: IconProps) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 3l9 9-9 9-9-9 9-9z" />
-  </svg>
-);
-
-/* Alignment icons */
-const Bar = ({ x, y, w, h }: { x: number; y: number; w: number; h: number }) => (
-  <rect x={x} y={y} width={w} height={h} fill="currentColor" rx="0.5" />
-);
-export const AlignTop = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 4h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={8} y={8} w={3} h={11} /><Bar x={13} y={8} w={3} h={7} />
-  </svg>
-);
-export const AlignMidV = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 12h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={8} y={6} w={3} h={12} /><Bar x={13} y={9} w={3} h={6} />
-  </svg>
-);
-export const AlignBottom = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={8} y={5} w={3} h={11} /><Bar x={13} y={9} w={3} h={7} />
-  </svg>
-);
-export const AlignLeft = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={6} y={6} w={12} h={3} /><Bar x={6} y={13} w={7} h={3} />
-  </svg>
-);
-export const AlignMidH = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={5} y={6} w={14} h={3} /><Bar x={8} y={13} w={8} h={3} />
-  </svg>
-);
-export const AlignRight = () => (
-  <svg width="22" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M20 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <Bar x={6} y={6} w={12} h={3} /><Bar x={11} y={13} w={7} h={3} />
+export const ComponentBadge = ({ size = 16 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 18 18" fill="none">
+    <path
+      d="M6.375 4.5L9 1.875L11.625 4.5L9 7.125L6.375 4.5ZM6.375 13.5L9 10.875L11.625 13.5L9 16.125L6.375 13.5ZM10.875 9L13.5 6.375L16.125 9L13.5 11.625L10.875 9ZM1.875 9L4.5 6.375L7.125 9L4.5 11.625L1.875 9Z"
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
