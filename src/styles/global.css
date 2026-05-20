@@ -582,8 +582,8 @@ button {
   border-right: 0;
   border-left-color: #ffffff;
 }
-/* Hide the callout while the user hovers any tile in the Insert section */
-.insert-section--demo:has(.insert-tile:hover) .insert-demo-callout {
+/* Hide the callout while the user hovers any Insert tile or its hover popup */
+.insert-section--demo:has(.insert-tile:hover, .popout-element:hover, .popout-vector:hover) .insert-demo-callout {
   opacity: 0;
 }
 .insert-tile {
