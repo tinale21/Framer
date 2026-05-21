@@ -661,8 +661,6 @@ button {
 }
 .props-section { display: flex; flex-direction: column; gap: 14px; padding: 0; }
 .props-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--text-primary); }
-.props-row--sub { padding-left: 16px; font-weight: 500; color: var(--text-secondary); }
-.props-row--muted { color: var(--text-tertiary); }
 .props-row--plus::after { content: "+"; font-size: 18px; font-weight: 300; line-height: 0; }
 .props-section-title { font-weight: 500; font-size: 12px; padding: 0 4px; }
 .alignment-controls {
@@ -698,20 +696,20 @@ button {
 }
 .props-layout--demo {
   z-index: 50;
-  margin: 7px 0;
+  margin: 8px 0;
 }
 .props-layout--demo::before {
   content: '';
   position: absolute;
-  inset: -19px -16px;
+  inset: -20px -16px;
   z-index: -1;
   background: var(--bg-app);
   border-radius: 6px;
 }
-.props-layout__title--demo {
+.layout-demo-ring {
   position: relative;
 }
-.props-layout__title--demo::after {
+.layout-demo-ring::after {
   content: '';
   position: absolute;
   inset: -8px;
@@ -751,6 +749,150 @@ button {
   border: 7px solid transparent;
   border-right: 0;
   border-left-color: #ffffff;
+}
+
+/* demo-7: the expanded Layout option controls */
+.layout-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 12px;
+}
+.layout-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.layout-opt-row__label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.layout-seg {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: #ededed;
+  border-radius: 9px;
+  padding: 3px;
+}
+.layout-seg__btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8a8a8a;
+  cursor: pointer;
+}
+.layout-seg__btn svg { display: block; }
+.layout-seg__btn--active {
+  background: #ffffff;
+  color: var(--blue);
+  font-weight: 600;
+  box-shadow: 0 1px 2.5px rgba(0, 0, 0, 0.16);
+}
+.layout-seg__divider {
+  width: 1px;
+  height: 16px;
+  flex-shrink: 0;
+  background: #d4d4d4;
+}
+.layout-dropdown {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.layout-dropdown__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 8px 0 11px;
+  border: none;
+  background: #ededed;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.layout-dropdown__chev {
+  display: flex;
+  color: #8a8a8a;
+}
+.layout-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+}
+.layout-dropdown__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.layout-dropdown__item:hover { background: #f2f2f2; }
+.layout-dropdown__item--active { color: var(--blue); font-weight: 600; }
+.layout-pair {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+}
+.layout-pair--pad .layout-field { flex: 1.5; }
+.layout-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 11px;
+  background: #ededed;
+  border-radius: 9px;
+}
+.layout-field__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.layout-field__suffix {
+  flex-shrink: 0;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #b3b3b3;
 }
 
 /* ===== Canvas ===== */

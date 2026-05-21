@@ -6,6 +6,7 @@ import {
 } from '../icons';
 import GridPopout from './GridPopout';
 import ElementPopout from './ElementPopout';
+import LayoutOptions from './LayoutOptions';
 import VectorPopout from './VectorPopout';
 import ComponentPopout from './ComponentPopout';
 import BaseHoverPopout from './BaseHoverPopout';
@@ -340,29 +341,22 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
       <div className="divider" />
 
       <div className="props-section">
-        <div className={'props-layout' + (demoLayout ? ' props-layout--demo' : '')}>
+        <div className={
+          'props-layout'
+          + (demoLayout ? ' props-layout--demo' : '')
+          + (layoutOpen ? ' layout-demo-ring' : '')
+        }>
           <div
             className={
               'props-section-title'
-              + (promptLayout ? ' props-layout__title--clickable' : '')
-              + (demoLayout ? ' props-layout__title--demo' : '')
+              + (promptLayout ? ' props-layout__title--clickable layout-demo-ring' : '')
             }
             style={{ padding: 0 }}
             onClick={promptLayout ? () => onSceneChange('demo-7-layout-panel') : undefined}
           >
             Layout
           </div>
-          {layoutOpen && (
-            <>
-              <div className="props-row props-row--sub props-row--muted">Type</div>
-              <div className="props-row props-row--sub props-row--muted">Direction</div>
-              <div className="props-row props-row--sub props-row--muted">Distribute</div>
-              <div className="props-row props-row--sub props-row--muted">Align</div>
-              <div className="props-row props-row--sub props-row--muted">Wrap</div>
-              <div className="props-row props-row--sub props-row--muted">Gap</div>
-              <div className="props-row props-row--sub props-row--muted">Padding</div>
-            </>
-          )}
+          {layoutOpen && <LayoutOptions />}
           {demoLayout && (
             <div className="props-layout__callout">
               {promptLayout
