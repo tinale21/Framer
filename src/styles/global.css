@@ -663,7 +663,7 @@ button {
 .props-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 500; color: var(--text-primary); }
 .props-row--sub { padding-left: 16px; font-weight: 500; color: var(--text-secondary); }
 .props-row--muted { color: var(--text-tertiary); }
-.props-row--plus::after { content: "+"; color: var(--text-tertiary); }
+.props-row--plus::after { content: "+"; font-size: 18px; font-weight: 300; line-height: 0; }
 .props-section-title { font-weight: 500; font-size: 12px; padding: 0 4px; }
 .alignment-controls {
   display: block;
@@ -689,8 +689,7 @@ button {
 }
 .layout-popout__title { font-weight: 600; font-size: 13px; }
 
-/* demo-7: spotlight the props panel above the demo tint + highlight Layout */
-.right-sidebar--demo { position: relative; z-index: 50; }
+/* demo-7: spotlight the Layout block above the demo tint + outline the title */
 .props-layout {
   position: relative;
   display: flex;
@@ -698,11 +697,35 @@ button {
   gap: 14px;
 }
 .props-layout--demo {
-  outline: 2px solid var(--blue);
-  outline-offset: 3px;
-  border-radius: 4px;
+  z-index: 50;
+  margin: 7px 0;
+}
+.props-layout--demo::before {
+  content: '';
+  position: absolute;
+  inset: -19px -16px;
+  z-index: -1;
+  background: var(--bg-app);
+  border-radius: 6px;
+}
+.props-layout__title--demo {
+  position: relative;
+}
+.props-layout__title--demo::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 4.5px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.1px #0099ff;
+  animation: layout-demo-pulse 2s ease-in-out infinite;
+}
+@keyframes layout-demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 1.1px #0099ff; }
+  50% { box-shadow: 0 0 0 1.5px #0099ff; }
 }
 .props-layout__title--clickable { cursor: pointer; }
+.props-layout__callout-bold { font-weight: 600; }
 .props-layout__callout {
   position: absolute;
   right: calc(100% + 18px);

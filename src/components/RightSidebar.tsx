@@ -311,7 +311,7 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
   const promptLayout = scene === 'demo-7-layout-prompt';
   const demoLayout = promptLayout || layoutOpen;
   return (
-    <aside className={'right-sidebar' + (demoLayout ? ' right-sidebar--demo' : '')}>
+    <aside className="right-sidebar">
       <div className="right-sidebar__header">
         <div className="right-sidebar__header-left">
           <span className="tab tab--active">Design</span>
@@ -342,7 +342,11 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
       <div className="props-section">
         <div className={'props-layout' + (demoLayout ? ' props-layout--demo' : '')}>
           <div
-            className={'props-section-title' + (promptLayout ? ' props-layout__title--clickable' : '')}
+            className={
+              'props-section-title'
+              + (promptLayout ? ' props-layout__title--clickable' : '')
+              + (demoLayout ? ' props-layout__title--demo' : '')
+            }
             style={{ padding: 0 }}
             onClick={promptLayout ? () => onSceneChange('demo-7-layout-panel') : undefined}
           >
@@ -362,7 +366,7 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
           {demoLayout && (
             <div className="props-layout__callout">
               {promptLayout
-                ? 'Click “Layout” to change the stack’s layout.'
+                ? (<>Click <span className="props-layout__callout-bold">Layout</span> to change the stack’s layout.</>)
                 : 'These are the stack’s layout options.'}
             </div>
           )}
