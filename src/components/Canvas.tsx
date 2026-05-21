@@ -49,6 +49,7 @@ type Props = {
   onDeselectText?: () => void;
   onEndTextEdit?: (key: number, isEmpty: boolean) => void;
   layoutOpts?: LayoutOpts;
+  layoutTouched?: boolean;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -89,10 +90,16 @@ export default function Canvas({
   onEditText,
   onDeselectText,
   onEndTextEdit,
-  layoutOpts = { type: 'stack', direction: 'v', distribute: 'Center', align: 'center' },
+  layoutOpts = {
+    type: 'stack', direction: 'v', distribute: 'Center', align: 'center',
+    gap: '8', masonry: 'no', cols: '2', rows: '2', gapX: '10', gapY: '10',
+    padMode: 'uniform', padT: '8', padR: '8', padB: '8', padL: '8',
+  },
+  layoutTouched = false,
 }: Props) {
-  const chromeDimmed = CHROME_DIMMED.includes(scene);
-  const canvasDimmed = CANVAS_DIMMED.includes(scene);
+  // The demo-7 canvas dimming clears once a layout control is used.
+  const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
+  const canvasDimmed = CANVAS_DIMMED.includes(scene) && !layoutTouched;
   const demoSpotlight = scene === 'demo-2-cursor';
   const demo6 = scene === 'demo-6-place-element';
 
@@ -455,12 +462,28 @@ export default function Canvas({
   const stackReady = demo6 && stackEls.length + stackTexts.length >= 2;
   // The demo-7 Layout panel drives the stack's element column.
   const stackRow = layoutOpts.type === 'stack' && layoutOpts.direction === 'h';
+  const stackPad = `${layoutOpts.padT}px ${layoutOpts.padR}px ${layoutOpts.padB}px ${layoutOpts.padL}px`;
+  const gridCols = Math.max(1, parseInt(layoutOpts.cols, 10) || 1);
+  const gridRows = Math.max(1, parseInt(layoutOpts.rows, 10) || 1);
   const stackColStyle: React.CSSProperties = layoutOpts.type === 'grid'
-    ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', placeItems: 'center', alignContent: 'center' }
+    ? {
+        display: 'grid',
+        gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+        // Masonry lets items keep their natural height; otherwise the rows
+        // are an explicit, equal-height grid.
+        ...(layoutOpts.masonry === 'yes'
+          ? { gridAutoRows: 'auto', alignContent: 'start' }
+          : { gridTemplateRows: `repeat(${gridRows}, 1fr)` }),
+        placeItems: 'center',
+        columnGap: `${layoutOpts.gapX}px`,
+        rowGap: `${layoutOpts.gapY}px`,
+        padding: stackPad,
+      }
     : {
         flexDirection: layoutOpts.direction === 'h' ? 'row' : 'column',
         justifyContent: JUSTIFY[layoutOpts.distribute] ?? 'center',
         alignItems: ALIGN[layoutOpts.align] ?? 'center',
+        gap: `${layoutOpts.gap}px`, padding: stackPad,
       };
   const userStack = (
     <div

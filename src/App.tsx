@@ -47,7 +47,17 @@ export default function App() {
   // the stack's resting look — a vertical, centered column.
   const [layoutOpts, setLayoutOpts] = useState<LayoutOpts>({
     type: 'stack', direction: 'v', distribute: 'Center', align: 'center',
+    gap: '8', masonry: 'no', cols: '2', rows: '2', gapX: '10', gapY: '10',
+    padMode: 'uniform', padT: '8', padR: '8', padB: '8', padL: '8',
   });
+  // Once the user adjusts a layout control, the demo-7 spotlight/highlight
+  // turns off — the panel is then used like the normal editor.
+  const [layoutTouched, setLayoutTouched] = useState(false);
+  if (scene !== 'demo-7-layout-panel' && layoutTouched) setLayoutTouched(false);
+  const changeLayout = (next: LayoutOpts) => {
+    setLayoutOpts(next);
+    setLayoutTouched(true);
+  };
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
@@ -185,7 +195,7 @@ export default function App() {
     scene === 'demo-2-cursor' ||
     scene === 'demo-5-insert-highlighted' ||
     scene === 'demo-7-layout-prompt' ||
-    scene === 'demo-7-layout-panel';
+    (scene === 'demo-7-layout-panel' && !layoutTouched);
   const showStackTutorial = scene === 'stack-tutorial-modal';
   const showCompletedModal = scene === 'demo-completed-modal';
   const showDisabledModal = scene === 'disabled-tutorial-modal';
@@ -224,6 +234,7 @@ export default function App() {
           onDeselectText={deselectText}
           onEndTextEdit={endTextEdit}
           layoutOpts={layoutOpts}
+          layoutTouched={layoutTouched}
         />
         <RightSidebar
           scene={scene}
@@ -233,7 +244,8 @@ export default function App() {
           onArmText={armText}
           textArmed={textMode}
           layoutOpts={layoutOpts}
-          onLayoutChange={setLayoutOpts}
+          onLayoutChange={changeLayout}
+          layoutTouched={layoutTouched}
         />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />

@@ -74,6 +74,14 @@ const PadSidesI = () => (
     />
   </svg>
 );
+const DotsI = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <rect width="20" height="20" rx="5.5" fill="#0099ff" />
+    <circle cx="5.7" cy="10" r="1.5" fill="#ffffff" />
+    <circle cx="10" cy="10" r="1.5" fill="#ffffff" />
+    <circle cx="14.3" cy="10" r="1.5" fill="#ffffff" />
+  </svg>
+);
 
 type SegOption = { v: string; label?: string; icon?: ReactNode };
 
@@ -107,21 +115,61 @@ function Seg({ options, value, onChange }: {
   );
 }
 
-/** A gray pill text field with an optional faint suffix (X / Y / side). */
+/** A gray pill text field. Wrapped in a label so a click anywhere in the
+ *  pill — not just the narrow input — focuses it. An optional faint suffix
+ *  (e.g. X / Y) sits at the right edge. */
 function NumField({ value, onChange, suffix }: {
   value: string;
   onChange: (v: string) => void;
   suffix?: string;
 }) {
   return (
-    <div className="layout-field">
+    <label className="layout-field">
       <input
         className="layout-field__input"
         value={value}
         onChange={e => onChange(e.target.value)}
+        onFocus={e => e.target.select()}
         spellCheck={false}
       />
       {suffix && <span className="layout-field__suffix">{suffix}</span>}
+    </label>
+  );
+}
+
+/** A number field paired with a −/+ stepper pill (Grid columns / rows). */
+function Stepper({ value, onChange, min = 1 }: {
+  value: string;
+  onChange: (v: string) => void;
+  min?: number;
+}) {
+  const step = (delta: number) => {
+    const n = parseInt(value, 10);
+    onChange(String(Math.max(min, (Number.isFinite(n) ? n : min) + delta)));
+  };
+  return (
+    <div className="layout-pair">
+      <NumField value={value} onChange={onChange} />
+      <div className="layout-seg layout-stepper">
+        <button type="button" className="layout-seg__btn" onClick={() => step(-1)} aria-label="Decrease">−</button>
+        <span className="layout-seg__divider" />
+        <button type="button" className="layout-seg__btn" onClick={() => step(1)} aria-label="Increase">+</button>
+      </div>
+    </div>
+  );
+}
+
+/** One side of the individual-padding strip: a centered number field with
+ *  a faint T / R / B / L label beneath it. */
+function PadCell({ side, value, onChange }: {
+  side: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="layout-pad-cell">
+      <NumField value={value} onChange={onChange} />
+      <span className="layout-pad-cell__label">{side}</span>
     </div>
   );
 }
@@ -130,24 +178,21 @@ export default function LayoutOptions({ layoutOpts, onLayoutChange }: {
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
 }) {
-  // Type / Direction / Distribute / Align drive the real demo stack, so they
-  // live in lifted state. Wrap / Gap / Padding are panel-only for now.
-  const { type, direction, distribute, align } = layoutOpts;
+  // Every control drives the real demo stack, so they all read lifted state.
+  const {
+    type, direction, distribute, align, gap,
+    masonry, cols, rows, gapX, gapY,
+    padMode, padT, padR, padB, padL,
+  } = layoutOpts;
   const patch = (p: Partial<LayoutOpts>) => onLayoutChange({ ...layoutOpts, ...p });
   const setType = (v: string) => patch({ type: v as LayoutOpts['type'] });
   const setDirection = (v: string) => patch({ direction: v as LayoutOpts['direction'] });
   const setDistribute = (v: string) => patch({ distribute: v });
   const setAlign = (v: string) => patch({ align: v as LayoutOpts['align'] });
+  const setPadMode = (v: string) => patch({ padMode: v as LayoutOpts['padMode'] });
+  // Uniform padding edits all four sides at once.
+  const setPadUniform = (v: string) => patch({ padT: v, padR: v, padB: v, padL: v });
   const [distOpen, setDistOpen] = useState(false);
-  const [wrap, setWrap] = useState('yes');
-  const [gapX, setGapX] = useState('10');
-  const [gapY, setGapY] = useState('10');
-  const [padMode, setPadMode] = useState('uniform');
-  const [padding, setPadding] = useState('0');
-  const [padT, setPadT] = useState('0');
-  const [padR, setPadR] = useState('0');
-  const [padB, setPadB] = useState('0');
-  const [padL, setPadL] = useState('0');
   const distRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,8 +208,6 @@ export default function LayoutOptions({ layoutOpts, onLayoutChange }: {
 
   // --- derived layout logic (mirrors Framer's stack rules) ---
   const isStack = type === 'stack';
-  // Grid is 2D, and a wrapping stack has a line gap — both need X and Y.
-  const twoGaps = !isStack || wrap === 'yes';
   // Align is the cross axis, so the icon set flips with Direction.
   const alignOptions: SegOption[] = direction === 'h'
     ? [
@@ -230,44 +273,52 @@ export default function LayoutOptions({ layoutOpts, onLayoutChange }: {
             <span className="layout-opt-row__label">Align</span>
             <Seg value={align} onChange={setAlign} options={alignOptions} />
           </div>
+        </>
+      )}
 
+      {!isStack && (
+        <>
           <div className="layout-opt-row">
-            <span className="layout-opt-row__label">Wrap</span>
+            <span className="layout-opt-row__label">Masonry</span>
             <Seg
-              value={wrap} onChange={setWrap}
+              value={masonry}
+              onChange={v => patch({ masonry: v as LayoutOpts['masonry'] })}
               options={[{ v: 'yes', label: 'Yes' }, { v: 'no', label: 'No' }]}
             />
           </div>
+
+          <div className="layout-opt-row">
+            <span className="layout-opt-row__label">Columns</span>
+            <Stepper value={cols} onChange={v => patch({ cols: v })} />
+          </div>
+
+          {masonry === 'no' && (
+            <div className="layout-opt-row">
+              <span className="layout-opt-row__label">Rows</span>
+              <Stepper value={rows} onChange={v => patch({ rows: v })} />
+            </div>
+          )}
         </>
       )}
 
       <div className="layout-opt-row">
         <span className="layout-opt-row__label">Gap</span>
-        <div className="layout-pair">
-          {twoGaps ? (
-            <>
-              <NumField value={gapX} onChange={setGapX} suffix="X" />
-              <NumField value={gapY} onChange={setGapY} suffix="Y" />
-            </>
-          ) : (
-            <NumField value={gapX} onChange={setGapX} />
-          )}
-        </div>
+        {isStack ? (
+          <NumField value={gap} onChange={v => patch({ gap: v })} />
+        ) : (
+          <div className="layout-pair">
+            <NumField value={gapX} onChange={v => patch({ gapX: v })} suffix="X" />
+            <NumField value={gapY} onChange={v => patch({ gapY: v })} suffix="Y" />
+          </div>
+        )}
       </div>
 
       <div className="layout-opt-row">
         <span className="layout-opt-row__label">Padding</span>
         <div className="layout-pair layout-pair--pad">
-          {padMode === 'uniform' ? (
-            <NumField value={padding} onChange={setPadding} />
-          ) : (
-            <div className="layout-pad-grid">
-              <NumField value={padT} onChange={setPadT} suffix="T" />
-              <NumField value={padR} onChange={setPadR} suffix="R" />
-              <NumField value={padB} onChange={setPadB} suffix="B" />
-              <NumField value={padL} onChange={setPadL} suffix="L" />
-            </div>
-          )}
+          {padMode === 'uniform'
+            ? <NumField value={padT} onChange={setPadUniform} />
+            : <div className="layout-field" />}
           <Seg
             value={padMode} onChange={setPadMode}
             options={[
@@ -277,6 +328,28 @@ export default function LayoutOptions({ layoutOpts, onLayoutChange }: {
           />
         </div>
       </div>
+
+      {padMode === 'individual' && (
+        <div className="layout-opt-row">
+          <span className="layout-opt-row__label" />
+          <div className="layout-pad-strip">
+            <PadCell side="T" value={padT} onChange={v => patch({ padT: v })} />
+            <PadCell side="R" value={padR} onChange={v => patch({ padR: v })} />
+            <PadCell side="B" value={padB} onChange={v => patch({ padB: v })} />
+            <PadCell side="L" value={padL} onChange={v => patch({ padL: v })} />
+          </div>
+        </div>
+      )}
+
+      {!isStack && masonry === 'no' && (
+        <div className="layout-opt-row">
+          <span className="layout-opt-row__label" />
+          <button type="button" className="layout-advanced">
+            <span className="layout-advanced__icon"><DotsI /></span>
+            Advanced
+          </button>
+        </div>
+      )}
     </div>
   );
 }

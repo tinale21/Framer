@@ -2,7 +2,7 @@ import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import type { Scene, SceneSetter, LayoutOpts } from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
-  ComponentBadge,
+  ComponentBadge, Chevron,
 } from '../icons';
 import GridPopout from './GridPopout';
 import ElementPopout from './ElementPopout';
@@ -22,6 +22,7 @@ type InsertProps = {
 type Props = InsertProps & {
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
+  layoutTouched: boolean;
 };
 
 const PROPS_PANEL_SCENES: Scene[] = [
@@ -37,7 +38,7 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  layoutOpts, onLayoutChange,
+  layoutOpts, onLayoutChange, layoutTouched,
 }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
     return (
@@ -46,6 +47,7 @@ export default function RightSidebar({
         onSceneChange={onSceneChange}
         layoutOpts={layoutOpts}
         onLayoutChange={onLayoutChange}
+        layoutTouched={layoutTouched}
       />
     );
   }
@@ -319,15 +321,20 @@ function InsertPanel({
   );
 }
 
-function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange }: {
+function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange, layoutTouched }: {
   scene: Scene;
   onSceneChange: SceneSetter;
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
+  layoutTouched: boolean;
 }) {
   const layoutOpen = scene === 'demo-7-layout-panel';
   const promptLayout = scene === 'demo-7-layout-prompt';
-  const demoLayout = promptLayout || layoutOpen;
+  // The expanded layout options can be collapsed back to just the title.
+  const [layoutCollapsed, setLayoutCollapsed] = useState(false);
+  const showOptions = layoutOpen && !layoutCollapsed;
+  // Once a layout control is used, the spotlight/highlight clears.
+  const demoLayout = (promptLayout || layoutOpen) && !layoutTouched;
   return (
     <aside className="right-sidebar">
       <div className="right-sidebar__header">
@@ -361,22 +368,32 @@ function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange }: {
         <div className={
           'props-layout'
           + (demoLayout ? ' props-layout--demo' : '')
-          + (layoutOpen ? ' layout-demo-ring' : '')
+          + (showOptions && !layoutTouched ? ' layout-demo-ring' : '')
         }>
           <div
             className={
-              'props-section-title'
-              + (promptLayout ? ' props-layout__title--clickable layout-demo-ring' : '')
+              'props-section-title props-layout__title'
+              + (promptLayout || layoutOpen ? ' props-layout__title--clickable' : '')
+              + (promptLayout ? ' layout-demo-ring' : '')
             }
             style={{ padding: 0 }}
-            onClick={promptLayout ? () => onSceneChange('demo-7-layout-panel') : undefined}
+            onClick={
+              promptLayout ? () => onSceneChange('demo-7-layout-panel')
+              : layoutOpen ? () => setLayoutCollapsed(c => !c)
+              : undefined
+            }
           >
             Layout
+            {(promptLayout || layoutOpen) && (
+              <span className="props-layout__chev">
+                <Chevron dir={showOptions ? 'down' : 'right'} size={12} />
+              </span>
+            )}
           </div>
-          {layoutOpen && (
+          {showOptions && (
             <LayoutOptions layoutOpts={layoutOpts} onLayoutChange={onLayoutChange} />
           )}
-          {demoLayout && (
+          {demoLayout && !layoutCollapsed && (
             <div className="props-layout__callout">
               {promptLayout
                 ? (<>Click <span className="props-layout__callout-bold">Layout</span> to change the stack’s layout.</>)

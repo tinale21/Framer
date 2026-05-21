@@ -723,6 +723,15 @@ button {
   50% { box-shadow: 0 0 0 1.5px #0099ff; }
 }
 .props-layout__title--clickable { cursor: pointer; }
+.props-layout__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.props-layout__chev {
+  display: flex;
+  color: #8a8a8a;
+}
 .props-layout__callout-bold { font-weight: 600; }
 .props-layout__callout {
   position: absolute;
@@ -808,6 +817,29 @@ button {
   flex-shrink: 0;
   background: #d4d4d4;
 }
+/* The Columns / Rows −/+ stepper reuses the segmented-control pill. */
+.layout-stepper .layout-seg__btn {
+  font-size: 16px;
+  font-weight: 400;
+}
+.layout-advanced {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px;
+  border: none;
+  background: #ededed;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.layout-advanced__icon { display: flex; }
 .layout-dropdown {
   flex: 1;
   min-width: 0;
@@ -867,12 +899,35 @@ button {
   gap: 8px;
 }
 .layout-pair--pad > .layout-field { flex: 1.5; }
-.layout-pad-grid {
-  flex: 1.5;
+/* Individual padding: a row of four side fields sitting below the
+   Padding row, each with a faint T / R / B / L label beneath it. */
+.layout-pad-strip {
+  flex: 1;
   min-width: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  display: flex;
+  gap: 5px;
+}
+.layout-pad-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.layout-pad-cell .layout-field {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0 4px;
+}
+.layout-pad-cell .layout-field__input { text-align: center; }
+.layout-pad-cell .layout-field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+}
+.layout-pad-cell__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #b3b3b3;
 }
 .layout-field {
   flex: 1;

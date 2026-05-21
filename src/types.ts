@@ -27,6 +27,21 @@ export type LayoutOpts = {
   direction: 'h' | 'v';
   distribute: string;
   align: 'start' | 'center' | 'end';
+  gap: string;
+  // Grid-only: a masonry toggle, column / row counts, and separate
+  // horizontal / vertical gaps.
+  masonry: 'yes' | 'no';
+  cols: string;
+  rows: string;
+  gapX: string;
+  gapY: string;
+  // padMode is a panel-only toggle (one field vs four); the stack always
+  // uses the four side values, kept in sync while padMode is 'uniform'.
+  padMode: 'uniform' | 'individual';
+  padT: string;
+  padR: string;
+  padB: string;
+  padL: string;
 };
 
 // A text element placed on the canvas: a unique key, a free position,
