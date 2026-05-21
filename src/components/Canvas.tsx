@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Scene, SceneSetter, DemoEl, TextEl } from '../types';
+import type { Scene, SceneSetter, DemoEl, TextEl, LayoutOpts } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -7,6 +7,13 @@ const INITIAL_SCALE = 0.765;
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5;
+
+// Layout-panel values → CSS for the demo stack.
+const JUSTIFY: Record<string, string> = {
+  Start: 'flex-start', Center: 'center', End: 'flex-end',
+  'Space Between': 'space-between', 'Space Around': 'space-around', 'Space Evenly': 'space-evenly',
+};
+const ALIGN: Record<string, string> = { start: 'flex-start', center: 'center', end: 'flex-end' };
 
 type Selection = 'none' | 'frame' | 'canvas';
 type DemoPhase = 'idle' | 'drawing' | 'placed';
@@ -41,6 +48,7 @@ type Props = {
   onEditText?: (key: number) => void;
   onDeselectText?: () => void;
   onEndTextEdit?: (key: number, isEmpty: boolean) => void;
+  layoutOpts?: LayoutOpts;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -81,6 +89,7 @@ export default function Canvas({
   onEditText,
   onDeselectText,
   onEndTextEdit,
+  layoutOpts = { type: 'stack', direction: 'v', distribute: 'Center', align: 'center' },
 }: Props) {
   const chromeDimmed = CHROME_DIMMED.includes(scene);
   const canvasDimmed = CANVAS_DIMMED.includes(scene);
@@ -105,7 +114,7 @@ export default function Canvas({
   // demo-6: drag a free element around the canvas / into the stack.
   const [draggingKey, setDraggingKey] = useState<number | null>(null);
   const elementGrabRef = useRef<
-    { dx: number; dy: number; sx: number; sy: number; moved: boolean; fromStack: boolean } | null
+    { gx: number; gy: number; sx: number; sy: number; moved: boolean; fromStack: boolean } | null
   >(null);
   const draggingElRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -215,8 +224,7 @@ export default function Canvas({
     const key = draggingKey;
     const onMove = (e: MouseEvent) => {
       const grab = elementGrabRef.current;
-      const wrap = wrapRef.current;
-      if (!grab || !wrap) return;
+      if (!grab) return;
       if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
         grab.moved = true;
         startDropSweep(grab.fromStack); // sweep the drop-zone outline
@@ -225,8 +233,8 @@ export default function Canvas({
         if (grab.fromStack) onPopElementFromStack?.(key);
       }
       if (!grab.moved) return;
-      const wr = wrap.getBoundingClientRect();
-      onMoveElement?.(key, e.clientX - grab.dx - wr.left, e.clientY - grab.dy - wr.top);
+      // Coords are in the frame-card's space, so divide screen movement by zoom.
+      onMoveElement?.(key, grab.gx + (e.clientX - grab.sx) / scale, grab.gy + (e.clientY - grab.sy) / scale);
     };
     const onUp = () => {
       const grab = elementGrabRef.current;
@@ -256,7 +264,7 @@ export default function Canvas({
       window.removeEventListener('mouseup', onUp);
     };
   }, [draggingKey, onMoveElement, onSelectEl, onDropElementInStack, onPopElementFromStack,
-      startDropSweep, endDropSweep]);
+      scale, startDropSweep, endDropSweep]);
 
   // Drag a selected text box. Screen movement is divided by the zoom
   // scale because text coords live in the frame-card's own space.
@@ -403,27 +411,31 @@ export default function Canvas({
     setDraggingTextKey(t.key);
   };
 
-  const handleElementMouseDown = (e: React.MouseEvent, key: number, fromStack = false) => {
+  const handleElementMouseDown = (e: React.MouseEvent, el: DemoEl, fromStack = false) => {
     e.stopPropagation(); // don't also start a canvas pan
-    const r = e.currentTarget.getBoundingClientRect();
+    // Coords live in the frame-card's own (un-transformed) space.
+    let gx = el.x;
+    let gy = el.y;
     if (fromStack) {
       // Render a free dragging copy right over the in-stack element so it
       // never remounts mid-drag — then it drags exactly like a free element.
-      const wrap = wrapRef.current;
-      if (wrap) {
-        const wr = wrap.getBoundingClientRect();
-        onMoveElement?.(key, r.left - wr.left, r.top - wr.top, r.width);
-      }
+      const fc = frameCardRef.current;
+      if (!fc) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      const fr = fc.getBoundingClientRect();
+      gx = (r.left - fr.left) / scale;
+      gy = (r.top - fr.top) / scale;
+      onMoveElement?.(el.key, gx, gy, r.width / scale);
     }
     elementGrabRef.current = {
-      dx: e.clientX - r.left,
-      dy: e.clientY - r.top,
+      gx,
+      gy,
       sx: e.clientX,
       sy: e.clientY,
       moved: false,
       fromStack,
     };
-    setDraggingKey(key);
+    setDraggingKey(el.key);
   };
 
   const demoBoxStyle = {
@@ -441,6 +453,15 @@ export default function Canvas({
   const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
   // demo-6: once 2+ items are in the stack, prompt the user to click it.
   const stackReady = demo6 && stackEls.length + stackTexts.length >= 2;
+  // The demo-7 Layout panel drives the stack's element column.
+  const stackRow = layoutOpts.type === 'stack' && layoutOpts.direction === 'h';
+  const stackColStyle: React.CSSProperties = layoutOpts.type === 'grid'
+    ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', placeItems: 'center', alignContent: 'center' }
+    : {
+        flexDirection: layoutOpts.direction === 'h' ? 'row' : 'column',
+        justifyContent: JUSTIFY[layoutOpts.distribute] ?? 'center',
+        alignItems: ALIGN[layoutOpts.align] ?? 'center',
+      };
   const userStack = (
     <div
       className={'demo-stack' + (stackReady ? ' demo-stack--clickable' : '')}
@@ -451,7 +472,10 @@ export default function Canvas({
       {stackReady && (
         <div className="demo-stack__callout">Click the stack to change its layout.</div>
       )}
-      <div className="demo-stack__col demo-stack__col--blue">
+      <div
+        className={'demo-stack__col demo-stack__col--blue' + (stackRow ? ' demo-stack__col--row' : '')}
+        style={stackColStyle}
+      >
         {stackEls.map(el => (
           <img
             key={el.key}
@@ -462,7 +486,7 @@ export default function Canvas({
               (selectedEl === el.key ? ' demo-stack__element--selected' : '')
             }
             style={el.key === draggingKey ? { visibility: 'hidden' } : undefined}
-            onMouseDown={e => handleElementMouseDown(e, el.key, true)}
+            onMouseDown={e => handleElementMouseDown(e, el, true)}
             onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
           />
         ))}
@@ -606,30 +630,31 @@ export default function Canvas({
             );
           })}
         </div>
-      </div>
 
-      {demo6 && freeEls.map(el => (
-        <div
-          key={el.key}
-          ref={el.key === draggingKey ? draggingElRef : undefined}
-          className={
-            'demo-element' +
-            (draggingKey === el.key ? ' demo-element--dragging' : '') +
-            (selectedEl === el.key ? ' demo-element--selected' : '')
-          }
-          style={{
-            left: `${el.x}px`,
-            top: `${el.y}px`,
-            width: el.width != null ? `${el.width}px` : undefined,
-          }}
-          onMouseDown={e => handleElementMouseDown(e, el.key)}
-        >
-          {calloutEl === el.key && (
-            <div className="demo-element__callout">Drag this into the stack.</div>
-          )}
-          <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
-        </div>
-      ))}
+        {/* Free elements live in the frame-card so they pan and zoom with it. */}
+        {demo6 && freeEls.map(el => (
+          <div
+            key={el.key}
+            ref={el.key === draggingKey ? draggingElRef : undefined}
+            className={
+              'demo-element' +
+              (draggingKey === el.key ? ' demo-element--dragging' : '') +
+              (selectedEl === el.key ? ' demo-element--selected' : '')
+            }
+            style={{
+              left: `${el.x}px`,
+              top: `${el.y}px`,
+              width: el.width != null ? `${el.width}px` : undefined,
+            }}
+            onMouseDown={e => handleElementMouseDown(e, el)}
+          >
+            {calloutEl === el.key && (
+              <div className="demo-element__callout">Drag this into the stack.</div>
+            )}
+            <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
+          </div>
+        ))}
+      </div>
 
     </main>
   );

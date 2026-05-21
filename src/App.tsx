@@ -9,7 +9,7 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
-import type { Scene, DemoEl, TextEl } from './types';
+import type { Scene, DemoEl, TextEl, LayoutOpts } from './types';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -43,17 +43,23 @@ export default function App() {
   const [editingText, setEditingText] = useState<number | null>(null);
   const [selectedText, setSelectedText] = useState<number | null>(null);
   const textKeyRef = useRef(0);
+  // The demo stack's layout, set by the demo-7 Layout panel. Defaults match
+  // the stack's resting look — a vertical, centered column.
+  const [layoutOpts, setLayoutOpts] = useState<LayoutOpts>({
+    type: 'stack', direction: 'v', distribute: 'Center', align: 'center',
+  });
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
-    // Stack each new free element directly below the previous ones (a real
-    // vertical column) so picking several never piles them on top.
+    // A new element drops in the workspace just left of the frame (negative x
+    // in the frame's own space), so the user drags it onto the canvas. Stack
+    // each one below the previous so picking several never piles them up.
     const y = demoElements
       .filter(el => !el.inStack)
       .reduce((bottom, el) => bottom + (EL_HEIGHTS[el.id] ?? 90) + EL_GAP, 300);
     setDemoElements(prev => [
       ...prev,
-      { key, id, x: 24, y, inStack: false, src },
+      { key, id, x: -165, y, inStack: false, src },
     ]);
     setSelectedEl(key);
     setSelectedText(null); // only one thing is selected at a time
@@ -217,6 +223,7 @@ export default function App() {
           onEditText={editText}
           onDeselectText={deselectText}
           onEndTextEdit={endTextEdit}
+          layoutOpts={layoutOpts}
         />
         <RightSidebar
           scene={scene}
@@ -225,6 +232,8 @@ export default function App() {
           onRequestImageUpload={requestImageUpload}
           onArmText={armText}
           textArmed={textMode}
+          layoutOpts={layoutOpts}
+          onLayoutChange={setLayoutOpts}
         />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />

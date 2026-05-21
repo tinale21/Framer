@@ -863,9 +863,17 @@ button {
   flex: 1;
   min-width: 0;
   display: flex;
+  align-items: center;
   gap: 8px;
 }
-.layout-pair--pad .layout-field { flex: 1.5; }
+.layout-pair--pad > .layout-field { flex: 1.5; }
+.layout-pad-grid {
+  flex: 1.5;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
 .layout-field {
   flex: 1;
   min-width: 0;
@@ -1397,6 +1405,15 @@ button {
 }
 .demo-stack__col--blue { background: #B6E0FF; }
 .demo-stack__col--teal { background: #CDEEF3; }
+/* horizontal stack: items take a fixed slice of the row (not flex-grow) so
+   there's free space left for Distribute to spread them */
+.demo-stack__col--row .demo-stack__element,
+.demo-stack__col--row .demo-stack__text {
+  flex: 0 1 auto;
+  width: 28%;
+  min-width: 0;
+  max-height: 100%;
+}
 .demo-stack__element {
   width: 78%;
   height: auto;

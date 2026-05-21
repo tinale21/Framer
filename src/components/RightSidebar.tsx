@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import type { Scene, SceneSetter } from '../types';
+import type { Scene, SceneSetter, LayoutOpts } from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
   ComponentBadge,
@@ -11,13 +11,17 @@ import VectorPopout from './VectorPopout';
 import ComponentPopout from './ComponentPopout';
 import BaseHoverPopout from './BaseHoverPopout';
 
-type Props = {
+type InsertProps = {
   scene: Scene;
   onSceneChange: SceneSetter;
   onPickElement: (id: string, src?: string) => void;
   onRequestImageUpload: () => void;
   onArmText: () => void;
   textArmed: boolean;
+};
+type Props = InsertProps & {
+  layoutOpts: LayoutOpts;
+  onLayoutChange: (next: LayoutOpts) => void;
 };
 
 const PROPS_PANEL_SCENES: Scene[] = [
@@ -33,9 +37,17 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
+  layoutOpts, onLayoutChange,
 }: Props) {
   if (PROPS_PANEL_SCENES.includes(scene)) {
-    return <PropsPanel scene={scene} onSceneChange={onSceneChange} />;
+    return (
+      <PropsPanel
+        scene={scene}
+        onSceneChange={onSceneChange}
+        layoutOpts={layoutOpts}
+        onLayoutChange={onLayoutChange}
+      />
+    );
   }
   return (
     <InsertPanel
@@ -51,7 +63,7 @@ export default function RightSidebar({
 
 function InsertPanel({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-}: Props) {
+}: InsertProps) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
   const [elementHovered, setElementHovered] = useState(false);
@@ -307,7 +319,12 @@ function InsertPanel({
   );
 }
 
-function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: SceneSetter }) {
+function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange }: {
+  scene: Scene;
+  onSceneChange: SceneSetter;
+  layoutOpts: LayoutOpts;
+  onLayoutChange: (next: LayoutOpts) => void;
+}) {
   const layoutOpen = scene === 'demo-7-layout-panel';
   const promptLayout = scene === 'demo-7-layout-prompt';
   const demoLayout = promptLayout || layoutOpen;
@@ -356,7 +373,9 @@ function PropsPanel({ scene, onSceneChange }: { scene: Scene; onSceneChange: Sce
           >
             Layout
           </div>
-          {layoutOpen && <LayoutOptions />}
+          {layoutOpen && (
+            <LayoutOptions layoutOpts={layoutOpts} onLayoutChange={onLayoutChange} />
+          )}
           {demoLayout && (
             <div className="props-layout__callout">
               {promptLayout

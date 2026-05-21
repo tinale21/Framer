@@ -19,6 +19,16 @@ export type Scene =
 
 export type SceneSetter = (scene: Scene) => void;
 
+// The demo stack's layout, driven by the demo-7 Layout panel. `distribute`
+// is one of the panel's options (Start / Center / End / Space Between /
+// Space Around / Space Evenly).
+export type LayoutOpts = {
+  type: 'stack' | 'grid';
+  direction: 'h' | 'v';
+  distribute: string;
+  align: 'start' | 'center' | 'end';
+};
+
 // A text element placed on the canvas: a unique key, a free position,
 // its typed content, and whether it's been dropped into the demo stack.
 export type TextEl = {

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Chevron } from '../icons';
+import type { LayoutOpts } from '../types';
 
 const DISTRIBUTE_OPTIONS = [
   'Start', 'Center', 'End', 'Space Between', 'Space Around', 'Space Evenly',
@@ -22,6 +23,7 @@ const ArrowV = () => (
     />
   </svg>
 );
+/* Cross-axis align for a horizontal stack: top / middle / bottom. */
 const AlignTopI = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
     <path d="M4 3.75h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -38,6 +40,25 @@ const AlignBotI = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
     <path d="M4 14.25h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     <rect x="6" y="3.75" width="6" height="8" rx="1.5" fill="currentColor" />
+  </svg>
+);
+/* Cross-axis align for a vertical stack: left / center / right. */
+const AlignLeftI = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M3.75 4v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="6.25" y="6" width="8" height="6" rx="1.5" fill="currentColor" />
+  </svg>
+);
+const AlignCtrI = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M9 4v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="5" y="6" width="8" height="6" rx="1.5" fill="currentColor" />
+  </svg>
+);
+const AlignRightI = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M14.25 4v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="3.75" y="6" width="8" height="6" rx="1.5" fill="currentColor" />
   </svg>
 );
 const PadUniformI = () => (
@@ -86,7 +107,7 @@ function Seg({ options, value, onChange }: {
   );
 }
 
-/** A gray pill text field with an optional faint suffix (X / Y). */
+/** A gray pill text field with an optional faint suffix (X / Y / side). */
 function NumField({ value, onChange, suffix }: {
   value: string;
   onChange: (v: string) => void;
@@ -105,17 +126,28 @@ function NumField({ value, onChange, suffix }: {
   );
 }
 
-export default function LayoutOptions() {
-  const [type, setType] = useState('stack');
-  const [direction, setDirection] = useState('h');
-  const [distribute, setDistribute] = useState('Space Evenly');
+export default function LayoutOptions({ layoutOpts, onLayoutChange }: {
+  layoutOpts: LayoutOpts;
+  onLayoutChange: (next: LayoutOpts) => void;
+}) {
+  // Type / Direction / Distribute / Align drive the real demo stack, so they
+  // live in lifted state. Wrap / Gap / Padding are panel-only for now.
+  const { type, direction, distribute, align } = layoutOpts;
+  const patch = (p: Partial<LayoutOpts>) => onLayoutChange({ ...layoutOpts, ...p });
+  const setType = (v: string) => patch({ type: v as LayoutOpts['type'] });
+  const setDirection = (v: string) => patch({ direction: v as LayoutOpts['direction'] });
+  const setDistribute = (v: string) => patch({ distribute: v });
+  const setAlign = (v: string) => patch({ align: v as LayoutOpts['align'] });
   const [distOpen, setDistOpen] = useState(false);
-  const [align, setAlign] = useState('top');
   const [wrap, setWrap] = useState('yes');
   const [gapX, setGapX] = useState('10');
   const [gapY, setGapY] = useState('10');
-  const [padding, setPadding] = useState('0');
   const [padMode, setPadMode] = useState('uniform');
+  const [padding, setPadding] = useState('0');
+  const [padT, setPadT] = useState('0');
+  const [padR, setPadR] = useState('0');
+  const [padB, setPadB] = useState('0');
+  const [padL, setPadL] = useState('0');
   const distRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -129,6 +161,23 @@ export default function LayoutOptions() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [distOpen]);
 
+  // --- derived layout logic (mirrors Framer's stack rules) ---
+  const isStack = type === 'stack';
+  // Grid is 2D, and a wrapping stack has a line gap — both need X and Y.
+  const twoGaps = !isStack || wrap === 'yes';
+  // Align is the cross axis, so the icon set flips with Direction.
+  const alignOptions: SegOption[] = direction === 'h'
+    ? [
+        { v: 'start', icon: <AlignTopI /> },
+        { v: 'center', icon: <AlignMidI /> },
+        { v: 'end', icon: <AlignBotI /> },
+      ]
+    : [
+        { v: 'start', icon: <AlignLeftI /> },
+        { v: 'center', icon: <AlignCtrI /> },
+        { v: 'end', icon: <AlignRightI /> },
+      ];
+
   return (
     <div className="layout-opts">
       <div className="layout-opt-row">
@@ -139,74 +188,86 @@ export default function LayoutOptions() {
         />
       </div>
 
-      <div className="layout-opt-row">
-        <span className="layout-opt-row__label">Direction</span>
-        <Seg
-          value={direction} onChange={setDirection}
-          options={[{ v: 'h', icon: <ArrowH /> }, { v: 'v', icon: <ArrowV /> }]}
-        />
-      </div>
+      {isStack && (
+        <>
+          <div className="layout-opt-row">
+            <span className="layout-opt-row__label">Direction</span>
+            <Seg
+              value={direction} onChange={setDirection}
+              options={[{ v: 'h', icon: <ArrowH /> }, { v: 'v', icon: <ArrowV /> }]}
+            />
+          </div>
 
-      <div className="layout-opt-row">
-        <span className="layout-opt-row__label">Distribute</span>
-        <div className="layout-dropdown" ref={distRef}>
-          <button
-            type="button"
-            className="layout-dropdown__trigger"
-            onClick={() => setDistOpen(o => !o)}
-          >
-            {distribute}
-            <span className="layout-dropdown__chev"><Chevron dir="down" /></span>
-          </button>
-          {distOpen && (
-            <div className="layout-dropdown__menu">
-              {DISTRIBUTE_OPTIONS.map(o => (
-                <button
-                  type="button"
-                  key={o}
-                  className={'layout-dropdown__item' + (o === distribute ? ' layout-dropdown__item--active' : '')}
-                  onClick={() => { setDistribute(o); setDistOpen(false); }}
-                >
-                  {o}
-                </button>
-              ))}
+          <div className="layout-opt-row">
+            <span className="layout-opt-row__label">Distribute</span>
+            <div className="layout-dropdown" ref={distRef}>
+              <button
+                type="button"
+                className="layout-dropdown__trigger"
+                onClick={() => setDistOpen(o => !o)}
+              >
+                {distribute}
+                <span className="layout-dropdown__chev"><Chevron dir="down" /></span>
+              </button>
+              {distOpen && (
+                <div className="layout-dropdown__menu">
+                  {DISTRIBUTE_OPTIONS.map(o => (
+                    <button
+                      type="button"
+                      key={o}
+                      className={'layout-dropdown__item' + (o === distribute ? ' layout-dropdown__item--active' : '')}
+                      onClick={() => { setDistribute(o); setDistOpen(false); }}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <div className="layout-opt-row">
-        <span className="layout-opt-row__label">Align</span>
-        <Seg
-          value={align} onChange={setAlign}
-          options={[
-            { v: 'top', icon: <AlignTopI /> },
-            { v: 'center', icon: <AlignMidI /> },
-            { v: 'bottom', icon: <AlignBotI /> },
-          ]}
-        />
-      </div>
+          <div className="layout-opt-row">
+            <span className="layout-opt-row__label">Align</span>
+            <Seg value={align} onChange={setAlign} options={alignOptions} />
+          </div>
 
-      <div className="layout-opt-row">
-        <span className="layout-opt-row__label">Wrap</span>
-        <Seg
-          value={wrap} onChange={setWrap}
-          options={[{ v: 'yes', label: 'Yes' }, { v: 'no', label: 'No' }]}
-        />
-      </div>
+          <div className="layout-opt-row">
+            <span className="layout-opt-row__label">Wrap</span>
+            <Seg
+              value={wrap} onChange={setWrap}
+              options={[{ v: 'yes', label: 'Yes' }, { v: 'no', label: 'No' }]}
+            />
+          </div>
+        </>
+      )}
 
       <div className="layout-opt-row">
         <span className="layout-opt-row__label">Gap</span>
         <div className="layout-pair">
-          <NumField value={gapX} onChange={setGapX} suffix="X" />
-          <NumField value={gapY} onChange={setGapY} suffix="Y" />
+          {twoGaps ? (
+            <>
+              <NumField value={gapX} onChange={setGapX} suffix="X" />
+              <NumField value={gapY} onChange={setGapY} suffix="Y" />
+            </>
+          ) : (
+            <NumField value={gapX} onChange={setGapX} />
+          )}
         </div>
       </div>
 
       <div className="layout-opt-row">
         <span className="layout-opt-row__label">Padding</span>
         <div className="layout-pair layout-pair--pad">
-          <NumField value={padding} onChange={setPadding} />
+          {padMode === 'uniform' ? (
+            <NumField value={padding} onChange={setPadding} />
+          ) : (
+            <div className="layout-pad-grid">
+              <NumField value={padT} onChange={setPadT} suffix="T" />
+              <NumField value={padR} onChange={setPadR} suffix="R" />
+              <NumField value={padB} onChange={setPadB} suffix="B" />
+              <NumField value={padL} onChange={setPadL} suffix="L" />
+            </div>
+          )}
           <Seg
             value={padMode} onChange={setPadMode}
             options={[
