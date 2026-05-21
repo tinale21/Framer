@@ -50,6 +50,8 @@ type Props = {
   onEndTextEdit?: (key: number, isEmpty: boolean) => void;
   layoutOpts?: LayoutOpts;
   layoutTouched?: boolean;
+  stackSelected?: boolean;
+  onSelectStack?: () => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
@@ -96,6 +98,8 @@ export default function Canvas({
     padMode: 'uniform', padT: '8', padR: '8', padB: '8', padL: '8',
   },
   layoutTouched = false,
+  stackSelected = false,
+  onSelectStack,
 }: Props) {
   // The demo-7 canvas dimming clears once a layout control is used.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
@@ -487,10 +491,21 @@ export default function Canvas({
       };
   const userStack = (
     <div
-      className={'demo-stack' + (stackReady ? ' demo-stack--clickable' : '')}
+      className={
+        'demo-stack'
+        + (stackReady ? ' demo-stack--clickable' : '')
+        + (scene === 'demo-7-layout-panel' ? ' demo-stack--selectable' : '')
+        + (stackSelected ? ' demo-stack--selected' : '')
+      }
       style={demoBoxStyle}
       ref={stackRef}
-      onClick={stackReady ? () => onSceneChange('demo-7-layout-prompt') : undefined}
+      onClick={
+        stackReady
+          ? () => onSceneChange('demo-7-layout-prompt')
+          : scene === 'demo-7-layout-panel'
+            ? (e: React.MouseEvent) => { e.stopPropagation(); onSelectStack?.(); }
+            : undefined
+      }
     >
       {stackReady && (
         <div className="demo-stack__callout">Click the stack to change its layout.</div>
@@ -508,7 +523,7 @@ export default function Canvas({
               'demo-stack__element' +
               (selectedEl === el.key ? ' demo-stack__element--selected' : '')
             }
-            style={el.key === draggingKey ? { visibility: 'hidden' } : undefined}
+            style={el.key === draggingKey ? { opacity: 0 } : undefined}
             onMouseDown={e => handleElementMouseDown(e, el, true)}
             onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
           />
@@ -520,7 +535,7 @@ export default function Canvas({
               'demo-stack__text' +
               (selectedText === t.key ? ' demo-stack__text--selected' : '')
             }
-            style={t.key === draggingTextKey ? { visibility: 'hidden' } : undefined}
+            style={t.key === draggingTextKey ? { opacity: 0 } : undefined}
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
           >

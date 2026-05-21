@@ -1417,6 +1417,9 @@ button {
 }
 /* demo-6: once 2+ items are placed, the stack is clickable to open its layout */
 .demo-stack--clickable { pointer-events: auto; cursor: pointer; }
+/* demo-7: the stack can be clicked to select it (then deleted via keyboard) */
+.demo-stack--selectable { pointer-events: auto; }
+.demo-stack--selected { outline: 2px solid #0099ff; outline-offset: 1px; }
 /* let the stack callout escape the canvas clip so it isn't cut off */
 .canvas-wrap--callout-room,
 .canvas-content--callout-room { overflow: visible; }

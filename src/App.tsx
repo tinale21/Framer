@@ -58,6 +58,10 @@ export default function App() {
     setLayoutOpts(next);
     setLayoutTouched(true);
   };
+  // The demo stack can be selected (in the layout-panel step) so the user
+  // can delete it with the keyboard.
+  const [stackSelected, setStackSelected] = useState(false);
+  if (scene !== 'demo-7-layout-panel' && stackSelected) setStackSelected(false);
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
@@ -106,6 +110,15 @@ export default function App() {
     setSelectedEl(key);
     setSelectedText(null);
     setEditingText(null);
+    setStackSelected(false);
+  }, []);
+  // Selecting the whole stack clears any element / text selection — only
+  // one thing is selected (and so deletable) at a time.
+  const selectStack = useCallback(() => {
+    setStackSelected(true);
+    setSelectedEl(null);
+    setSelectedText(null);
+    setEditingText(null);
   }, []);
 
   const armText = () => setTextMode(m => !m); // clicking the tile toggles it
@@ -133,11 +146,13 @@ export default function App() {
     setSelectedText(key);
     setEditingText(null);
     setSelectedEl(null); // only one thing is selected at a time
+    setStackSelected(false);
   }, []);
   const editText = useCallback((key: number) => {
     setSelectedText(key);
     setEditingText(key);
     setSelectedEl(null); // only one thing is selected at a time
+    setStackSelected(false);
   }, []);
   const deselectText = useCallback(() => {
     setSelectedText(null);
@@ -169,6 +184,17 @@ export default function App() {
         return;
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (stackSelected) {
+        // Deleting the stack clears the canvas back to the empty editor.
+        setStackSelected(false);
+        setSelectedEl(null);
+        setSelectedText(null);
+        setEditingText(null);
+        setDemoElements([]);
+        setTexts([]);
+        setScene('base');
+        return;
+      }
       if (selectedEl !== null) {
         setDemoElements(prev => prev.filter(el => el.key !== selectedEl));
         setSelectedEl(null);
@@ -181,12 +207,12 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl, selectedText]);
+  }, [selectedEl, selectedText, stackSelected]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
-  const selectFrame = () => setSelection('frame');
-  const selectCanvas = () => setSelection('canvas');
-  const deselect = () => setSelection('none');
+  const selectFrame = () => { setSelection('frame'); setStackSelected(false); };
+  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); };
+  const deselect = () => { setSelection('none'); setStackSelected(false); };
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   const showPopout = SHOW_POPOUT.includes(scene);
@@ -235,6 +261,8 @@ export default function App() {
           onEndTextEdit={endTextEdit}
           layoutOpts={layoutOpts}
           layoutTouched={layoutTouched}
+          stackSelected={stackSelected}
+          onSelectStack={selectStack}
         />
         <RightSidebar
           scene={scene}
