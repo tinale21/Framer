@@ -61,7 +61,10 @@ export default function App() {
   // The demo stack can be selected (in the layout-panel step) so the user
   // can delete it with the keyboard.
   const [stackSelected, setStackSelected] = useState(false);
-  if (scene !== 'demo-7-layout-panel' && stackSelected) setStackSelected(false);
+  if (scene !== 'demo-7-layout-panel' && scene !== 'demo-final' && stackSelected) setStackSelected(false);
+  // Where the demo lands after the completion flow — `demo-final` keeps the
+  // user's canvas, `base` is the blank editor.
+  const [demoEndScene, setDemoEndScene] = useState<Scene>('base');
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
@@ -120,17 +123,24 @@ export default function App() {
     setSelectedText(null);
     setEditingText(null);
   }, []);
-  // Discarding the demo (or deleting the stack) clears the canvas back to
-  // the empty editor.
-  const clearCanvas = useCallback(() => {
+  // Clears all placed content — used by Discard and the keyboard delete.
+  const clearCanvasState = useCallback(() => {
     setStackSelected(false);
     setSelectedEl(null);
     setSelectedText(null);
     setEditingText(null);
     setDemoElements([]);
     setTexts([]);
-    setScene('base');
   }, []);
+  // Finishing the demo: Save keeps the canvas (ends at `demo-final`), Discard
+  // clears it (ends at `base`). With "Don't ask again" ticked, both detour
+  // through the disabled-tutorial popup, which then lands on that end scene.
+  const finishDemo = useCallback((save: boolean, dontAsk: boolean) => {
+    const end: Scene = save ? 'demo-final' : 'base';
+    if (!save) clearCanvasState();
+    setDemoEndScene(end);
+    setScene(dontAsk ? 'disabled-tutorial-modal' : end);
+  }, [clearCanvasState]);
 
   const armText = () => setTextMode(m => !m); // clicking the tile toggles it
   const placeText = useCallback((x: number, y: number) => {
@@ -196,7 +206,9 @@ export default function App() {
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       if (stackSelected) {
-        clearCanvas(); // deleting the stack blanks the canvas
+        // Deleting the stack blanks the canvas.
+        clearCanvasState();
+        setScene('base');
         return;
       }
       if (selectedEl !== null) {
@@ -211,7 +223,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl, selectedText, stackSelected, clearCanvas]);
+  }, [selectedEl, selectedText, stackSelected, clearCanvasState]);
 
   // The completion screen appears ~3s after the first layout adjustment.
   useEffect(() => {
@@ -298,10 +310,10 @@ export default function App() {
       {showDemoTint && <div className="demo-tint" />}
       {showPopout && <BasePopout scene={scene} onSceneChange={setScene} />}
       {showStackTutorial && <StackTutorialModal onSceneChange={setScene} />}
-      {showCompletedModal && (
-        <StackDemoCompletedModal onSceneChange={setScene} onDiscard={clearCanvas} />
+      {showCompletedModal && <StackDemoCompletedModal onFinish={finishDemo} />}
+      {showDisabledModal && (
+        <DisabledStackTutorialModal onSceneChange={setScene} endScene={demoEndScene} />
       )}
-      {showDisabledModal && <DisabledStackTutorialModal onSceneChange={setScene} />}
       {showOverlaysSettings && <TutorialOverlaysModal onSceneChange={setScene} />}
     </div>
   );

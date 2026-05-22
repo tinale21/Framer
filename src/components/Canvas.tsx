@@ -55,14 +55,9 @@ type Props = {
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
 
-const CANVAS_DIMMED: Scene[] = [
-  'demo-7-layout-panel',
-];
-
 const CHROME_DIMMED: Scene[] = [
   'demo-3-drawing-frame',
   'demo-4-stack-created',
-  'demo-7-layout-panel',
 ];
 
 export default function Canvas({
@@ -101,9 +96,8 @@ export default function Canvas({
   stackSelected = false,
   onSelectStack,
 }: Props) {
-  // The demo-7 canvas dimming clears once a layout control is used.
+  // The early demo steps dim the frame chrome.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
-  const canvasDimmed = CANVAS_DIMMED.includes(scene) && !layoutTouched;
   const demoSpotlight = scene === 'demo-2-cursor';
   const demo6 = scene === 'demo-6-place-element';
 
@@ -464,6 +458,8 @@ export default function Canvas({
   const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
   // demo-6: once 2+ items are in the stack, prompt the user to click it.
   const stackReady = demo6 && stackEls.length + stackTexts.length >= 2;
+  // Once the stack is settled it can be clicked to select (then delete) it.
+  const stackSelectable = scene === 'demo-7-layout-panel' || scene === 'demo-final';
   // The demo-7 Layout panel drives the stack's element column.
   const stackRow = layoutOpts.type === 'stack' && layoutOpts.direction === 'h';
   const stackPad = `${layoutOpts.padT}px ${layoutOpts.padR}px ${layoutOpts.padB}px ${layoutOpts.padL}px`;
@@ -494,7 +490,7 @@ export default function Canvas({
       className={
         'demo-stack'
         + (stackReady ? ' demo-stack--clickable' : '')
-        + (scene === 'demo-7-layout-panel' ? ' demo-stack--selectable' : '')
+        + (stackSelectable ? ' demo-stack--selectable' : '')
         + (stackSelected ? ' demo-stack--selected' : '')
       }
       style={demoBoxStyle}
@@ -502,7 +498,7 @@ export default function Canvas({
       onClick={
         stackReady
           ? () => onSceneChange('demo-7-layout-prompt')
-          : scene === 'demo-7-layout-panel'
+          : stackSelectable
             ? (e: React.MouseEvent) => { e.stopPropagation(); onSelectStack?.(); }
             : undefined
       }
@@ -551,7 +547,11 @@ export default function Canvas({
   const keepUserStack =
     (scene === 'demo-5-insert-highlighted' || demo6 ||
       scene === 'demo-7-layout-prompt' || scene === 'demo-7-layout-panel' ||
-      scene === 'demo-completed-modal' || scene === 'demo-final') &&
+      scene === 'demo-completed-modal' || scene === 'demo-final' ||
+      // Behind the disabled-tutorial popup, show the stack only if the user
+      // saved (kept content) — after Discard the canvas stays blank.
+      (scene === 'disabled-tutorial-modal' &&
+        (demoElements.length > 0 || texts.length > 0))) &&
     demoRect.w > 0;
 
   return (
@@ -602,9 +602,10 @@ export default function Canvas({
             (demoSpotlight ? ' canvas-content--demo' : '') +
             (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
             (dropOutline === 'content' ? ' canvas-content--drop' : '') +
-            (stackReady ? ' canvas-content--callout-room' : '')
+            (stackReady ? ' canvas-content--callout-room' : '') +
+            // While the stack is the focus, drop the editor's hover outline.
+            (stackSelectable ? ' canvas-content--no-outline' : '')
           }
-          style={canvasDimmed ? { opacity: 0.55 } : undefined}
           onClick={handleCanvasContentClick}
           onMouseDown={demoSpotlight ? handleDemoMouseDown : undefined}
         >

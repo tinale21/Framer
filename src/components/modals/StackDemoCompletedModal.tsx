@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import type { SceneSetter } from '../../types';
 import { CheckSquare } from '../../icons';
 
-export default function StackDemoCompletedModal({ onSceneChange, onDiscard }: {
-  onSceneChange: SceneSetter;
-  onDiscard: () => void;
+export default function StackDemoCompletedModal({ onFinish }: {
+  onFinish: (save: boolean, dontAsk: boolean) => void;
 }) {
-  const [dontAsk, setDontAsk] = useState(true);
-  const [disableTutorial, setDisableTutorial] = useState(true);
+  const [dontAsk, setDontAsk] = useState(false);
+  const [disableTutorial, setDisableTutorial] = useState(false);
   return (
     <div className="modal-backdrop">
       <div className="modal modal--completed">
@@ -29,8 +27,8 @@ export default function StackDemoCompletedModal({ onSceneChange, onDiscard }: {
         </div>
 
         <div className="modal__footer">
-          <button className="btn" onClick={onDiscard}>Discard</button>
-          <button className="btn btn--primary" onClick={() => onSceneChange('demo-final')}>Save</button>
+          <button className="btn" onClick={() => onFinish(false, dontAsk)}>Discard</button>
+          <button className="btn btn--primary" onClick={() => onFinish(true, dontAsk)}>Save</button>
         </div>
       </div>
     </div>

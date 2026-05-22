@@ -87,6 +87,9 @@ button {
 .main {
   display: grid;
   grid-template-columns: 240px 1fr 260px;
+  /* Pin the row height so a tall sidebar (expanded Layout panel) can't
+     stretch the canvas — overflow stays the sidebar's own concern. */
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -1081,7 +1084,7 @@ button {
 .frame-card:has(.canvas-content:hover):not(.frame-card--selected) { outline: 0 solid transparent; }
 .frame-card:has(.canvas-content:hover):not(.frame-card--canvas-selected) .frame-card__title-row { color: #6b6b6b; }
 .frame-card:has(.canvas-content:hover):not(.frame-card--canvas-selected) .plus-btn { background: #999999; }
-.frame-card:has(.canvas-content:hover) .canvas-content { outline: 1px solid #0099ff; }
+.frame-card:has(.canvas-content:hover) .canvas-content:not(.canvas-content--no-outline) { outline: 1px solid #0099ff; }
 .frame-card--canvas-selected .canvas-content,
 .frame-card--canvas-selected:has(.canvas-content:hover) .canvas-content { outline: 2px solid #0099ff; }
 .frame-card:has(.canvas-content:hover) .frame-card__bar { background: #d3e5f1; }
@@ -1417,9 +1420,10 @@ button {
 }
 /* demo-6: once 2+ items are placed, the stack is clickable to open its layout */
 .demo-stack--clickable { pointer-events: auto; cursor: pointer; }
-/* demo-7: the stack can be clicked to select it (then deleted via keyboard) */
+/* the stack can be clicked to select it (then deleted via keyboard) */
 .demo-stack--selectable { pointer-events: auto; }
-.demo-stack--selected { outline: 2px solid #0099ff; outline-offset: 1px; }
+/* the selection ring sits inside the stack, not on the white canvas */
+.demo-stack--selected { box-shadow: inset 0 0 0 2px #0099ff; }
 /* let the stack callout escape the canvas clip so it isn't cut off */
 .canvas-wrap--callout-room,
 .canvas-content--callout-room { overflow: visible; }
