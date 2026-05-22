@@ -30,8 +30,6 @@ export default function TopBar({ onSceneChange }: { onSceneChange: SceneSetter }
             src={`${import.meta.env.BASE_URL}framer-logo.svg`}
             alt="Framer"
             className="topbar__logo"
-            width={26}
-            height={26}
           />
           <span className="topbar__logo-chev"><Chevron dir="down" size={13} /></span>
         </button>

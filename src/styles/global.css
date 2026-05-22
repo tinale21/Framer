@@ -190,14 +190,16 @@ button {
 
 /* ===== Framer logo menu ===== */
 .topbar__logo-wrap { position: relative; }
+/* The logo + chevron sit together in one outlined, slightly raised button. */
 .topbar__logo-btn {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 6px;
-  border: none;
-  background: transparent;
-  border-radius: 9px;
+  gap: 2px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   cursor: pointer;
 }
 .topbar__logo-btn:hover,
@@ -2008,6 +2010,7 @@ button {
 /* The completion modal borrows the "Using Stacks" modal's padding rule. */
 .modal--completed { max-width: 550px; padding: 32px 28px 24px; border-radius: 9px; }
 .modal--completed .btn { padding: 8px 15px; font-size: 13px; }
+.modal--overlays { max-width: 370px; }
 .modal--wide { max-width: 900px; padding-top: 32px; padding-bottom: 24px; border-radius: 12px; }
 .modal__close {
   position: absolute;
@@ -2137,6 +2140,7 @@ button {
 .overlay-rows {
   display: flex;
   flex-direction: column;
+  margin-bottom: 20px;
 }
 .overlay-row {
   display: grid;
@@ -2149,27 +2153,45 @@ button {
 .overlay-row + .overlay-row { border-top: 1px solid #f0f0f0; }
 .overlay-row__demo {
   color: var(--blue);
-  font-weight: 500;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
 }
 .overlay-row__demo:hover { text-decoration: underline; }
 .overlay-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 6px 4px 14px;
   border-bottom: 1px solid #f0f0f0;
   margin-bottom: 4px;
 }
 .overlay-toolbar__btn {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 10px;
-  background: #ececec;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
 }
-.overlay-toolbar__btn + .overlay-toolbar__btn { margin-left: 8px; }
+.overlay-picker { position: relative; }
+.overlay-picker__chev { display: flex; color: #8a8a8a; }
+.overlay-picker__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  min-width: 128px;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+}
+.overlay-picker__menu .layout-dropdown__item { font-size: 12px; padding: 5px 8px; }
 
 /* Completed modal checkboxes */
 .modal__checks {

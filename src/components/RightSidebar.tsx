@@ -23,14 +23,15 @@ type Props = InsertProps & {
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
+  stackSelected: boolean;
 };
 
-const PROPS_PANEL_SCENES: Scene[] = [
+// The Shape (props) panel is shown when the stack is selected; the demo
+// steps that guide the user through the Layout panel also force it on.
+const FORCE_PROPS_SCENES: Scene[] = [
   'demo-7-layout-prompt',
   'demo-7-layout-panel',
-  'demo-8-restacked',
   'demo-completed-modal',
-  'demo-final',
 ];
 
 const INSERT_TABS = ['Design', 'Prototype'] as const;
@@ -38,9 +39,9 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  layoutOpts, onLayoutChange, layoutTouched,
+  layoutOpts, onLayoutChange, layoutTouched, stackSelected,
 }: Props) {
-  if (PROPS_PANEL_SCENES.includes(scene)) {
+  if (stackSelected || FORCE_PROPS_SCENES.includes(scene)) {
     return (
       <PropsPanel
         scene={scene}
@@ -328,13 +329,18 @@ function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange, layoutTo
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
 }) {
-  const layoutOpen = scene === 'demo-7-layout-panel';
   const promptLayout = scene === 'demo-7-layout-prompt';
-  // The expanded layout options can be collapsed back to just the title.
+  // The guided demo opens the Layout options at the layout-panel step.
+  const demoPanelOpen = scene === 'demo-7-layout-panel';
+  // Otherwise the panel is shown for a hand-selected stack — the Layout row
+  // is then a plain accordion the user opens and closes themselves.
+  const freeMode = !promptLayout && !demoPanelOpen;
+  // The guided panel starts open (collapsible); the free accordion starts shut.
   const [layoutCollapsed, setLayoutCollapsed] = useState(false);
-  const showOptions = layoutOpen && !layoutCollapsed;
+  const [layoutOpenFree, setLayoutOpenFree] = useState(false);
+  const showOptions = freeMode ? layoutOpenFree : (demoPanelOpen && !layoutCollapsed);
   // Once a layout control is used, the spotlight/highlight clears.
-  const demoLayout = (promptLayout || layoutOpen) && !layoutTouched;
+  const demoLayout = (promptLayout || demoPanelOpen) && !layoutTouched;
   return (
     <aside className="right-sidebar">
       <div className="right-sidebar__header">
@@ -368,27 +374,24 @@ function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange, layoutTo
         <div className={
           'props-layout'
           + (demoLayout ? ' props-layout--demo' : '')
-          + (showOptions && !layoutTouched ? ' layout-demo-ring' : '')
+          + (showOptions && demoPanelOpen && !layoutTouched ? ' layout-demo-ring' : '')
         }>
           <div
             className={
-              'props-section-title props-layout__title'
-              + (promptLayout || layoutOpen ? ' props-layout__title--clickable' : '')
+              'props-section-title props-layout__title props-layout__title--clickable'
               + (promptLayout ? ' layout-demo-ring' : '')
             }
             style={{ padding: 0 }}
             onClick={
               promptLayout ? () => onSceneChange('demo-7-layout-panel')
-              : layoutOpen ? () => setLayoutCollapsed(c => !c)
-              : undefined
+              : freeMode ? () => setLayoutOpenFree(o => !o)
+              : () => setLayoutCollapsed(c => !c)
             }
           >
             Layout
-            {(promptLayout || layoutOpen) && (
-              <span className="props-layout__chev">
-                <Chevron dir={showOptions ? 'down' : 'right'} size={12} />
-              </span>
-            )}
+            <span className="props-layout__chev">
+              <Chevron dir={showOptions ? 'down' : 'right'} size={12} />
+            </span>
           </div>
           {showOptions && (
             <LayoutOptions layoutOpts={layoutOpts} onLayoutChange={onLayoutChange} />

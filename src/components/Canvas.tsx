@@ -52,8 +52,9 @@ type Props = {
   layoutTouched?: boolean;
   stackSelected?: boolean;
   onSelectStack?: () => void;
+  stackTutorialDisabled?: boolean;
 };
-type ContentProps = { scene: Scene; onSceneChange: SceneSetter };
+type ContentProps = { scene: Scene; onSceneChange: SceneSetter; stackTutorialDisabled?: boolean };
 
 const CHROME_DIMMED: Scene[] = [
   'demo-3-drawing-frame',
@@ -95,10 +96,15 @@ export default function Canvas({
   layoutTouched = false,
   stackSelected = false,
   onSelectStack,
+  stackTutorialDisabled = false,
 }: Props) {
   // The early demo steps dim the frame chrome.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
   const demoSpotlight = scene === 'demo-2-cursor';
+  // The tutorial chrome — tint, callout, pulsing highlight — is shown only
+  // during the guided demo. With the tutorial off, the user still drags to
+  // create the stack, but without the spotlight.
+  const demoChrome = demoSpotlight && !stackTutorialDisabled;
   const demo6 = scene === 'demo-6-place-element';
 
   const [offset, setOffset] = useState({ x: 0, y: INITIAL_Y });
@@ -215,12 +221,14 @@ export default function Canvas({
     };
   }, [demoPhase]);
 
-  // Once the stack is placed, advance to the Insert-highlight step.
+  // Once the stack is placed, advance — to the Insert-highlight step in the
+  // guided demo, or straight to the finished canvas when the tutorial is off.
   useEffect(() => {
     if (demoPhase !== 'placed') return;
-    const t = window.setTimeout(() => onSceneChange('demo-5-insert-highlighted'), 650);
+    const next: Scene = stackTutorialDisabled ? 'demo-final' : 'demo-5-insert-highlighted';
+    const t = window.setTimeout(() => onSceneChange(next), 650);
     return () => clearTimeout(t);
-  }, [demoPhase, onSceneChange]);
+  }, [demoPhase, onSceneChange, stackTutorialDisabled]);
 
   // demo-6: a quick press selects an element; a drag moves it, and
   // dropping it over the stack drops it in.
@@ -457,9 +465,12 @@ export default function Canvas({
   const freeEls = demoElements.filter(el => !el.inStack || el.key === draggingKey);
   const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
   // demo-6: once 2+ items are in the stack, prompt the user to click it.
-  const stackReady = demo6 && stackEls.length + stackTexts.length >= 2;
-  // Once the stack is settled it can be clicked to select (then delete) it.
-  const stackSelectable = scene === 'demo-7-layout-panel' || scene === 'demo-final';
+  // With the tutorial off, that guided prompt (and its redirect) is skipped.
+  const stackReady = demo6 && !stackTutorialDisabled && stackEls.length + stackTexts.length >= 2;
+  // Once the stack is settled it can be clicked to select (then delete) it —
+  // in the layout step, the finished canvas, and (tutorial off) while placing.
+  const stackSelectable = scene === 'demo-7-layout-panel' || scene === 'demo-final'
+    || (demo6 && stackTutorialDisabled);
   // The demo-7 Layout panel drives the stack's element column.
   const stackRow = layoutOpts.type === 'stack' && layoutOpts.direction === 'h';
   const stackPad = `${layoutOpts.padT}px ${layoutOpts.padR}px ${layoutOpts.padB}px ${layoutOpts.padL}px`;
@@ -572,7 +583,7 @@ export default function Canvas({
           'frame-card' +
           (selection === 'frame' ? ' frame-card--selected' : '') +
           (selection === 'canvas' ? ' frame-card--canvas-selected' : '') +
-          (demoSpotlight ? ' frame-card--demo' : '') +
+          (demoChrome ? ' frame-card--demo' : '') +
           (dropOutline === 'frame' ? ' frame-card--drop' : '')
         }
         style={{
@@ -581,7 +592,7 @@ export default function Canvas({
         }}
         onClick={handleFrameClick}
       >
-        {demoSpotlight && demoPhase === 'idle' && (
+        {demoChrome && demoPhase === 'idle' && (
           <div className="canvas-demo-callout">
             Click and drag to make a stack.
           </div>
@@ -600,7 +611,7 @@ export default function Canvas({
           className={
             'canvas-content' +
             (demoSpotlight ? ' canvas-content--demo' : '') +
-            (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
+            (demoChrome && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
             (dropOutline === 'content' ? ' canvas-content--drop' : '') +
             (stackReady ? ' canvas-content--callout-room' : '') +
             // While the stack is selected, drop the editor's hover outline.
@@ -617,7 +628,11 @@ export default function Canvas({
           ) : keepUserStack ? (
             userStack
           ) : (
-            <CanvasContent scene={scene} onSceneChange={onSceneChange} />
+            <CanvasContent
+              scene={scene}
+              onSceneChange={onSceneChange}
+              stackTutorialDisabled={stackTutorialDisabled}
+            />
           )}
         </div>
 
@@ -700,7 +715,7 @@ export default function Canvas({
   );
 }
 
-function CanvasContent({ scene, onSceneChange }: ContentProps) {
+function CanvasContent({ scene, onSceneChange, stackTutorialDisabled }: ContentProps) {
   switch (scene) {
     case 'demo-3-drawing-frame':
       return (
@@ -723,11 +738,13 @@ function CanvasContent({ scene, onSceneChange }: ContentProps) {
             <div className="stack-frame__col stack-frame__col--blue" />
             <div className="stack-frame__col stack-frame__col--teal" />
           </div>
-          <button
-            className="demo-hint"
-            style={{ top: '8%', left: '6%', width: '80%', height: '78%' }}
-            onClick={() => onSceneChange('demo-5-insert-highlighted')}
-          />
+          {!stackTutorialDisabled && (
+            <button
+              className="demo-hint"
+              style={{ top: '8%', left: '6%', width: '80%', height: '78%' }}
+              onClick={() => onSceneChange('demo-5-insert-highlighted')}
+            />
+          )}
         </>
       );
 

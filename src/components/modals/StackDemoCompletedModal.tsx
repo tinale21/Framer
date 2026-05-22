@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { CheckSquare } from '../../icons';
 
-export default function StackDemoCompletedModal({ onFinish }: {
-  onFinish: (save: boolean, dontAsk: boolean) => void;
+export default function StackDemoCompletedModal({ onFinish, stackTutorialDisabled, onToggleStackTutorial }: {
+  onFinish: (save: boolean) => void;
+  stackTutorialDisabled: boolean;
+  onToggleStackTutorial: () => void;
 }) {
   const [dontAsk, setDontAsk] = useState(false);
-  const [disableTutorial, setDisableTutorial] = useState(false);
   return (
     <div className="modal-backdrop">
       <div className="modal modal--completed">
@@ -20,15 +21,15 @@ export default function StackDemoCompletedModal({ onFinish }: {
             <CheckSquare checked={dontAsk} size={16} />
             Don't ask again
           </button>
-          <button type="button" className="modal__check" onClick={() => setDisableTutorial(v => !v)}>
-            <CheckSquare checked={disableTutorial} size={16} />
+          <button type="button" className="modal__check" onClick={onToggleStackTutorial}>
+            <CheckSquare checked={stackTutorialDisabled} size={16} />
             Disable stack tutorial
           </button>
         </div>
 
         <div className="modal__footer">
-          <button className="btn" onClick={() => onFinish(false, dontAsk)}>Discard</button>
-          <button className="btn btn--primary" onClick={() => onFinish(true, dontAsk)}>Save</button>
+          <button className="btn" onClick={() => onFinish(false)}>Discard</button>
+          <button className="btn btn--primary" onClick={() => onFinish(true)}>Save</button>
         </div>
       </div>
     </div>

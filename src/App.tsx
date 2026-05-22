@@ -61,10 +61,23 @@ export default function App() {
   // The demo stack can be selected (in the layout-panel step) so the user
   // can delete it with the keyboard.
   const [stackSelected, setStackSelected] = useState(false);
-  if (scene !== 'demo-7-layout-panel' && scene !== 'demo-final' && stackSelected) setStackSelected(false);
   // Where the demo lands after the completion flow — `demo-final` keeps the
   // user's canvas, `base` is the blank editor.
   const [demoEndScene, setDemoEndScene] = useState<Scene>('base');
+  // When the stack tutorial is turned off, the "Using Stacks" popup and the
+  // guided steps are skipped — clicking Stack goes straight to the
+  // drag-to-create step so the user still draws the stack themselves.
+  const [stackTutorialDisabled, setStackTutorialDisabled] = useState(false);
+  if (scene === 'stack-tutorial-modal' && stackTutorialDisabled) setScene('demo-2-cursor');
+  // The "Disabled Stacks Tutorial" popup is a confirmation — whenever it's
+  // shown the tutorial is actually off (this also covers the "Using Stacks"
+  // popup's "Don't Show Again" button, which routes straight here).
+  if (scene === 'disabled-tutorial-modal' && !stackTutorialDisabled) setStackTutorialDisabled(true);
+  // The stack stays selectable in the layout-panel step, the finished canvas,
+  // and — with the tutorial off — while placing elements into it.
+  const stackSelectScene = scene === 'demo-7-layout-panel' || scene === 'demo-final'
+    || (scene === 'demo-6-place-element' && stackTutorialDisabled);
+  if (!stackSelectScene && stackSelected) setStackSelected(false);
 
   const pickElement = (id: string, src?: string) => {
     const key = elKeyRef.current++;
@@ -133,14 +146,14 @@ export default function App() {
     setTexts([]);
   }, []);
   // Finishing the demo: Save keeps the canvas (ends at `demo-final`), Discard
-  // clears it (ends at `base`). With "Don't ask again" ticked, both detour
-  // through the disabled-tutorial popup, which then lands on that end scene.
-  const finishDemo = useCallback((save: boolean, dontAsk: boolean) => {
+  // clears it (ends at `base`). When "Disable stack tutorial" was ticked, both
+  // detour through the disabled-tutorial popup, which then lands on that end.
+  const finishDemo = useCallback((save: boolean) => {
     const end: Scene = save ? 'demo-final' : 'base';
     if (!save) clearCanvasState();
     setDemoEndScene(end);
-    setScene(dontAsk ? 'disabled-tutorial-modal' : end);
-  }, [clearCanvasState]);
+    setScene(stackTutorialDisabled ? 'disabled-tutorial-modal' : end);
+  }, [clearCanvasState, stackTutorialDisabled]);
 
   const armText = () => setTextMode(m => !m); // clicking the tile toggles it
   const placeText = useCallback((x: number, y: number) => {
@@ -194,9 +207,15 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack typing
-      // Escape disarms the text tool so the canvas can be panned again.
+      // Escape disarms the text tool and deselects everything — deselecting
+      // the stack brings the Insert panel back (it's hidden, replaced by the
+      // Shape panel, while a stack is selected).
       if (e.key === 'Escape') {
         setTextMode(false);
+        setStackSelected(false);
+        setSelectedEl(null);
+        setSelectedText(null);
+        setSelection('none');
         return;
       }
       // "T" arms the text tool, just like clicking the Text tile.
@@ -241,7 +260,7 @@ export default function App() {
   const showPopout = SHOW_POPOUT.includes(scene);
   const showDemoTint =
     scene === 'demo-1-stack-highlighted' ||
-    scene === 'demo-2-cursor' ||
+    (scene === 'demo-2-cursor' && !stackTutorialDisabled) ||
     scene === 'demo-5-insert-highlighted' ||
     scene === 'demo-7-layout-prompt' ||
     (scene === 'demo-7-layout-panel' && !layoutTouched);
@@ -286,6 +305,7 @@ export default function App() {
           layoutTouched={layoutTouched}
           stackSelected={stackSelected}
           onSelectStack={selectStack}
+          stackTutorialDisabled={stackTutorialDisabled}
         />
         <RightSidebar
           scene={scene}
@@ -297,6 +317,7 @@ export default function App() {
           layoutOpts={layoutOpts}
           onLayoutChange={changeLayout}
           layoutTouched={layoutTouched}
+          stackSelected={stackSelected}
         />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
@@ -310,11 +331,23 @@ export default function App() {
       {showDemoTint && <div className="demo-tint" />}
       {showPopout && <BasePopout scene={scene} onSceneChange={setScene} />}
       {showStackTutorial && <StackTutorialModal onSceneChange={setScene} />}
-      {showCompletedModal && <StackDemoCompletedModal onFinish={finishDemo} />}
+      {showCompletedModal && (
+        <StackDemoCompletedModal
+          onFinish={finishDemo}
+          stackTutorialDisabled={stackTutorialDisabled}
+          onToggleStackTutorial={() => setStackTutorialDisabled(v => !v)}
+        />
+      )}
       {showDisabledModal && (
         <DisabledStackTutorialModal onSceneChange={setScene} endScene={demoEndScene} />
       )}
-      {showOverlaysSettings && <TutorialOverlaysModal onSceneChange={setScene} />}
+      {showOverlaysSettings && (
+        <TutorialOverlaysModal
+          onSceneChange={setScene}
+          stackTutorialDisabled={stackTutorialDisabled}
+          onSetStackTutorialDisabled={setStackTutorialDisabled}
+        />
+      )}
     </div>
   );
 }
