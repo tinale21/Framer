@@ -15,7 +15,7 @@ export default function TutorialOverlaysModal({ onSceneChange }: { onSceneChange
 
   return (
     <div className="modal-backdrop">
-      <div className="modal" style={{ maxWidth: 520, paddingTop: 22 }}>
+      <div className="modal modal--completed">
         <button className="modal__close" onClick={() => onSceneChange('base')}><Close /></button>
         <h2 className="modal__title">Tutorial Overlays</h2>
 
@@ -31,7 +31,7 @@ export default function TutorialOverlaysModal({ onSceneChange }: { onSceneChange
           {ROWS.map(row => (
             <div key={row} className="overlay-row">
               <button onClick={() => toggle(row)} style={{ background: 'none' }}>
-                <CheckSquare checked={enabled[row]} thin={!enabled[row]} />
+                <CheckSquare checked={enabled[row]} size={16} />
               </button>
               <span>{row}</span>
               <span className="overlay-row__demo">Start Demo</span>

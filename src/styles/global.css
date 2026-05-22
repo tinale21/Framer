@@ -188,6 +188,96 @@ button {
 }
 .topbar__btn--primary:hover { background: #0088e5; }
 
+/* ===== Framer logo menu ===== */
+.topbar__logo-wrap { position: relative; }
+.topbar__logo-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.topbar__logo-btn:hover,
+.topbar__logo-btn--active { background: var(--bg-pill-hover); }
+.topbar__logo-chev { display: flex; color: #8a8a8a; }
+.framer-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+}
+.framer-menu__panel {
+  width: 270px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.framer-menu__submenu {
+  position: absolute;
+  left: calc(100% + 6px);
+  overflow-y: auto;
+}
+.framer-menu__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  color: #8a8a8a;
+}
+.framer-menu__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.framer-menu__search-input::placeholder { color: #9a9a9a; }
+.framer-menu__sep { height: 1px; background: #ededed; margin: 6px 4px; }
+.framer-menu__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.framer-menu__item:hover { background: #f0f0f0; }
+.framer-menu__item--disabled,
+.framer-menu__item--disabled:hover { color: #bdbdbd; background: transparent; cursor: default; }
+.framer-menu__item--active,
+.framer-menu__item--active:hover { background: #0099ff; color: #ffffff; }
+.framer-menu__chev { margin-left: auto; display: flex; color: #b8b8b8; }
+.framer-menu__item--active .framer-menu__chev { color: #ffffff; }
+.framer-menu__shortcut { margin-left: auto; font-size: 13px; color: #9a9a9a; }
+.framer-menu__check {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
+}
+.framer-menu__item--disabled .framer-menu__check { color: #bdbdbd; }
+.framer-menu__empty { padding: 8px 10px; font-size: 13px; color: #9a9a9a; }
+
 /* ===== LeftSidebar ===== */
 .left-sidebar {
   background: var(--bg-app);
@@ -2050,11 +2140,11 @@ button {
 }
 .overlay-row {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: 22px 1fr auto;
   align-items: center;
   gap: 14px;
   padding: 12px 4px;
-  font-size: 16px;
+  font-size: 14px;
 }
 .overlay-row + .overlay-row { border-top: 1px solid #f0f0f0; }
 .overlay-row__demo {
@@ -2117,10 +2207,12 @@ button {
 .checkbox--unchecked-thin {
   border-color: #c4c4c4;
 }
-/* In the completion modal the checkboxes are squarer with a blue outline,
-   and a checked box fills blue with a white tick. */
-.modal__checks .checkbox { border-radius: 3px; border-color: #0099ff; }
-.modal__checks .checkbox--checked {
+/* The completion modal and the Tutorial Overlays popup share a checkbox
+   style: squarer with a blue outline, filling blue with a white tick. */
+.modal__checks .checkbox,
+.overlay-rows .checkbox { border-radius: 3px; border-color: #0099ff; }
+.modal__checks .checkbox--checked,
+.overlay-rows .checkbox--checked {
   background: #0099ff;
   border-color: #0099ff;
   color: #ffffff;
