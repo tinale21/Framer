@@ -1904,6 +1904,9 @@ button {
   width: 90%;
 }
 .modal--narrow { max-width: 420px; }
+/* The completion modal borrows the "Using Stacks" modal's padding rule. */
+.modal--completed { max-width: 550px; padding: 32px 28px 24px; border-radius: 9px; }
+.modal--completed .btn { padding: 8px 15px; font-size: 13px; }
 .modal--wide { max-width: 900px; padding-top: 32px; padding-bottom: 24px; border-radius: 12px; }
 .modal__close {
   position: absolute;
@@ -2072,19 +2075,26 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 10px 0 20px;
+  margin: 30px 0 20px;
 }
 .modal__check {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 .checkbox {
   width: 22px;
   height: 22px;
   border-radius: 6px;
   border: 1.5px solid #1a1a1a;
+  color: #1a1a1a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2095,6 +2105,14 @@ button {
 }
 .checkbox--unchecked-thin {
   border-color: #c4c4c4;
+}
+/* In the completion modal the checkboxes are squarer with a blue outline,
+   and a checked box fills blue with a white tick. */
+.modal__checks .checkbox { border-radius: 3px; border-color: #0099ff; }
+.modal__checks .checkbox--checked {
+  background: #0099ff;
+  border-color: #0099ff;
+  color: #ffffff;
 }
 
 /* Hint affordance for clickable areas during the demo */

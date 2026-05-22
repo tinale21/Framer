@@ -120,6 +120,17 @@ export default function App() {
     setSelectedText(null);
     setEditingText(null);
   }, []);
+  // Discarding the demo (or deleting the stack) clears the canvas back to
+  // the empty editor.
+  const clearCanvas = useCallback(() => {
+    setStackSelected(false);
+    setSelectedEl(null);
+    setSelectedText(null);
+    setEditingText(null);
+    setDemoElements([]);
+    setTexts([]);
+    setScene('base');
+  }, []);
 
   const armText = () => setTextMode(m => !m); // clicking the tile toggles it
   const placeText = useCallback((x: number, y: number) => {
@@ -185,14 +196,7 @@ export default function App() {
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       if (stackSelected) {
-        // Deleting the stack clears the canvas back to the empty editor.
-        setStackSelected(false);
-        setSelectedEl(null);
-        setSelectedText(null);
-        setEditingText(null);
-        setDemoElements([]);
-        setTexts([]);
-        setScene('base');
+        clearCanvas(); // deleting the stack blanks the canvas
         return;
       }
       if (selectedEl !== null) {
@@ -207,7 +211,14 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl, selectedText, stackSelected]);
+  }, [selectedEl, selectedText, stackSelected, clearCanvas]);
+
+  // The completion screen appears ~3s after the first layout adjustment.
+  useEffect(() => {
+    if (!layoutTouched || scene !== 'demo-7-layout-panel') return;
+    const t = window.setTimeout(() => setScene('demo-completed-modal'), 3000);
+    return () => window.clearTimeout(t);
+  }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
   const selectFrame = () => { setSelection('frame'); setStackSelected(false); };
@@ -287,7 +298,9 @@ export default function App() {
       {showDemoTint && <div className="demo-tint" />}
       {showPopout && <BasePopout scene={scene} onSceneChange={setScene} />}
       {showStackTutorial && <StackTutorialModal onSceneChange={setScene} />}
-      {showCompletedModal && <StackDemoCompletedModal onSceneChange={setScene} />}
+      {showCompletedModal && (
+        <StackDemoCompletedModal onSceneChange={setScene} onDiscard={clearCanvas} />
+      )}
       {showDisabledModal && <DisabledStackTutorialModal onSceneChange={setScene} />}
       {showOverlaysSettings && <TutorialOverlaysModal onSceneChange={setScene} />}
     </div>

@@ -550,7 +550,8 @@ export default function Canvas({
   // through the Insert step, placement, and the layout-panel steps.
   const keepUserStack =
     (scene === 'demo-5-insert-highlighted' || demo6 ||
-      scene === 'demo-7-layout-prompt' || scene === 'demo-7-layout-panel') &&
+      scene === 'demo-7-layout-prompt' || scene === 'demo-7-layout-panel' ||
+      scene === 'demo-completed-modal' || scene === 'demo-final') &&
     demoRect.w > 0;
 
   return (

@@ -248,7 +248,7 @@ export const Sort = ({ size = 18 }: IconProps) => (
 export const CheckSquare = ({ checked = true, thin = false, size = 22 }: { checked?: boolean; thin?: boolean; size?: number }) => (
   <div className={`checkbox ${checked ? 'checkbox--checked' : ''} ${thin ? 'checkbox--unchecked-thin' : ''}`} style={{ width: size, height: size }}>
     {checked && (
-      <svg width={size * 0.65} height={size * 0.65} viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <svg width={size * 0.65} height={size * 0.65} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 12l5 5L20 7" />
       </svg>
     )}
