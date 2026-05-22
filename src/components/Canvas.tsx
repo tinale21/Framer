@@ -603,8 +603,8 @@ export default function Canvas({
             (demoSpotlight && demoPhase === 'idle' ? ' canvas-content--demo-idle' : '') +
             (dropOutline === 'content' ? ' canvas-content--drop' : '') +
             (stackReady ? ' canvas-content--callout-room' : '') +
-            // While the stack is the focus, drop the editor's hover outline.
-            (stackSelectable ? ' canvas-content--no-outline' : '')
+            // While the stack is selected, drop the editor's hover outline.
+            (stackSelected ? ' canvas-content--no-outline' : '')
           }
           onClick={handleCanvasContentClick}
           onMouseDown={demoSpotlight ? handleDemoMouseDown : undefined}

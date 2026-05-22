@@ -1422,8 +1422,15 @@ button {
 .demo-stack--clickable { pointer-events: auto; cursor: pointer; }
 /* the stack can be clicked to select it (then deleted via keyboard) */
 .demo-stack--selectable { pointer-events: auto; }
-/* the selection ring sits inside the stack, not on the white canvas */
-.demo-stack--selected { box-shadow: inset 0 0 0 2px #0099ff; }
+/* the selection ring sits inside the stack, not on the white canvas — an
+   overlay so it draws above the column fills (an inset shadow hides behind) */
+.demo-stack--selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid #0099ff;
+  pointer-events: none;
+}
 /* let the stack callout escape the canvas clip so it isn't cut off */
 .canvas-wrap--callout-room,
 .canvas-content--callout-room { overflow: visible; }
