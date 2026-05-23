@@ -694,7 +694,9 @@ export default function App() {
           shapes={renderShapes}
           selectedShape={selectedShape}
           highlightedIssue={
-            editorOpen && currentIssue
+            // Drop the red wash while previewing a fix so the user sees the
+            // suggested color cleanly without the issue overlay on top.
+            editorOpen && currentIssue && previewedFixIdx === null
               ? {
                   kind: currentIssue.targetKind === 'text' ? 'text' : 'shape',
                   key: currentIssue.targetKey,

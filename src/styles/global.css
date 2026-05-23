@@ -1199,6 +1199,10 @@ button {
   border: 1px solid #d6d6d6;
   border-radius: 8px;
   padding: 5px 8px;
+  box-sizing: border-box;
+  /* Lock the bar's height so the preview variant doesn't grow or shrink
+     the bar when it swaps in over the default icons. */
+  min-height: 49px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1254,28 +1258,34 @@ button {
   text-align: center;
   box-shadow: 0 0 0 1.5px #ffffff;
 }
-/* The Apply prompt that replaces the toolbar while previewing a fix. */
+/* The Apply prompt that replaces the toolbar while previewing a fix —
+   match the default toolbar's vertical footprint (5px padding, ~34px
+   inner height) so the bar doesn't grow when the prompt swaps in. */
 .bottom-toolbar--preview {
   gap: 10px;
-  padding: 8px 8px 8px 14px;
+  padding: 5px 5px 5px 14px;
 }
 .bottom-toolbar__preview-label {
   font-size: 13px;
   color: #333333;
   font-weight: 500;
+  line-height: 1;
 }
-.bottom-toolbar__apply {
-  padding: 6px 14px;
+/* Higher specificity than `.btn` so this override actually applies. */
+.bottom-toolbar .bottom-toolbar__apply {
+  padding: 4px 12px;
   font-size: 12px;
+  line-height: 1.4;
+  border-radius: 6px;
 }
 .bottom-toolbar__preview-cancel {
   background: none;
   border: none;
   color: #999999;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 6px;
 }
 .bottom-toolbar__preview-cancel:hover { color: #333333; }
 
