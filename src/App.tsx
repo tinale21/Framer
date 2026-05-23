@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent } from 'react';
 import TopBar from './components/TopBar';
 import LeftSidebar from './components/LeftSidebar';
 import Canvas from './components/Canvas';
@@ -9,9 +9,12 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
+import {
+  hexToHsva, hsvaToHex, hsvToHex, hexToRgb, vForContrast, contrastOverWhite,
+} from './components/ColorPicker';
 import type {
   Scene, DemoEl, TextEl, LayoutOpts, VectorKind, VectorEl, Pt,
-  VectorFill, VectorStroke,
+  VectorFill, VectorStroke, Issue,
 } from './types';
 
 const SHOW_POPOUT: Scene[] = [
@@ -200,7 +203,7 @@ export default function App() {
       // Default look matches Framer: grey fill, no stroke.
       setShapes(prev => [
         ...prev,
-        { key, kind, x, y, w, h, fill: '#cccccc', stroke: null },
+        { key, kind, x, y, w, h, fill: '#cccccc', stroke: null, inStack: false },
       ]);
       setSelectedShape(key);
       setSelectedEl(null);
@@ -219,7 +222,7 @@ export default function App() {
     setShapes(prev => [
       ...prev,
       { key, kind: 'path', points, closed,
-        fill: null, stroke: { color: '#aaaaaa', width: 1 } },
+        fill: null, stroke: { color: '#aaaaaa', width: 1 }, inStack: false },
     ]);
     setSelectedShape(key);
     setSelectedEl(null);
@@ -237,6 +240,12 @@ export default function App() {
   }, []);
   const setShapeStroke = useCallback((key: number, stroke: VectorStroke) => {
     setShapes(prev => prev.map(s => (s.key === key ? { ...s, stroke } : s)));
+  }, []);
+  const dropShapeInStack = useCallback((key: number) => {
+    setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: true } : s)));
+  }, []);
+  const popShapeFromStack = useCallback((key: number) => {
+    setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: false } : s)));
   }, []);
   const selectShape = useCallback((key: number) => {
     setSelectedShape(key);
@@ -263,6 +272,9 @@ export default function App() {
   }, []);
   const moveText = useCallback((key: number, x: number, y: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, x, y } : t)));
+  }, []);
+  const setTextStyle = useCallback((key: number, patch: Partial<TextEl>) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, ...patch } : t)));
   }, []);
   const dropTextInStack = useCallback((key: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
@@ -338,6 +350,7 @@ export default function App() {
         setSelectedShape(null);
         setDemoElements(prev => prev.filter(el => !el.inStack));
         setTexts(prev => prev.filter(t => !t.inStack));
+        setShapes(prev => prev.filter(s => !s.inStack));
         setScene('base');
         return;
       }
@@ -375,6 +388,77 @@ export default function App() {
   const selectedShapeEl: VectorEl | null = selectedShape !== null
     ? shapes.find(s => s.key === selectedShape) ?? null
     : null;
+  const selectedTextEl: TextEl | null = selectedText !== null
+    ? texts.find(t => t.key === selectedText) ?? null
+    : null;
+
+  // Accessibility issues — currently fill-contrast checks against white. For
+  // each failing shape, suggest three fixes (target ratios 21 / 7 / 4.5),
+  // preserving hue + saturation + alpha.
+  const issues: Issue[] = useMemo(() => {
+    const out: Issue[] = [];
+    for (const s of shapes) {
+      if (s.fill === null) continue;
+      const { h, s: sa, v, a } = hexToHsva(s.fill);
+      const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
+      const ratio = contrastOverWhite(r, g, b, a);
+      if (ratio >= 4.5) continue;
+      const fixes = [21, 7, 4.5].map(t => {
+        const nv = vForContrast(h, sa, t, a);
+        const color = hsvaToHex(h, sa, nv, a);
+        const frgb = hexToRgb(hsvToHex(h, sa, nv));
+        return { color, ratio: contrastOverWhite(frgb.r, frgb.g, frgb.b, a) };
+      });
+      out.push({
+        id: `fill-${s.key}`,
+        shapeKey: s.key,
+        kind: 'fill-contrast',
+        currentColor: s.fill,
+        currentRatio: ratio,
+        fixes,
+      });
+    }
+    return out;
+  }, [shapes]);
+
+  // Editor (right-panel) state — which issue is being viewed and which fix is
+  // currently previewed on the canvas.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [currentIssueIdx, setCurrentIssueIdx] = useState(0);
+  const [previewedFixIdx, setPreviewedFixIdx] = useState<number | null>(null);
+  // Clamp the issue index when the list shrinks (e.g. after Apply).
+  if (currentIssueIdx > 0 && currentIssueIdx >= issues.length) setCurrentIssueIdx(Math.max(0, issues.length - 1));
+  // Close the editor entirely when no issues are left.
+  if (editorOpen && issues.length === 0 && previewedFixIdx === null) setEditorOpen(false);
+  const currentIssue = issues[currentIssueIdx] ?? null;
+
+  // The shapes Canvas renders — with the previewed fix temporarily applied.
+  const renderShapes: VectorEl[] = useMemo(() => {
+    if (!editorOpen || previewedFixIdx === null || !currentIssue) return shapes;
+    const fix = currentIssue.fixes[previewedFixIdx];
+    return shapes.map(s => (s.key === currentIssue.shapeKey ? { ...s, fill: fix.color } : s));
+  }, [shapes, editorOpen, previewedFixIdx, currentIssue]);
+
+  const toggleEditor = useCallback(() => {
+    setEditorOpen(o => !o);
+    setPreviewedFixIdx(null);
+  }, []);
+  const selectFix = useCallback((i: number | null) => setPreviewedFixIdx(i), []);
+  const nextIssue = useCallback(() => {
+    setPreviewedFixIdx(null);
+    setCurrentIssueIdx(i => (issues.length === 0 ? 0 : (i + 1) % issues.length));
+  }, [issues.length]);
+  const prevIssue = useCallback(() => {
+    setPreviewedFixIdx(null);
+    setCurrentIssueIdx(i => (issues.length === 0 ? 0 : (i - 1 + issues.length) % issues.length));
+  }, [issues.length]);
+  const applyPreview = useCallback(() => {
+    if (!currentIssue || previewedFixIdx === null) return;
+    const fix = currentIssue.fixes[previewedFixIdx];
+    setShapeFill(currentIssue.shapeKey, fix.color);
+    setPreviewedFixIdx(null);
+  }, [currentIssue, previewedFixIdx, setShapeFill]);
+
   const showPopout = SHOW_POPOUT.includes(scene);
   const showDemoTint =
     scene === 'demo-1-stack-highlighted' ||
@@ -425,12 +509,14 @@ export default function App() {
           onSelectStack={selectStack}
           stackTutorialDisabled={stackTutorialDisabled}
           vectorTool={vectorTool}
-          shapes={shapes}
+          shapes={renderShapes}
           selectedShape={selectedShape}
           onCreateShape={createShape}
           onCreatePath={createPath}
           onSelectShape={selectShape}
           onMoveShape={moveShape}
+          onDropShapeInStack={dropShapeInStack}
+          onPopShapeFromStack={popShapeFromStack}
           pathDraft={pathDraft}
           onAddPathPoint={addPathPoint}
         />
@@ -450,9 +536,28 @@ export default function App() {
           selectedShapeEl={selectedShapeEl}
           onSetShapeFill={setShapeFill}
           onSetShapeStroke={setShapeStroke}
+          selectedTextEl={selectedTextEl}
+          onSetTextStyle={setTextStyle}
+          editorOpen={editorOpen}
+          issues={issues}
+          currentIssueIdx={currentIssueIdx}
+          previewedFixIdx={previewedFixIdx}
+          onSelectFix={selectFix}
+          onPrevIssue={prevIssue}
+          onNextIssue={nextIssue}
+          onCloseEditor={() => { setEditorOpen(false); setPreviewedFixIdx(null); }}
         />
       </div>
-      <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />
+      <BottomToolbar
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+        issueCount={issues.length}
+        editorOpen={editorOpen}
+        onToggleEditor={toggleEditor}
+        previewing={previewedFixIdx !== null}
+        onApplyPreview={applyPreview}
+        onCancelPreview={() => setPreviewedFixIdx(null)}
+      />
       <input
         ref={fileInputRef}
         type="file"

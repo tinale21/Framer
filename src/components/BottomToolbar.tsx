@@ -3,9 +3,32 @@ const ICON_GRAY = '#878787';
 type Props = {
   darkMode?: boolean;
   onToggleDarkMode?: () => void;
+  issueCount?: number;
+  editorOpen?: boolean;
+  onToggleEditor?: () => void;
+  previewing?: boolean;
+  onApplyPreview?: () => void;
+  onCancelPreview?: () => void;
 };
 
-export default function BottomToolbar({ darkMode = false, onToggleDarkMode }: Props) {
+export default function BottomToolbar({
+  darkMode = false, onToggleDarkMode,
+  issueCount = 0, editorOpen = false, onToggleEditor,
+  previewing = false, onApplyPreview, onCancelPreview,
+}: Props) {
+  // While previewing a suggested fix, the whole toolbar collapses to a
+  // "Viewing Suggested Changes" prompt with an Apply button (Framer-style).
+  if (previewing) {
+    return (
+      <div className="bottom-toolbar bottom-toolbar--preview">
+        <span className="bottom-toolbar__preview-label">Viewing Suggested Changes</span>
+        <button type="button" className="btn btn--primary bottom-toolbar__apply"
+          onClick={onApplyPreview}>Apply</button>
+        <button type="button" className="bottom-toolbar__preview-cancel"
+          onClick={onCancelPreview} aria-label="Cancel preview">×</button>
+      </div>
+    );
+  }
   return (
     <div className="bottom-toolbar">
       <button className="bottom-toolbar__cursor-pill">
@@ -54,10 +77,25 @@ export default function BottomToolbar({ darkMode = false, onToggleDarkMode }: Pr
         </svg>
       </button>
 
-      <button className="bottom-toolbar__icon" aria-label="Search">
-        <svg width="20" height="20" viewBox="257 19 22 20" fill={ICON_GRAY}>
-          <path d="M269.381 20.1637C270.288 20.6874 271.077 21.3926 271.699 22.2352C272.322 23.0777 272.764 24.0396 272.998 25.0606C273.231 26.0816 273.252 27.1399 273.059 28.1693C272.865 29.1988 272.462 30.1773 271.873 31.0437L276.582 35.7513C276.844 36.0096 276.996 36.3592 277.007 36.727C277.018 37.0949 276.886 37.4527 276.639 37.726C276.393 37.9992 276.05 38.1667 275.683 38.1936C275.316 38.2205 274.953 38.1047 274.669 37.8704L274.561 37.7723L269.853 33.0637C268.727 33.8287 267.416 34.278 266.057 34.3647C264.698 34.4514 263.341 34.1724 262.127 33.5568C260.912 32.9411 259.885 32.0112 259.152 30.864C258.419 29.7167 258.006 28.3939 257.958 27.0332L257.952 26.7618L257.957 26.4904C258.004 25.1768 258.39 23.8977 259.077 22.7773C259.764 21.657 260.73 20.7336 261.88 20.0968C263.03 19.46 264.325 19.1315 265.639 19.1432C266.953 19.1549 268.242 19.5065 269.381 20.1637ZM269.102 24.1827C268.923 24.0042 268.681 23.9039 268.428 23.9039C268.176 23.9039 267.933 24.0042 267.755 24.1827L264.619 27.3199L263.387 26.0885L263.298 26.0094C263.106 25.8614 262.866 25.7918 262.625 25.8147C262.384 25.8377 262.161 25.9515 262.001 26.1329C261.841 26.3144 261.756 26.55 261.763 26.7919C261.771 27.0338 261.87 27.2637 262.041 27.4351L263.945 29.3399L264.035 29.4189C264.218 29.5611 264.447 29.6315 264.678 29.6169C264.91 29.6024 265.128 29.5039 265.292 29.3399L269.102 25.5304L269.181 25.4408C269.323 25.2576 269.393 25.0288 269.379 24.7973C269.364 24.5659 269.266 24.3477 269.102 24.1837V24.1827Z" />
+      <button
+        type="button"
+        className={
+          'bottom-toolbar__icon bottom-toolbar__icon--editor'
+          + (editorOpen ? ' bottom-toolbar__icon--active' : '')
+        }
+        aria-label={
+          issueCount > 0
+            ? `Editor — ${issueCount} accessibility issue${issueCount === 1 ? '' : 's'}`
+            : 'Editor'
+        }
+        onClick={onToggleEditor}
+      >
+        <svg width="20" height="20" viewBox="0 0 23 23" fill={editorOpen ? '#0099ff' : ICON_GRAY}>
+          <path d="M12.2378 4.16387C13.1449 4.68763 13.9343 5.39281 14.5566 6.23536C15.179 7.07792 15.6209 8.03975 15.8548 9.06077C16.0887 10.0818 16.1095 11.1401 15.916 12.1695C15.7225 13.199 15.3188 14.1775 14.7302 15.0439L19.4387 19.7515C19.7009 20.0098 19.8532 20.3593 19.864 20.7272C19.8748 21.0951 19.7431 21.4529 19.4966 21.7262C19.25 21.9994 18.9075 22.1669 18.5404 22.1938C18.1734 22.2207 17.8101 22.1049 17.5263 21.8705L17.4178 21.7724L12.7102 17.0639C11.5839 17.8289 10.2731 18.2782 8.91435 18.3649C7.55556 18.4516 6.19836 18.1726 4.98395 17.5569C3.76954 16.9413 2.7423 16.0114 2.0091 14.8642C1.27591 13.7169 0.863544 12.3941 0.814918 11.0334L0.809204 10.762L0.813966 10.4905C0.860817 9.17697 1.2467 7.89785 1.9341 6.77752C2.62151 5.65719 3.58706 4.73375 4.73691 4.09695C5.88676 3.46014 7.18179 3.13164 8.49615 3.14337C9.8105 3.1551 11.0995 3.50665 12.2378 4.16387ZM11.9587 8.18292C11.7801 8.00437 11.5379 7.90408 11.2854 7.90408C11.0329 7.90408 10.7907 8.00437 10.6121 8.18292L7.47587 11.3201L6.24444 10.0886L6.15492 10.0096C5.9635 9.86157 5.72292 9.79197 5.48204 9.81492C5.24116 9.83787 5.01804 9.95164 4.85801 10.1331C4.69798 10.3146 4.61303 10.5502 4.62042 10.7921C4.6278 11.0339 4.72697 11.2639 4.89778 11.4353L6.80254 13.3401L6.89206 13.4191C7.0753 13.5613 7.30411 13.6317 7.53557 13.6171C7.76702 13.6025 7.98521 13.504 8.1492 13.3401L11.9587 9.53054L12.0378 9.44101C12.1799 9.25777 12.2503 9.02896 12.2358 8.79751C12.2212 8.56606 12.1227 8.34787 11.9587 8.18387V8.18292Z" />
         </svg>
+        {issueCount > 0 && (
+          <span className="bottom-toolbar__badge">{issueCount}</span>
+        )}
       </button>
 
       <div className="bottom-toolbar__divider" />

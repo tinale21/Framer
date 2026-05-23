@@ -64,6 +64,8 @@ type Props = {
   onCreatePath?: (points: Pt[], closed: boolean) => void;
   onSelectShape?: (key: number) => void;
   onMoveShape?: (key: number, x: number, y: number) => void;
+  onDropShapeInStack?: (key: number) => void;
+  onPopShapeFromStack?: (key: number) => void;
   pathDraft?: Pt[];
   onAddPathPoint?: (p: Pt) => void;
 };
@@ -118,6 +120,8 @@ export default function Canvas({
   onCreatePath,
   onSelectShape,
   onMoveShape,
+  onDropShapeInStack,
+  onPopShapeFromStack,
   pathDraft = [],
   onAddPathPoint,
 }: Props) {
@@ -171,8 +175,9 @@ export default function Canvas({
   // Dragging a placed shape to move it.
   const [draggingShape, setDraggingShape] = useState<number | null>(null);
   const shapeGrabRef = useRef<
-    { sx: number; sy: number; ox: number; oy: number; moved: boolean } | null
+    { sx: number; sy: number; ox: number; oy: number; moved: boolean; fromStack: boolean } | null
   >(null);
+  const draggingShapeElRef = useRef<HTMLDivElement>(null);
 
   // Path tool: pathDraft (in-progress anchor points) lives in App so its
   // keydown handler can pop the last point on Delete. pathCursor is purely a
@@ -410,7 +415,9 @@ export default function Canvas({
     };
   }, [vecDrawing, scale, vectorTool, onCreateShape]);
 
-  // Drag a placed shape to move it; a press without a drag selects it.
+  // Drag a placed shape to move it. A press without a drag selects it. A
+  // real drag from inside the stack pops the shape out first; releasing
+  // over the stack drops a free shape in.
   useEffect(() => {
     if (draggingShape === null) return;
     const key = draggingShape;
@@ -419,6 +426,7 @@ export default function Canvas({
       if (!grab) return;
       if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
         grab.moved = true;
+        if (grab.fromStack) onPopShapeFromStack?.(key);
       }
       if (!grab.moved) return;
       onMoveShape?.(key, grab.ox + (e.clientX - grab.sx) / scale, grab.oy + (e.clientY - grab.sy) / scale);
@@ -427,7 +435,19 @@ export default function Canvas({
       const grab = shapeGrabRef.current;
       setDraggingShape(null);
       shapeGrabRef.current = null;
-      if (grab && !grab.moved) onSelectShape?.(key);
+      if (grab && !grab.moved) { onSelectShape?.(key); return; }
+      // Released over the stack? Drop in.
+      const el = draggingShapeElRef.current;
+      const stack = stackRef.current;
+      if (el && stack && onDropShapeInStack) {
+        const er = el.getBoundingClientRect();
+        const sr = stack.getBoundingClientRect();
+        const cx = er.left + er.width / 2;
+        const cy = er.top + er.height / 2;
+        if (cx >= sr.left && cx <= sr.right && cy >= sr.top && cy <= sr.bottom) {
+          onDropShapeInStack(key);
+        }
+      }
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -435,7 +455,7 @@ export default function Canvas({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [draggingShape, scale, onMoveShape, onSelectShape]);
+  }, [draggingShape, scale, onMoveShape, onSelectShape, onDropShapeInStack, onPopShapeFromStack]);
 
   // While drafting a path, track the cursor in frame-card space so the
   // rubber-band line from the last anchor to the cursor renders smoothly.
@@ -641,12 +661,24 @@ export default function Canvas({
   // Press on a placed shape. With a box tool armed it starts a new draw; with
   // Path armed it lets the click bubble so a point gets dropped; otherwise it
   // begins a move (a press without a drag selects the shape).
-  const handleShapeMouseDown = (e: React.MouseEvent, s: VectorEl) => {
+  const handleShapeMouseDown = (e: React.MouseEvent, s: VectorEl, fromStack = false) => {
     if (vectorTool === 'path') return;
     e.stopPropagation();
     if (vectorTool) { handleVectorMouseDown(e); return; }
-    const bb = shapeBox(s);
-    shapeGrabRef.current = { sx: e.clientX, sy: e.clientY, ox: bb.x, oy: bb.y, moved: false };
+    let ox = shapeBox(s).x;
+    let oy = shapeBox(s).y;
+    if (fromStack) {
+      // Take the in-stack shape's on-screen position and re-anchor the free
+      // copy there, so it doesn't jump when the stack drops it.
+      const fc = frameCardRef.current;
+      if (!fc) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      const fr = fc.getBoundingClientRect();
+      ox = (r.left - fr.left) / scale;
+      oy = (r.top - fr.top) / scale;
+      onMoveShape?.(s.key, ox, oy);
+    }
+    shapeGrabRef.current = { sx: e.clientX, sy: e.clientY, ox, oy, moved: false, fromStack };
     setDraggingShape(s.key);
   };
 
@@ -659,10 +691,12 @@ export default function Canvas({
   const elemSrc = (id: string) => `${import.meta.env.BASE_URL}elem-${id}.svg`;
   const stackEls = demoElements.filter(el => el.inStack);
   const stackTexts = texts.filter(t => t.inStack);
+  const stackShapes = shapes.filter(s => s.inStack);
   // A stack item being dragged also renders as a free copy (over a hidden
   // placeholder that keeps its slot), so it never remounts mid-drag.
   const freeEls = demoElements.filter(el => !el.inStack || el.key === draggingKey);
   const freeTexts = texts.filter(t => !t.inStack || t.key === draggingTextKey);
+  const freeShapes = shapes.filter(s => !s.inStack || s.key === draggingShape);
   // demo-6: once 2+ items are in the stack, prompt the user to click it.
   // With the tutorial off, that guided prompt (and its redirect) is skipped.
   const stackReady = demo6 && !stackTutorialDisabled && stackEls.length + stackTexts.length >= 2;
@@ -695,6 +729,48 @@ export default function Canvas({
         alignItems: ALIGN[layoutOpts.align] ?? 'center',
         gap: `${layoutOpts.gap}px`, padding: stackPad,
       };
+  const textStyle = (t: TextEl): React.CSSProperties => ({
+    fontFamily: t.font ? `'${t.font}', sans-serif` : undefined,
+    fontWeight: t.weight,
+    fontSize: t.size != null ? `${t.size}px` : undefined,
+    lineHeight: t.lineHeight,
+    letterSpacing: t.letterSpacing != null ? `${t.letterSpacing}px` : undefined,
+    textAlign: t.align,
+    color: t.color,
+  });
+  const renderShapeSvg = (s: VectorEl, w: number, h: number) => {
+    const fill = s.fill ?? 'none';
+    const stroke = s.stroke?.color ?? 'none';
+    const sw = s.stroke?.width ?? 0;
+    const strokeProps = {
+      fill, stroke, strokeWidth: sw,
+      vectorEffect: 'non-scaling-stroke' as const,
+    };
+    if (s.kind === 'path') {
+      const bb = shapeBox(s);
+      const pts = s.points.map(p => `${p.x - bb.x},${p.y - bb.y}`).join(' ');
+      return s.closed
+        ? <polygon points={pts} {...strokeProps} />
+        : <polyline points={pts} {...strokeProps} />;
+    }
+    if (s.kind === 'rectangle') {
+      return <rect x={0} y={0} width={w} height={h} rx={2} {...strokeProps} />;
+    }
+    if (s.kind === 'oval') {
+      return <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} {...strokeProps} />;
+    }
+    if (s.kind === 'polygon') {
+      const pts = `${w * 0.25},0 ${w * 0.75},0 ${w},${h * 0.5} ${w * 0.75},${h} ${w * 0.25},${h} 0,${h * 0.5}`;
+      return <polygon points={pts} {...strokeProps} />;
+    }
+    // star (5-pointed) — same proportions as the popout/icon
+    const sp = (px: number, py: number) => `${(px * w) / 100},${(py * h) / 100}`;
+    const pts = [
+      sp(50, 0), sp(61, 35), sp(98, 35), sp(68, 57), sp(79, 91),
+      sp(50, 70), sp(21, 91), sp(32, 57), sp(2, 35), sp(39, 35),
+    ].join(' ');
+    return <polygon points={pts} {...strokeProps} />;
+  };
   const userStack = (
     <div
       className={
@@ -741,13 +817,39 @@ export default function Canvas({
               'demo-stack__text' +
               (selectedText === t.key ? ' demo-stack__text--selected' : '')
             }
-            style={t.key === draggingTextKey ? { opacity: 0 } : undefined}
+            style={{
+              ...textStyle(t),
+              ...(t.key === draggingTextKey ? { opacity: 0 } : {}),
+            }}
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
           >
             {t.text}
           </div>
         ))}
+        {stackShapes.map(s => {
+          const bb = shapeBox(s);
+          const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
+          return (
+            <div
+              key={s.key}
+              className={
+                'demo-stack__shape vec-shape--' + s.kind +
+                (selectedShape === s.key ? ' demo-stack__shape--selected' : '')
+              }
+              style={{
+                width: `${w}px`, height: `${h}px`,
+                opacity: s.key === draggingShape ? 0 : undefined,
+              }}
+              onMouseDown={e => handleShapeMouseDown(e, s, true)}
+              onClick={e => { e.stopPropagation(); if (vectorTool !== 'path') onSelectShape?.(s.key); }}
+            >
+              <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
+                {renderShapeSvg(s, w, h)}
+              </svg>
+            </div>
+          );
+        })}
       </div>
       <div className="demo-stack__col demo-stack__col--teal" />
     </div>
@@ -840,42 +942,14 @@ export default function Canvas({
 
         {/* Vector shapes live in the frame-card so they pan and zoom with it. */}
         <div className="shapes-layer">
-          {shapes.map(s => {
+          {freeShapes.map(s => {
             const bb = shapeBox(s);
             const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
             const selected = selectedShape === s.key;
-            const fill = s.fill ?? 'none';
-            const stroke = s.stroke?.color ?? 'none';
-            const sw = s.stroke?.width ?? 0;
-            const strokeProps = {
-              fill, stroke, strokeWidth: sw,
-              vectorEffect: 'non-scaling-stroke' as const,
-            };
-            let inner: React.ReactNode;
-            if (s.kind === 'path') {
-              const pts = s.points.map(p => `${p.x - bb.x},${p.y - bb.y}`).join(' ');
-              inner = s.closed
-                ? <polygon points={pts} {...strokeProps} />
-                : <polyline points={pts} {...strokeProps} />;
-            } else if (s.kind === 'rectangle') {
-              inner = <rect x={0} y={0} width={w} height={h} rx={2} {...strokeProps} />;
-            } else if (s.kind === 'oval') {
-              inner = <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} {...strokeProps} />;
-            } else if (s.kind === 'polygon') {
-              const pts = `${w * 0.25},0 ${w * 0.75},0 ${w},${h * 0.5} ${w * 0.75},${h} ${w * 0.25},${h} 0,${h * 0.5}`;
-              inner = <polygon points={pts} {...strokeProps} />;
-            } else {
-              // star (5-pointed) — same proportions as the popout/icon
-              const sp = (px: number, py: number) => `${(px * w) / 100},${(py * h) / 100}`;
-              const pts = [
-                sp(50, 0), sp(61, 35), sp(98, 35), sp(68, 57), sp(79, 91),
-                sp(50, 70), sp(21, 91), sp(32, 57), sp(2, 35), sp(39, 35),
-              ].join(' ');
-              inner = <polygon points={pts} {...strokeProps} />;
-            }
             return (
               <div
                 key={s.key}
+                ref={s.key === draggingShape ? draggingShapeElRef : undefined}
                 className={
                   'vec-shape vec-shape--' + s.kind + (selected ? ' vec-shape--selected' : '')
                 }
@@ -884,7 +958,7 @@ export default function Canvas({
                 onClick={e => { if (vectorTool !== 'path') e.stopPropagation(); }}
               >
                 <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
-                  {inner}
+                  {renderShapeSvg(s, w, h)}
                 </svg>
                 {selected && (
                   <div className="vec-shape__select">
@@ -966,6 +1040,7 @@ export default function Canvas({
                     value={t.text}
                     autoFocus
                     rows={1}
+                    style={textStyle(t)}
                     onChange={e => onChangeText?.(t.key, e.target.value)}
                     onBlur={() => onEndTextEdit?.(t.key, t.text.trim() === '')}
                     onMouseDown={e => e.stopPropagation()}
@@ -975,6 +1050,7 @@ export default function Canvas({
                 ) : (
                   <div
                     className="text-el__static"
+                    style={textStyle(t)}
                     onMouseDown={e => handleTextMouseDown(e, t)}
                     onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
                     onDoubleClick={e => { e.stopPropagation(); onEditText?.(t.key); }}

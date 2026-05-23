@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 // ---- HSV(+A) <-> hex helpers (HSV is the picker's source of truth so
 // dragging hue past pure black doesn't collapse S/V to 0). ----
-function clamp(n: number, lo: number, hi: number) {
+export function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace('#', '');
   return {
     r: parseInt(h.slice(0, 2), 16),
@@ -28,13 +28,13 @@ function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: n
   const s = max === 0 ? 0 : d / max;
   return { h, s, v: max };
 }
-function hexToHsva(hex: string): { h: number; s: number; v: number; a: number } {
+export function hexToHsva(hex: string): { h: number; s: number; v: number; a: number } {
   const clean = hex.replace('#', '');
   const rgb = hexToRgb('#' + clean.slice(0, 6));
   const a = clean.length >= 8 ? parseInt(clean.slice(6, 8), 16) / 255 : 1;
   return { ...rgbToHsv(rgb.r, rgb.g, rgb.b), a };
 }
-function hsvToHex(h: number, s: number, v: number): string {
+export function hsvToHex(h: number, s: number, v: number): string {
   const c = v * s;
   const hp = h / 60;
   const x = c * (1 - Math.abs((hp % 2) - 1));
@@ -50,7 +50,7 @@ function hsvToHex(h: number, s: number, v: number): string {
     clamp(Math.round((n + m) * 255), 0, 255).toString(16).padStart(2, '0');
   return '#' + toHex(r) + toHex(g) + toHex(b);
 }
-function hsvaToHex(h: number, s: number, v: number, a: number): string {
+export function hsvaToHex(h: number, s: number, v: number, a: number): string {
   const rgbHex = hsvToHex(h, s, v);
   if (a >= 1) return rgbHex;
   const aa = clamp(Math.round(a * 255), 0, 255).toString(16).padStart(2, '0');
@@ -73,7 +73,7 @@ function effectiveLuminanceOverWhite(r: number, g: number, b: number, a: number)
   const eb = b * a + 255 * (1 - a);
   return relativeLuminance(er, eg, eb);
 }
-function contrastOverWhite(r: number, g: number, b: number, a: number): number {
+export function contrastOverWhite(r: number, g: number, b: number, a: number): number {
   const L = effectiveLuminanceOverWhite(r, g, b, a);
   const lighter = Math.max(L, 1);
   const darker = Math.min(L, 1);
@@ -89,10 +89,13 @@ function lumFromHsva(h: number, s: number, v: number, a: number): number {
 // alpha-composited color's contrast against white equals the threshold.
 // Binary-searched (L is monotone in v). If even v=0 can't reach (alpha too
 // low to meet AA at this hue), the darkest value is returned as best effort.
-function vForContrast(h: number, s: number, threshold: number, a: number): number {
+export function vForContrast(h: number, s: number, threshold: number, a: number): number {
+  // The contrast formula: ratio = 1.05 / (L + 0.05) against white. So the
+  // target luminance for a given ratio T is L = 1.05/T - 0.05. L is monotone
+  // increasing in v (alpha just shifts the floor up); binary-search for it.
   const targetL = 1.05 / threshold - 0.05;
-  if (targetL <= 0) return 1;
-  if (targetL >= 1) return 0;
+  if (targetL <= 0) return 0; // need maximum contrast — pure black
+  if (targetL >= 1) return 1; // need no contrast — pure white
   if (lumFromHsva(h, s, 0, a) > targetL) return 0;
   let lo = 0, hi = 1;
   for (let i = 0; i < 22; i++) {

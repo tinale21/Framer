@@ -46,12 +46,20 @@ export type LayoutOpts = {
 
 // A text element placed on the canvas: a unique key, a free position,
 // its typed content, and whether it's been dropped into the demo stack.
+// Typography fields are optional — defaults are applied at render time.
 export type TextEl = {
   key: number;
   x: number;
   y: number;
   text: string;
   inStack: boolean;
+  font?: string;
+  weight?: number;
+  size?: number;
+  lineHeight?: number;       // undefined means "Auto"
+  letterSpacing?: number;    // px; undefined means 0
+  align?: 'left' | 'center' | 'right';
+  color?: string;            // hex; undefined means the default text color
 };
 
 // A demo element instance: a unique key, the element type, a free
@@ -79,10 +87,24 @@ export type Pt = { x: number; y: number };
 export type VectorFill = string | null;
 export type VectorStroke = { color: string; width: number } | null;
 type VectorStyle = { fill: VectorFill; stroke: VectorStroke };
+type InStackFlag = { inStack: boolean };
 export type VectorEl =
   | ({ key: number; kind: 'rectangle' | 'oval' | 'polygon' | 'star';
-       x: number; y: number; w: number; h: number } & VectorStyle)
-  | ({ key: number; kind: 'path'; points: Pt[]; closed: boolean } & VectorStyle);
+       x: number; y: number; w: number; h: number } & VectorStyle & InStackFlag)
+  | ({ key: number; kind: 'path'; points: Pt[]; closed: boolean } & VectorStyle & InStackFlag);
+
+// An accessibility issue surfaced by the Editor (right-panel) — currently
+// only fill-contrast checks against the white canvas, with three suggested
+// fixes (target contrast ratios 21:1, 7:1, 4.5:1) that preserve hue + alpha.
+export type Fix = { color: string; ratio: number };
+export type Issue = {
+  id: string;
+  shapeKey: number;
+  kind: 'fill-contrast';
+  currentColor: string;
+  currentRatio: number;
+  fixes: Fix[];
+};
 
 // The bbox of any shape in frame-card space — boxes carry one directly; for
 // paths it's derived from the anchor points.
