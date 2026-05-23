@@ -42,52 +42,91 @@ export default function EditorPanel({
         <>
           <div className="editor-panel__section-title">Accessibility</div>
           <div className="editor-panel__check-row">
-            Failed Contrast Check
+            {issue.kind === 'spelling' ? 'Spelling Error'
+              : issue.kind === 'grammar' ? (issue.label ?? 'Grammar Error')
+              : 'Failed Contrast Check'}
             <span className="editor-panel__info" aria-label="What is this">ⓘ</span>
           </div>
 
-          <button
-            type="button"
-            className={
-              'editor-panel__card editor-panel__card--current'
-              + (previewedFixIdx === null ? ' editor-panel__card--active' : '')
-            }
-            onClick={() => onSelectFix(null)}
-          >
-            <span className="editor-panel__swatch" style={{ background: issue.currentColor }} />
-            <span className="editor-panel__card-label">Current</span>
-            <span className="editor-panel__ratio editor-panel__ratio--fail">
-              {issue.currentRatio.toFixed(2)}:1
-            </span>
-          </button>
-
-          <div className="editor-panel__section-title" style={{ marginTop: 14 }}>
-            Suggested Fixes
-          </div>
-          {issue.fixes.map((f, i) => (
-            <button
-              type="button"
-              key={i}
-              className={
-                'editor-panel__card'
-                + (previewedFixIdx === i ? ' editor-panel__card--active' : '')
-              }
-              onClick={() => onSelectFix(i)}
-            >
-              <span className="editor-panel__swatch" style={{ background: f.color }} />
-              <span className="editor-panel__card-label">
-                {f.color.replace('#', '').slice(0, 6).toUpperCase()}
-              </span>
-              <span
+          {issue.kind === 'spelling' || issue.kind === 'grammar' ? null : null}
+          {issue.kind === 'fill-contrast' ? (
+            <>
+              <button
+                type="button"
                 className={
-                  'editor-panel__ratio'
-                  + (f.ratio >= 4.5 ? ' editor-panel__ratio--pass' : ' editor-panel__ratio--fail')
+                  'editor-panel__card editor-panel__card--current'
+                  + (previewedFixIdx === null ? ' editor-panel__card--active' : '')
                 }
+                onClick={() => onSelectFix(null)}
               >
-                {f.ratio.toFixed(2)}:1
-              </span>
-            </button>
-          ))}
+                <span className="editor-panel__swatch" style={{ background: issue.currentColor }} />
+                <span className="editor-panel__card-label">Current</span>
+                <span className="editor-panel__ratio editor-panel__ratio--fail">
+                  {issue.currentRatio!.toFixed(2)}:1
+                </span>
+              </button>
+
+              <div className="editor-panel__section-title" style={{ marginTop: 14 }}>
+                Suggested Fixes
+              </div>
+              {issue.fixes!.map((f, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  className={
+                    'editor-panel__card'
+                    + (previewedFixIdx === i ? ' editor-panel__card--active' : '')
+                  }
+                  onClick={() => onSelectFix(i)}
+                >
+                  <span className="editor-panel__swatch" style={{ background: f.color }} />
+                  <span className="editor-panel__card-label">
+                    {f.color.replace('#', '').slice(0, 6).toUpperCase()}
+                  </span>
+                  <span
+                    className={
+                      'editor-panel__ratio'
+                      + (f.ratio >= 4.5 ? ' editor-panel__ratio--pass' : ' editor-panel__ratio--fail')
+                    }
+                  >
+                    {f.ratio.toFixed(2)}:1
+                  </span>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={
+                  'editor-panel__card editor-panel__card--current'
+                  + (previewedFixIdx === null ? ' editor-panel__card--active' : '')
+                }
+                onClick={() => onSelectFix(null)}
+              >
+                <span className="editor-panel__spell-mark" aria-hidden="true">Aa</span>
+                <span className="editor-panel__card-label editor-panel__card-label--strike">{issue.word}</span>
+              </button>
+
+              <div className="editor-panel__section-title" style={{ marginTop: 14 }}>
+                {issue.kind === 'grammar' ? 'Suggested Fix' : 'Suggested Corrections'}
+              </div>
+              {issue.suggestions!.map((s, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  className={
+                    'editor-panel__card'
+                    + (previewedFixIdx === i ? ' editor-panel__card--active' : '')
+                  }
+                  onClick={() => onSelectFix(i)}
+                >
+                  <span className="editor-panel__spell-mark" aria-hidden="true">Aa</span>
+                  <span className="editor-panel__card-label">{s}</span>
+                </button>
+              ))}
+            </>
+          )}
 
           <div className="editor-panel__actions">
             <button type="button" className="editor-panel__action" onClick={onIgnoreOnce}>Ignore Once</button>

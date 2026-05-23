@@ -4,18 +4,65 @@ import type { TextRun } from './types';
 // Render runs as React nodes for the static (non-editing) text view, so
 // the spans live inside React's tree and click / dblclick on the parent
 // receive bubbled events normally. `flag` lets the accessibility Editor
-// wash just the failing segments — matching either the run's own color
-// or (for runs without an override) the box's default `textColor`.
+// wash either the failing segments by color (fill-contrast) or the
+// specific character range (spelling / grammar).
+export type RunHighlight =
+  | { kind: 'color'; color: string; textColor?: string }
+  | { kind: 'range'; start: number; end: number };
+
 export function renderRuns(
   text: string,
   runs: TextRun[] | undefined,
-  flag?: { color: string; textColor?: string },
+  flag?: RunHighlight,
 ): ReactNode {
-  const target = flag?.color.toLowerCase();
-  const defaultColor = flag?.textColor?.toLowerCase();
+  // Range highlight: walk through the text run-by-run, splitting at the
+  // [start, end) boundary, wrapping the in-range chars with the issue class.
+  if (flag?.kind === 'range') {
+    const lo = Math.max(0, Math.min(flag.start, flag.end));
+    const hi = Math.max(0, Math.max(flag.start, flag.end));
+    const base = runs && runs.length > 0 ? runs : [{ text } as TextRun];
+    const out: ReactNode[] = [];
+    let pos = 0;
+    let keyN = 0;
+    const styleFor = (color?: string): React.CSSProperties | undefined => color ? { color } : undefined;
+    for (const r of base) {
+      const rStart = pos;
+      const rEnd = pos + r.text.length;
+      pos = rEnd;
+      const before = Math.max(rStart, 0);
+      const flagStart = Math.max(rStart, lo);
+      const flagEnd = Math.min(rEnd, hi);
+      const after = rEnd;
+      // Slice indices within this run's text.
+      const a = 0;
+      const b = Math.max(0, flagStart - rStart);
+      const c = Math.max(0, flagEnd - rStart);
+      const d = r.text.length;
+      const pushSeg = (seg: string, isFlagged: boolean) => {
+        if (seg.length === 0) return;
+        const cls = isFlagged ? 'text-run--issue' : undefined;
+        const st = styleFor(r.color);
+        if (st || cls) {
+          out.push(<span key={keyN++} className={cls} style={st}>{seg}</span>);
+        } else {
+          out.push(<Fragment key={keyN++}>{seg}</Fragment>);
+        }
+      };
+      if (rEnd <= lo || rStart >= hi) { pushSeg(r.text, false); continue; }
+      pushSeg(r.text.slice(a, b), false);
+      pushSeg(r.text.slice(b, c), true);
+      pushSeg(r.text.slice(c, d), false);
+      // silence unused-var warnings
+      void before; void after;
+    }
+    return out;
+  }
+  // Color highlight (existing behavior).
+  const target = flag?.kind === 'color' ? flag.color.toLowerCase() : undefined;
+  const defaultColor = flag?.kind === 'color' ? flag.textColor?.toLowerCase() : undefined;
   const matches = (runColor?: string) => {
     if (!target) return false;
-    const effective = (runColor ?? flag?.textColor ?? '').toLowerCase();
+    const effective = (runColor ?? defaultColor ?? '').toLowerCase();
     return effective === target && (!!runColor || effective === defaultColor);
   };
   if (!runs || runs.length === 0) {

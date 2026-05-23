@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { shapeBox } from '../types';
 import type { Scene, SceneSetter, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
+import type { RunHighlight } from '../textRuns';
 import { runsToHtml, renderRuns, parseEditableToRuns, getSelectionOffsets } from '../textRuns';
 import { Play, Plus, Cursor } from '../icons';
 
@@ -63,9 +64,10 @@ type Props = {
   shapes?: VectorEl[];
   selectedShape?: number | null;
   // Highlight a single shape or text on the canvas (Editor → "current issue").
-  // For texts, `color` lets the renderer wash only the failing segment
-  // instead of the entire text box.
-  highlightedIssue?: { kind: 'shape' | 'text'; key: number; color?: string } | null;
+  // For texts, `runHighlight` tells the renderer how to wash just the
+  // failing portion — by color (fill-contrast) or by range (spelling /
+  // grammar).
+  highlightedIssue?: { kind: 'shape' | 'text'; key: number; runHighlight?: RunHighlight } | null;
   onCreateShape?: (
     kind: 'rectangle' | 'oval' | 'polygon' | 'star',
     x: number, y: number, w: number, h: number,
@@ -875,6 +877,15 @@ export default function Canvas({
     textAlign: t.align,
     color: t.color,
   });
+  // Inject the text's default color into a color-based highlight so runs
+  // that *inherit* the default color match the failing fill-contrast color.
+  const runHighlightFor = (t: TextEl): RunHighlight | undefined => {
+    if (!highlightedIssue || highlightedIssue.kind !== 'text' || highlightedIssue.key !== t.key) return undefined;
+    const h = highlightedIssue.runHighlight;
+    if (!h) return undefined;
+    if (h.kind === 'color') return { ...h, textColor: h.textColor ?? t.color };
+    return h;
+  };
   const renderShapeSvg = (s: VectorEl, w: number, h: number, fillOverride?: string) => {
     const fill = fillOverride ?? (s.fill ?? 'none');
     // When painting an overlay, drop the stroke so the highlight follows
@@ -961,10 +972,7 @@ export default function Canvas({
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
           >
-            {renderRuns(t.text, t.runs,
-              highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
-                ? { color: highlightedIssue.color, textColor: t.color }
-                : undefined)}
+            {renderRuns(t.text, t.runs, runHighlightFor(t))}
           </div>
         ))}
         {stackShapes.map(s => {
@@ -1227,10 +1235,7 @@ export default function Canvas({
                     onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
                     onDoubleClick={e => { e.stopPropagation(); onEditText?.(t.key); }}
                   >
-                    {renderRuns(t.text, t.runs,
-                      highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
-                        ? { color: highlightedIssue.color, textColor: t.color }
-                        : undefined)}
+                    {renderRuns(t.text, t.runs, runHighlightFor(t))}
                   </div>
                 )}
                 {selected && !editing && (

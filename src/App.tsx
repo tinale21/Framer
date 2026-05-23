@@ -17,6 +17,7 @@ import type {
   VectorFill, VectorStroke, Issue,
 } from './types';
 import { setSelectionOffsets } from './textRuns';
+import WORDLIST from './data/words.json';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -29,6 +30,218 @@ const EL_HEIGHTS: Record<string, number> = {
   gif: 113, video: 84, youtube: 84, vimeo: 84, spotify: 43, applemusic: 56, mp3: 31,
 };
 const EL_GAP = 12;
+
+// Curated overrides — these win over Levenshtein so the most common
+// typos always suggest the conventional fix.
+const TYPO_OVERRIDES: Record<string, string[]> = {
+  teh: ['the'],
+  recieve: ['receive'],
+  occured: ['occurred'],
+  seperate: ['separate'],
+  definately: ['definitely'],
+  untill: ['until'],
+  wierd: ['weird'],
+  beleive: ['believe'],
+  thier: ['their', "they're"],
+  alot: ['a lot'],
+  goverment: ['government'],
+  enviroment: ['environment'],
+  occassion: ['occasion'],
+  neccessary: ['necessary'],
+  embarass: ['embarrass'],
+  accomodate: ['accommodate'],
+  begining: ['beginning'],
+  calender: ['calendar'],
+  freind: ['friend'],
+  recomend: ['recommend'],
+};
+
+// English wordlist (lowercase, 3-12 chars, alphabetic-only — filtered
+// from /usr/share/dict/words ≈197K entries). Loaded once into a Set for
+// O(1) lookup; suggestions for unknown words use a length-bucketed
+// Levenshtein scan so we don't compare against all 197K each time.
+const KNOWN_WORDS: Set<string> = new Set(WORDLIST as string[]);
+const WORDS_BY_LEN: Map<number, string[]> = (() => {
+  const m = new Map<number, string[]>();
+  for (const w of WORDLIST as string[]) {
+    const len = w.length;
+    let arr = m.get(len);
+    if (!arr) { arr = []; m.set(len, arr); }
+    arr.push(w);
+  }
+  return m;
+})();
+
+// Optimal-string-alignment edit distance (insert / delete / substitute /
+// adjacent-transpose). Needs the full DP matrix so the transposition
+// check can read `d[i-2][j-2]`. Capped — returns cap+1 early when the
+// minimum row exceeds the budget.
+function editDistance(a: string, b: string, cap: number): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > cap) return cap + 1;
+  const m = a.length, n = b.length;
+  const d: number[][] = new Array(m + 1);
+  for (let i = 0; i <= m; i++) {
+    d[i] = new Array(n + 1);
+    d[i][0] = i;
+  }
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    let rowMin = Infinity;
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      let v = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1
+        && a.charCodeAt(i - 1) === b.charCodeAt(j - 2)
+        && a.charCodeAt(i - 2) === b.charCodeAt(j - 1)) {
+        v = Math.min(v, d[i - 2][j - 2] + cost);
+      }
+      d[i][j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > cap) return cap + 1;
+  }
+  return d[m][n];
+}
+
+function suggestCorrections(word: string, max = 3): string[] {
+  const overrides = TYPO_OVERRIDES[word];
+  if (overrides) return overrides;
+  // Scan candidates with length within ±2 of the word, score by edit distance.
+  const scored: { word: string; d: number }[] = [];
+  for (let dl = -2; dl <= 2; dl++) {
+    const bucket = WORDS_BY_LEN.get(word.length + dl);
+    if (!bucket) continue;
+    for (const w of bucket) {
+      const d = editDistance(word, w, 2);
+      if (d <= 2) scored.push({ word: w, d });
+    }
+  }
+  // Sort by edit distance, then prefer same-length candidates (less
+  // jarring than 1-char drops), then alphabetical.
+  scored.sort((a, b) => {
+    if (a.d !== b.d) return a.d - b.d;
+    const dlA = Math.abs(a.word.length - word.length);
+    const dlB = Math.abs(b.word.length - word.length);
+    if (dlA !== dlB) return dlA - dlB;
+    return a.word.localeCompare(b.word);
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of scored) {
+    if (seen.has(s.word)) continue;
+    seen.add(s.word);
+    out.push(s.word);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+// Rule-based grammar scanner. Each entry returns matches with the
+// replacement to apply and a short rule label for the panel.
+type GrammarHit = { match: string; offset: number; replacement: string; label: string };
+function scanGrammar(text: string): GrammarHit[] {
+  const out: GrammarHit[] = [];
+  const push = (m: RegExpExecArray, replacement: string, label: string, matchOverride?: { text: string; offset: number }) => {
+    out.push({
+      match: matchOverride?.text ?? m[0],
+      offset: matchOverride?.offset ?? m.index,
+      replacement,
+      label,
+    });
+  };
+  const run = (re: RegExp, fn: (m: RegExpExecArray) => void) => {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) fn(m);
+  };
+  // Duplicate adjacent word ("the the").
+  run(/\b(\w+)\s+\1\b/gi, m => push(m, m[1], 'Duplicate word'));
+  // "could/should/would/might/must of" → "... have".
+  run(/\b(could|should|would|might|must)\s+of\b/gi, m => push(m, `${m[1]} have`, "'of' → 'have'"));
+  // "a" before a vowel-sounding word.
+  run(/\b(a)\s+([aeiouAEIOU]\w*)/g, m => push(m, `an ${m[2]}`, "'a' → 'an'"));
+  // "an" before an obvious consonant.
+  run(/\ban\s+([bcdfgjklmnpqrtvwxz]\w*)/gi, m => push(m, `a ${m[1]}`, "'an' → 'a'"));
+  // Double (or more) spaces collapsed to one.
+  run(/ {2,}/g, m => push(m, ' ', 'Double space'));
+  // Standalone lowercase "i" → "I".
+  run(/(^|[\s.,!?;:"'(])(i)(?=[\s.,!?;:"')]|$)/g, m => {
+    const before = m[1];
+    const idx = m.index + before.length;
+    out.push({ match: 'i', offset: idx, replacement: 'I', label: "'i' → 'I'" });
+  });
+  // First non-space character of the whole text should be uppercase.
+  const firstAlpha = text.match(/^\s*([a-z])/);
+  if (firstAlpha) {
+    const idx = firstAlpha[0].length - 1;
+    out.push({ match: firstAlpha[1], offset: idx, replacement: firstAlpha[1].toUpperCase(), label: 'Capitalize start' });
+  }
+  // Lowercase letter immediately after sentence-ending punctuation + space.
+  run(/[.!?]\s+[a-z]/g, m => {
+    const ch = m[0][m[0].length - 1];
+    push(m, m[0].slice(0, -1) + ch.toUpperCase(), 'Capitalize sentence');
+  });
+  // Space before `, . ! ? ; :` ("hello ." → "hello.").
+  run(/ +([,.!?;:])/g, m => push(m, m[1], 'Space before punctuation'));
+  // Letter immediately after `, . ! ? : ;` with no space.
+  run(/[.,!?:;][a-zA-Z]/g, m => push(m, `${m[0][0]} ${m[0][1]}`, 'Missing space'));
+  // Repeated `! ! !` / `? ? ?` / `..` (not `...`).
+  run(/!{2,}/g, m => push(m, '!', 'Repeated punctuation'));
+  run(/\?{2,}/g, m => push(m, '?', 'Repeated punctuation'));
+  run(/\.{2}(?!\.)/g, m => push(m, '.', 'Repeated punctuation'));
+  // De-dupe / stable order by offset.
+  out.sort((a, b) => a.offset - b.offset);
+  // Keep only the first hit at any given offset (rules can overlap).
+  const seen = new Set<number>();
+  return out.filter(h => { if (seen.has(h.offset)) return false; seen.add(h.offset); return true; });
+}
+
+// True when a word should be ignored by spellcheck — known words,
+// numbers / mixed-alphanumerics, very short words (< 3 chars), and
+// pure-uppercase tokens (acronyms).
+function isLikelyMisspelled(raw: string): boolean {
+  if (raw.length < 3) return false;
+  if (raw === raw.toUpperCase()) return false;       // acronyms / yelling
+  const lower = raw.toLowerCase();
+  if (KNOWN_WORDS.has(lower)) return false;
+  if (TYPO_OVERRIDES[lower]) return true;
+  // Numbers, mixed alphanumeric, or contains `'` after the apostrophe
+  // stripped — skip if everything is alpha.
+  if (!/^[a-zA-Z]+$/.test(raw)) return false;
+  return true;
+}
+
+// Replace `length` chars at `offset` in `t.text` with `replacement`,
+// keeping `t.runs` (if any) consistent. The replacement chars take on
+// the color of whichever run contained the start of the replacement —
+// for simple in-run typos this preserves the rich text exactly; for
+// edits that span run boundaries the start run's color wins.
+function spliceTextAndRuns(t: TextEl, offset: number, length: number, replacement: string): TextEl {
+  const nextText = t.text.slice(0, offset) + replacement + t.text.slice(offset + length);
+  if (!t.runs || t.runs.length === 0) return { ...t, text: nextText };
+  const out: TextRun[] = [];
+  let pos = 0;
+  for (const r of t.runs) {
+    const rEnd = pos + r.text.length;
+    if (rEnd <= offset) { out.push(r); pos = rEnd; continue; }
+    if (pos >= offset + length) { out.push(r); pos = rEnd; continue; }
+    const before = r.text.slice(0, Math.max(0, offset - pos));
+    const after = r.text.slice(Math.max(0, offset + length - pos));
+    const isStart = pos <= offset && rEnd > offset;
+    const newRunText = before + (isStart ? replacement : '') + after;
+    if (newRunText.length > 0) out.push({ ...r, text: newRunText });
+    pos = rEnd;
+  }
+  // Merge adjacent runs with the same color, drop empties.
+  const merged: TextRun[] = [];
+  for (const r of out) {
+    if (r.text.length === 0) continue;
+    const last = merged[merged.length - 1];
+    if (last && last.color === r.color) last.text += r.text;
+    else merged.push({ ...r });
+  }
+  return { ...t, text: nextText, runs: merged.length > 0 ? merged : undefined };
+}
 
 export default function App() {
   const [scene, setScene] = useState<Scene>('base');
@@ -406,7 +619,8 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
       // Cmd/Ctrl + Z (Shift = redo) — undo works even when an input is
       // focused so the user can undo right after typing.
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
@@ -414,7 +628,9 @@ export default function App() {
         if (e.shiftKey) redo(); else undo();
         return;
       }
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack typing
+      // Don't hijack typing — applies to plain inputs, textareas, and the
+      // text-tool's contentEditable (which is a <div> with the attribute).
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       // Escape disarms the text tool and deselects everything — deselecting
       // the stack brings the Insert panel back (it's hidden, replaced by the
       // Shape panel, while a stack is selected).
@@ -549,6 +765,40 @@ export default function App() {
           fixes: buildFixes(h, sa, a),
         });
       }
+      // Spelling: walk each word; words not in our English dictionary
+      // (and not acronyms / numbers) become issues with up to 3
+      // Levenshtein-distance suggestions.
+      const wordRe = /[a-zA-Z]+/g;
+      let m: RegExpExecArray | null;
+      while ((m = wordRe.exec(t.text)) !== null) {
+        if (!isLikelyMisspelled(m[0])) continue;
+        const suggestions = suggestCorrections(m[0].toLowerCase());
+        if (suggestions.length === 0) continue;
+        out.push({
+          id: `text-spell-${t.key}-${m.index}-${m[0].toLowerCase()}`,
+          targetKind: 'text',
+          targetKey: t.key,
+          kind: 'spelling',
+          word: m[0],
+          offset: m.index,
+          suggestions,
+        });
+      }
+      // Grammar: rule-based scan — duplicate words, a/an, "of" / "have",
+      // double spaces, missing capitalization, missing space after
+      // punctuation. Each hit becomes its own issue.
+      for (const hit of scanGrammar(t.text)) {
+        out.push({
+          id: `text-grammar-${t.key}-${hit.offset}-${hit.label}`,
+          targetKind: 'text',
+          targetKey: t.key,
+          kind: 'grammar',
+          word: hit.match,
+          offset: hit.offset,
+          suggestions: [hit.replacement],
+          label: hit.label,
+        });
+      }
     }
     return out;
   }, [shapes, texts]);
@@ -562,8 +812,16 @@ export default function App() {
   const [ignoredAll, setIgnoredAll] = useState<Set<string>>(new Set());
   const [exceptions, setExceptions] = useState<Set<string>>(new Set());
   const normColor = (c: string) => c.toLowerCase();
-  const onceKey = (i: Issue) => `${i.targetKind}:${i.targetKey}:${normColor(i.currentColor)}`;
-  const colorKey = (i: Issue) => `${i.targetKind}:${normColor(i.currentColor)}`;
+  const onceKey = (i: Issue) => {
+    if (i.kind === 'spelling') return `text:spell:${i.targetKey}:${i.offset}:${i.word?.toLowerCase()}`;
+    if (i.kind === 'grammar') return `text:grammar:${i.targetKey}:${i.offset}:${i.label}`;
+    return `${i.targetKind}:${i.targetKey}:${normColor(i.currentColor!)}`;
+  };
+  const colorKey = (i: Issue) => {
+    if (i.kind === 'spelling') return `text:spell:${i.word?.toLowerCase()}`;
+    if (i.kind === 'grammar') return `text:grammar:${i.label}`;
+    return `${i.targetKind}:${normColor(i.currentColor!)}`;
+  };
 
   const visibleIssues = useMemo(() => issues.filter(i => (
     !ignoredOnce.has(onceKey(i))
@@ -585,23 +843,33 @@ export default function App() {
   // The shapes / texts Canvas renders — with the previewed fix overlaid.
   const renderShapes: VectorEl[] = useMemo(() => {
     if (!editorOpen || previewedFixIdx === null || !currentIssue) return shapes;
-    if (currentIssue.targetKind === 'text') return shapes;
-    const fix = currentIssue.fixes[previewedFixIdx];
+    if (currentIssue.targetKind === 'text' || currentIssue.kind !== 'fill-contrast') return shapes;
+    const fix = currentIssue.fixes![previewedFixIdx];
     return shapes.map(s => (s.key === currentIssue.targetKey ? { ...s, fill: fix.color } : s));
   }, [shapes, editorOpen, previewedFixIdx, currentIssue]);
   const renderTexts: TextEl[] = useMemo(() => {
     if (!editorOpen || previewedFixIdx === null || !currentIssue) return texts;
     if (currentIssue.targetKind !== 'text') return texts;
-    const fix = currentIssue.fixes[previewedFixIdx];
-    const target = currentIssue.currentColor.toLowerCase();
-    return texts.map(t => {
-      if (t.key !== currentIssue.targetKey) return t;
-      const nextColor = t.color && t.color.toLowerCase() === target ? fix.color : t.color;
-      const nextRuns = t.runs?.map(r =>
-        r.color && r.color.toLowerCase() === target ? { ...r, color: fix.color } : r
-      );
-      return { ...t, color: nextColor, runs: nextRuns };
-    });
+    if (currentIssue.kind === 'fill-contrast') {
+      const fix = currentIssue.fixes![previewedFixIdx];
+      const target = currentIssue.currentColor!.toLowerCase();
+      return texts.map(t => {
+        if (t.key !== currentIssue.targetKey) return t;
+        const nextColor = t.color && t.color.toLowerCase() === target ? fix.color : t.color;
+        const nextRuns = t.runs?.map(r =>
+          r.color && r.color.toLowerCase() === target ? { ...r, color: fix.color } : r
+        );
+        return { ...t, color: nextColor, runs: nextRuns };
+      });
+    }
+    if (currentIssue.kind === 'spelling' || currentIssue.kind === 'grammar') {
+      const suggestion = currentIssue.suggestions![previewedFixIdx];
+      return texts.map(t => {
+        if (t.key !== currentIssue.targetKey) return t;
+        return spliceTextAndRuns(t, currentIssue.offset!, currentIssue.word!.length, suggestion);
+      });
+    }
+    return texts;
   }, [texts, editorOpen, previewedFixIdx, currentIssue]);
 
   const toggleEditor = useCallback(() => {
@@ -619,9 +887,19 @@ export default function App() {
   }, [visibleIssues.length]);
   const applyPreview = useCallback(() => {
     if (!currentIssue || previewedFixIdx === null) return;
-    const fix = currentIssue.fixes[previewedFixIdx];
+    if (currentIssue.kind === 'spelling' || currentIssue.kind === 'grammar') {
+      const suggestion = currentIssue.suggestions![previewedFixIdx];
+      setTexts(prev => prev.map(t => (
+        t.key === currentIssue.targetKey
+          ? spliceTextAndRuns(t, currentIssue.offset!, currentIssue.word!.length, suggestion)
+          : t
+      )));
+      setPreviewedFixIdx(null);
+      return;
+    }
+    const fix = currentIssue.fixes![previewedFixIdx];
     if (currentIssue.targetKind === 'text') {
-      const target = currentIssue.currentColor.toLowerCase();
+      const target = currentIssue.currentColor!.toLowerCase();
       setTexts(prev => prev.map(t => {
         if (t.key !== currentIssue.targetKey) return t;
         const nextColor = t.color && t.color.toLowerCase() === target ? fix.color : t.color;
@@ -715,7 +993,13 @@ export default function App() {
               ? {
                   kind: currentIssue.targetKind === 'text' ? 'text' : 'shape',
                   key: currentIssue.targetKey,
-                  color: currentIssue.currentColor,
+                  // Tell the text renderer which slice to wash: by color
+                  // (fill-contrast) or by character range (spelling /
+                  // grammar). Shapes ignore this field.
+                  runHighlight: currentIssue.targetKind !== 'text' ? undefined
+                    : currentIssue.kind === 'fill-contrast'
+                      ? { kind: 'color', color: currentIssue.currentColor!, textColor: undefined }
+                      : { kind: 'range', start: currentIssue.offset!, end: currentIssue.offset! + currentIssue.word!.length },
                 }
               : null
           }

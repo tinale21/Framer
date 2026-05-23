@@ -109,14 +109,25 @@ export type Fix = { color: string; ratio: number };
 // text as its own bucket, so an "Add to Exceptions" for an oval doesn't
 // silence the same color on a star, a rectangle, or a text label.
 export type IssueTarget = VectorKind | 'text';
+// One contrast issue OR one spelling issue. Kept as a single shape with
+// per-kind optional fields so the rest of the Editor pipeline can stay
+// kind-agnostic; the panel + apply both switch on `kind`.
 export type Issue = {
   id: string;
   targetKind: IssueTarget;
   targetKey: number;
-  kind: 'fill-contrast';
-  currentColor: string;
-  currentRatio: number;
-  fixes: Fix[];
+  kind: 'fill-contrast' | 'spelling' | 'grammar';
+  // fill-contrast only
+  currentColor?: string;
+  currentRatio?: number;
+  fixes?: Fix[];
+  // spelling / grammar — `word` is the matched substring in t.text,
+  // `offset` its position, `suggestions` the replacement(s). For
+  // grammar, `label` describes which rule fired (e.g. "Duplicate word").
+  word?: string;
+  offset?: number;
+  suggestions?: string[];
+  label?: string;
 };
 
 // The bbox of any shape in frame-card space — boxes carry one directly; for

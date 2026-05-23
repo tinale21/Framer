@@ -1848,6 +1848,23 @@ button {
   border-radius: 2px;
   padding: 0 1px;
 }
+/* Spelling marker chip on the Editor cards — uses the same shape as the
+   color swatch so the row layout stays uniform. */
+.editor-panel__spell-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #f3f3f3;
+  font-size: 11px;
+  font-weight: 600;
+  color: #555555;
+  text-decoration: underline wavy #ff3b30;
+  text-underline-offset: 2px;
+}
+.editor-panel__card-label--strike { text-decoration: underline wavy #ff3b30; text-underline-offset: 3px; }
 /* Size badge that floats next to the resizing element's bottom-right. */
 .resize-badge {
   position: absolute;
