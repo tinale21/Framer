@@ -429,10 +429,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedEl, selectedText, selectedShape, stackSelected, pathDraft.length, clearCanvasState, undo, redo]);
 
-  // The completion screen appears ~3s after the first layout adjustment.
+  // The completion screen appears ~2s after the first layout adjustment.
   useEffect(() => {
     if (!layoutTouched || scene !== 'demo-7-layout-panel') return;
-    const t = window.setTimeout(() => setScene('demo-completed-modal'), 3000);
+    const t = window.setTimeout(() => setScene('demo-completed-modal'), 2000);
     return () => window.clearTimeout(t);
   }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';

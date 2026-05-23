@@ -1812,6 +1812,9 @@ button {
   border: 1px solid #0099ff;
   pointer-events: none;
 }
+/* In-stack shapes need an explicit positioning context so the selection
+   ring (.vec-shape__select, inset:0) anchors to the shape's box. */
+.demo-stack__shape { position: relative; }
 .shape-handle {
   position: absolute;
   width: 9px;

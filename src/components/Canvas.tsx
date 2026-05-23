@@ -588,7 +588,12 @@ export default function Canvas({
         e.preventDefault();
         const factor = Math.exp(-e.deltaY * 0.01);
         setScale(s => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * factor)));
+        return;
       }
+      // Two-finger trackpad scroll (or mouse-wheel) pans the workspace —
+      // same direction as a drag-pan: the canvas follows your fingers.
+      e.preventDefault();
+      setOffset(o => ({ x: o.x - e.deltaX, y: o.y - e.deltaY }));
     };
     wrap.addEventListener('wheel', handleWheel, { passive: false });
     return () => wrap.removeEventListener('wheel', handleWheel);
@@ -951,12 +956,13 @@ export default function Canvas({
         {stackShapes.map(s => {
           const bb = shapeBox(s);
           const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
+          const selected = selectedShape === s.key;
           return (
             <div
               key={s.key}
               className={
                 'demo-stack__shape vec-shape--' + s.kind +
-                (selectedShape === s.key ? ' demo-stack__shape--selected' : '')
+                (selected ? ' demo-stack__shape--selected vec-shape--selected' : '')
               }
               style={{
                 width: `${w}px`, height: `${h}px`,
@@ -968,6 +974,14 @@ export default function Canvas({
               <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
                 {renderShapeSvg(s, w, h)}
               </svg>
+              {selected && (
+                <div className="vec-shape__select">
+                  {s.kind !== 'path' && (['tl', 'tr', 'bl', 'br'] as const).map(c => (
+                    <span key={c} className={`shape-handle shape-handle--${c}`}
+                      onMouseDown={e => startResize(e, 'shape', s.key, c, { x: s.x, y: s.y, w, h })} />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
