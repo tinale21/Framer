@@ -44,6 +44,9 @@ type Props = InsertProps & {
   onPrevIssue: () => void;
   onNextIssue: () => void;
   onCloseEditor: () => void;
+  onIgnoreOnce: () => void;
+  onIgnoreAll: () => void;
+  onAddToExceptions: () => void;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -64,6 +67,7 @@ export default function RightSidebar({
   selectedTextEl, onSetTextStyle,
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
+  onIgnoreOnce, onIgnoreAll, onAddToExceptions,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
   if (editorOpen) {
@@ -76,6 +80,9 @@ export default function RightSidebar({
         onPrev={onPrevIssue}
         onNext={onNextIssue}
         onClose={onCloseEditor}
+        onIgnoreOnce={onIgnoreOnce}
+        onIgnoreAll={onIgnoreAll}
+        onAddToExceptions={onAddToExceptions}
       />
     );
   }
@@ -417,18 +424,11 @@ function PropsPanel({
     // For a selected text the Fill row controls the text color; for a shape
     // it controls the SVG fill. Either way the swatch opens the same picker.
     if (text) {
-      if (!text.color) {
-        return (
-          <div
-            className="props-row props-row--plus"
-            style={{ justifyContent: 'space-between', cursor: 'pointer' }}
-            onClick={() => onSetTextStyle({ color: '#000000' })}
-          >
-            <span>Fill</span>
-          </div>
-        );
-      }
-      const c = text.color;
+      // Always show the swatch — when the text doesn't carry an explicit
+      // color yet, fall back to the default (#000000) so the row is
+      // immediately interactive without an extra "add fill" click.
+      const c = text.color ?? '#000000';
+      const hasExplicit = !!text.color;
       return (
         <div className="props-row" style={{ justifyContent: 'space-between' }}>
           <span>Fill</span>
@@ -442,9 +442,11 @@ function PropsPanel({
               aria-label="Text color"
             />
             <span className="color-control__hex">{c.replace('#', '').toUpperCase()}</span>
-            <button type="button" className="color-control__x"
-              onClick={() => { onSetTextStyle({ color: undefined }); setPicker(null); }}
-              aria-label="Remove fill">×</button>
+            {hasExplicit && (
+              <button type="button" className="color-control__x"
+                onClick={() => { onSetTextStyle({ color: undefined }); setPicker(null); }}
+                aria-label="Remove fill">×</button>
+            )}
           </span>
         </div>
       );
@@ -663,11 +665,11 @@ function PropsPanel({
         <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}><span>Effects</span></div>
       </div>
       {picker && (
-        text && picker.for === 'fill' && text.color
+        text && picker.for === 'fill'
           ? (
             <div style={{ position: 'fixed', right: picker.right, top: picker.top, zIndex: 1000 }}>
               <ColorPicker
-                value={text.color}
+                value={text.color ?? '#000000'}
                 onChange={hex => onSetTextStyle({ color: hex })}
                 onClose={() => setPicker(null)}
               />

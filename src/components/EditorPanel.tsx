@@ -3,6 +3,7 @@ import type { Issue } from '../types';
 export default function EditorPanel({
   issues, currentIdx, previewedFixIdx,
   onSelectFix, onPrev, onNext, onClose,
+  onIgnoreOnce, onIgnoreAll, onAddToExceptions,
 }: {
   issues: Issue[];
   currentIdx: number;
@@ -11,6 +12,9 @@ export default function EditorPanel({
   onPrev: () => void;
   onNext: () => void;
   onClose: () => void;
+  onIgnoreOnce: () => void;
+  onIgnoreAll: () => void;
+  onAddToExceptions: () => void;
 }) {
   const total = issues.length;
   const issue = issues[currentIdx] ?? null;
@@ -86,9 +90,9 @@ export default function EditorPanel({
           ))}
 
           <div className="editor-panel__actions">
-            <button type="button" className="editor-panel__action">Ignore Once</button>
-            <button type="button" className="editor-panel__action">Ignore All</button>
-            <button type="button" className="editor-panel__action">Add to Exceptions</button>
+            <button type="button" className="editor-panel__action" onClick={onIgnoreOnce}>Ignore Once</button>
+            <button type="button" className="editor-panel__action" onClick={onIgnoreAll}>Ignore All</button>
+            <button type="button" className="editor-panel__action" onClick={onAddToExceptions}>Add to Exceptions</button>
           </div>
         </>
       ) : (

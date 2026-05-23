@@ -44,6 +44,12 @@ export type LayoutOpts = {
   padL: string;
 };
 
+// A single styled segment within a text. When `runs` is set on a TextEl it
+// holds an ordered list of these — concatenating the `text` fields yields
+// the plain-text content. `color` overrides the TextEl's default color for
+// just this segment; undefined falls back to the default.
+export type TextRun = { text: string; color?: string };
+
 // A text element placed on the canvas: a unique key, a free position,
 // its typed content, and whether it's been dropped into the demo stack.
 // Typography fields are optional — defaults are applied at render time.
@@ -61,6 +67,7 @@ export type TextEl = {
   align?: 'left' | 'center' | 'right';
   color?: string;            // hex; undefined means the default text color
   width?: number;            // explicit width in px (set by resize); undefined means auto-fit
+  runs?: TextRun[];          // per-segment color overrides; absent = uniform color
 };
 
 // A demo element instance: a unique key, the element type, a free
@@ -98,9 +105,14 @@ export type VectorEl =
 // only fill-contrast checks against the white canvas, with three suggested
 // fixes (target contrast ratios 21:1, 7:1, 4.5:1) that preserve hue + alpha.
 export type Fix = { color: string; ratio: number };
+// Where the failing color lives. The Editor treats each vector kind and
+// text as its own bucket, so an "Add to Exceptions" for an oval doesn't
+// silence the same color on a star, a rectangle, or a text label.
+export type IssueTarget = VectorKind | 'text';
 export type Issue = {
   id: string;
-  shapeKey: number;
+  targetKind: IssueTarget;
+  targetKey: number;
   kind: 'fill-contrast';
   currentColor: string;
   currentRatio: number;

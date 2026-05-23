@@ -13,9 +13,10 @@ import {
   hexToHsva, hsvaToHex, hsvToHex, hexToRgb, vForContrast, contrastOverWhite,
 } from './components/ColorPicker';
 import type {
-  Scene, DemoEl, TextEl, LayoutOpts, VectorKind, VectorEl, Pt,
+  Scene, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt,
   VectorFill, VectorStroke, Issue,
 } from './types';
+import { applyColorToRange } from './textRuns';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -281,15 +282,38 @@ export default function App() {
       return { ...s, x, y };
     }));
   }, []);
-  const changeText = useCallback((key: number, text: string) => {
-    setTexts(prev => prev.map(t => (t.key === key ? { ...t, text } : t)));
+  const changeText = useCallback((key: number, text: string, runs?: TextRun[]) => {
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, text, runs: runs && runs.length > 0 ? runs : undefined } : t)));
   }, []);
+  // Tracks the character range currently selected inside the editing text,
+  // so the right-panel color picker can color just the highlight rather
+  // than the whole box.
+  const [textSelection, setTextSelection] = useState<{ key: number; start: number; end: number } | null>(null);
   const moveText = useCallback((key: number, x: number, y: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, x, y } : t)));
   }, []);
   const setTextStyle = useCallback((key: number, patch: Partial<TextEl>) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, ...patch } : t)));
   }, []);
+  // If a text-character selection is live and the patch is a color change,
+  // apply the color to just that range — splitting the run list — instead
+  // of overwriting the whole text's color.
+  const setTextStyleScoped = useCallback((key: number, patch: Partial<TextEl>) => {
+    const sel = textSelection;
+    if (
+      patch.color !== undefined
+      && Object.keys(patch).length === 1
+      && sel && sel.key === key && sel.start < sel.end
+    ) {
+      setTexts(prev => prev.map(t => {
+        if (t.key !== key) return t;
+        const runs = applyColorToRange(t.text, t.runs, sel.start, sel.end, patch.color!);
+        return { ...t, runs };
+      }));
+      return;
+    }
+    setTextStyle(key, patch);
+  }, [textSelection, setTextStyle]);
   const dropTextInStack = useCallback((key: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
   }, []);
@@ -313,9 +337,11 @@ export default function App() {
   const deselectText = useCallback(() => {
     setSelectedText(null);
     setEditingText(null);
+    setTextSelection(null);
   }, []);
   const endTextEdit = useCallback((key: number, isEmpty: boolean) => {
     setEditingText(null);
+    setTextSelection(null);
     if (isEmpty) {
       // Drop a text box the user placed but never typed into.
       setTexts(prev => prev.filter(t => t.key !== key));
@@ -449,52 +475,117 @@ export default function App() {
     ? texts.find(t => t.key === selectedText) ?? null
     : null;
 
-  // Accessibility issues — currently fill-contrast checks against white. For
-  // each failing shape, suggest three fixes (target ratios 21 / 7 / 4.5),
-  // preserving hue + saturation + alpha.
+  // Accessibility issues — fill-contrast checks against white for both
+  // shape fills and text colors. For each failing target, suggest three
+  // fixes (21 / 7 / 4.5), preserving hue + saturation + alpha.
   const issues: Issue[] = useMemo(() => {
     const out: Issue[] = [];
+    const buildFixes = (h: number, sa: number, a: number) =>
+      [21, 7, 4.5].map(t => {
+        const nv = vForContrast(h, sa, t, a);
+        const color = hsvaToHex(h, sa, nv, a);
+        const frgb = hexToRgb(hsvToHex(h, sa, nv));
+        return { color, ratio: contrastOverWhite(frgb.r, frgb.g, frgb.b, a) };
+      });
     for (const s of shapes) {
       if (s.fill === null) continue;
       const { h, s: sa, v, a } = hexToHsva(s.fill);
       const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
       const ratio = contrastOverWhite(r, g, b, a);
       if (ratio >= 4.5) continue;
-      const fixes = [21, 7, 4.5].map(t => {
-        const nv = vForContrast(h, sa, t, a);
-        const color = hsvaToHex(h, sa, nv, a);
-        const frgb = hexToRgb(hsvToHex(h, sa, nv));
-        return { color, ratio: contrastOverWhite(frgb.r, frgb.g, frgb.b, a) };
-      });
       out.push({
-        id: `fill-${s.key}`,
-        shapeKey: s.key,
+        id: `${s.kind}-${s.key}`,
+        targetKind: s.kind,
+        targetKey: s.key,
         kind: 'fill-contrast',
         currentColor: s.fill,
         currentRatio: ratio,
-        fixes,
+        fixes: buildFixes(h, sa, a),
       });
     }
+    for (const t of texts) {
+      // Walk every distinct color in this text — default + any run override —
+      // and emit one issue per failing color so a rich text with two bad
+      // colors surfaces both. Issue id includes the color to keep them apart.
+      const seen = new Set<string>();
+      const colors: string[] = [];
+      const push = (c?: string) => {
+        if (!c) return;
+        const k = c.toLowerCase();
+        if (seen.has(k)) return;
+        seen.add(k); colors.push(c);
+      };
+      push(t.color);
+      if (t.runs) for (const r of t.runs) push(r.color);
+      for (const c of colors) {
+        const { h, s: sa, v, a } = hexToHsva(c);
+        const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
+        const ratio = contrastOverWhite(r, g, b, a);
+        if (ratio >= 4.5) continue;
+        out.push({
+          id: `text-${t.key}-${c.toLowerCase()}`,
+          targetKind: 'text',
+          targetKey: t.key,
+          kind: 'fill-contrast',
+          currentColor: c,
+          currentRatio: ratio,
+          fixes: buildFixes(h, sa, a),
+        });
+      }
+    }
     return out;
-  }, [shapes]);
+  }, [shapes, texts]);
+
+  // Ignore state. Keyed per target-kind so a text exception doesn't silence
+  // a shape with the same color (different design intent, separate review).
+  //   ignoredOnce : `${kind}:${key}:${color}`  — single instance dismissal
+  //   ignoredAll  : `${kind}:${color}`         — color silenced for new items of that kind
+  //   exceptions  : `${kind}:${color}`         — approved exception, same effect
+  const [ignoredOnce, setIgnoredOnce] = useState<Set<string>>(new Set());
+  const [ignoredAll, setIgnoredAll] = useState<Set<string>>(new Set());
+  const [exceptions, setExceptions] = useState<Set<string>>(new Set());
+  const normColor = (c: string) => c.toLowerCase();
+  const onceKey = (i: Issue) => `${i.targetKind}:${i.targetKey}:${normColor(i.currentColor)}`;
+  const colorKey = (i: Issue) => `${i.targetKind}:${normColor(i.currentColor)}`;
+
+  const visibleIssues = useMemo(() => issues.filter(i => (
+    !ignoredOnce.has(onceKey(i))
+    && !ignoredAll.has(colorKey(i))
+    && !exceptions.has(colorKey(i))
+  )), [issues, ignoredOnce, ignoredAll, exceptions]);
 
   // Editor (right-panel) state — which issue is being viewed and which fix is
   // currently previewed on the canvas.
   const [editorOpen, setEditorOpen] = useState(false);
   const [currentIssueIdx, setCurrentIssueIdx] = useState(0);
   const [previewedFixIdx, setPreviewedFixIdx] = useState<number | null>(null);
-  // Clamp the issue index when the list shrinks (e.g. after Apply).
-  if (currentIssueIdx > 0 && currentIssueIdx >= issues.length) setCurrentIssueIdx(Math.max(0, issues.length - 1));
-  // Close the editor entirely when no issues are left.
-  if (editorOpen && issues.length === 0 && previewedFixIdx === null) setEditorOpen(false);
-  const currentIssue = issues[currentIssueIdx] ?? null;
+  // Clamp the issue index when the list shrinks (e.g. after Apply / Ignore).
+  if (currentIssueIdx > 0 && currentIssueIdx >= visibleIssues.length) setCurrentIssueIdx(Math.max(0, visibleIssues.length - 1));
+  // Close the editor entirely when no visible issues remain.
+  if (editorOpen && visibleIssues.length === 0 && previewedFixIdx === null) setEditorOpen(false);
+  const currentIssue = visibleIssues[currentIssueIdx] ?? null;
 
-  // The shapes Canvas renders — with the previewed fix temporarily applied.
+  // The shapes / texts Canvas renders — with the previewed fix overlaid.
   const renderShapes: VectorEl[] = useMemo(() => {
     if (!editorOpen || previewedFixIdx === null || !currentIssue) return shapes;
+    if (currentIssue.targetKind === 'text') return shapes;
     const fix = currentIssue.fixes[previewedFixIdx];
-    return shapes.map(s => (s.key === currentIssue.shapeKey ? { ...s, fill: fix.color } : s));
+    return shapes.map(s => (s.key === currentIssue.targetKey ? { ...s, fill: fix.color } : s));
   }, [shapes, editorOpen, previewedFixIdx, currentIssue]);
+  const renderTexts: TextEl[] = useMemo(() => {
+    if (!editorOpen || previewedFixIdx === null || !currentIssue) return texts;
+    if (currentIssue.targetKind !== 'text') return texts;
+    const fix = currentIssue.fixes[previewedFixIdx];
+    const target = currentIssue.currentColor.toLowerCase();
+    return texts.map(t => {
+      if (t.key !== currentIssue.targetKey) return t;
+      const nextColor = t.color && t.color.toLowerCase() === target ? fix.color : t.color;
+      const nextRuns = t.runs?.map(r =>
+        r.color && r.color.toLowerCase() === target ? { ...r, color: fix.color } : r
+      );
+      return { ...t, color: nextColor, runs: nextRuns };
+    });
+  }, [texts, editorOpen, previewedFixIdx, currentIssue]);
 
   const toggleEditor = useCallback(() => {
     setEditorOpen(o => !o);
@@ -503,18 +594,51 @@ export default function App() {
   const selectFix = useCallback((i: number | null) => setPreviewedFixIdx(i), []);
   const nextIssue = useCallback(() => {
     setPreviewedFixIdx(null);
-    setCurrentIssueIdx(i => (issues.length === 0 ? 0 : (i + 1) % issues.length));
-  }, [issues.length]);
+    setCurrentIssueIdx(i => (visibleIssues.length === 0 ? 0 : (i + 1) % visibleIssues.length));
+  }, [visibleIssues.length]);
   const prevIssue = useCallback(() => {
     setPreviewedFixIdx(null);
-    setCurrentIssueIdx(i => (issues.length === 0 ? 0 : (i - 1 + issues.length) % issues.length));
-  }, [issues.length]);
+    setCurrentIssueIdx(i => (visibleIssues.length === 0 ? 0 : (i - 1 + visibleIssues.length) % visibleIssues.length));
+  }, [visibleIssues.length]);
   const applyPreview = useCallback(() => {
     if (!currentIssue || previewedFixIdx === null) return;
     const fix = currentIssue.fixes[previewedFixIdx];
-    setShapeFill(currentIssue.shapeKey, fix.color);
+    if (currentIssue.targetKind === 'text') {
+      // Replace every segment that uses the issue's color with the fix —
+      // both the default `color` and any matching run overrides.
+      const target = currentIssue.currentColor.toLowerCase();
+      setTexts(prev => prev.map(t => {
+        if (t.key !== currentIssue.targetKey) return t;
+        const nextColor = t.color && t.color.toLowerCase() === target ? fix.color : t.color;
+        const nextRuns = t.runs?.map(r =>
+          r.color && r.color.toLowerCase() === target ? { ...r, color: fix.color } : r
+        );
+        return { ...t, color: nextColor, runs: nextRuns };
+      }));
+    } else {
+      setShapeFill(currentIssue.targetKey, fix.color);
+    }
     setPreviewedFixIdx(null);
-  }, [currentIssue, previewedFixIdx, setShapeFill]);
+  }, [currentIssue, previewedFixIdx, setShapeFill, setTextStyle]);
+  // Dismiss the current issue at one of three scopes.
+  const ignoreCurrentOnce = useCallback(() => {
+    if (!currentIssue) return;
+    const k = onceKey(currentIssue);
+    setIgnoredOnce(prev => { const n = new Set(prev); n.add(k); return n; });
+    setPreviewedFixIdx(null);
+  }, [currentIssue]);
+  const ignoreCurrentAll = useCallback(() => {
+    if (!currentIssue) return;
+    const k = colorKey(currentIssue);
+    setIgnoredAll(prev => { const n = new Set(prev); n.add(k); return n; });
+    setPreviewedFixIdx(null);
+  }, [currentIssue]);
+  const addCurrentToExceptions = useCallback(() => {
+    if (!currentIssue) return;
+    const k = colorKey(currentIssue);
+    setExceptions(prev => { const n = new Set(prev); n.add(k); return n; });
+    setPreviewedFixIdx(null);
+  }, [currentIssue]);
 
   const showPopout = SHOW_POPOUT.includes(scene);
   const showDemoTint =
@@ -548,11 +672,12 @@ export default function App() {
           onDropElementInStack={dropElementInStack}
           onPopElementFromStack={popElementFromStack}
           textMode={textMode}
-          texts={texts}
+          texts={renderTexts}
           editingText={editingText}
           selectedText={selectedText}
           onPlaceText={placeText}
           onChangeText={changeText}
+          onTextSelectionChange={setTextSelection}
           onMoveText={moveText}
           onDropTextInStack={dropTextInStack}
           onPopTextFromStack={popTextFromStack}
@@ -568,6 +693,15 @@ export default function App() {
           vectorTool={vectorTool}
           shapes={renderShapes}
           selectedShape={selectedShape}
+          highlightedIssue={
+            editorOpen && currentIssue
+              ? {
+                  kind: currentIssue.targetKind === 'text' ? 'text' : 'shape',
+                  key: currentIssue.targetKey,
+                  color: currentIssue.currentColor,
+                }
+              : null
+          }
           onCreateShape={createShape}
           onCreatePath={createPath}
           onSelectShape={selectShape}
@@ -596,21 +730,24 @@ export default function App() {
           onSetShapeFill={setShapeFill}
           onSetShapeStroke={setShapeStroke}
           selectedTextEl={selectedTextEl}
-          onSetTextStyle={setTextStyle}
+          onSetTextStyle={setTextStyleScoped}
           editorOpen={editorOpen}
-          issues={issues}
+          issues={visibleIssues}
           currentIssueIdx={currentIssueIdx}
           previewedFixIdx={previewedFixIdx}
           onSelectFix={selectFix}
           onPrevIssue={prevIssue}
           onNextIssue={nextIssue}
           onCloseEditor={() => { setEditorOpen(false); setPreviewedFixIdx(null); }}
+          onIgnoreOnce={ignoreCurrentOnce}
+          onIgnoreAll={ignoreCurrentAll}
+          onAddToExceptions={addCurrentToExceptions}
         />
       </div>
       <BottomToolbar
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
-        issueCount={issues.length}
+        issueCount={visibleIssues.length}
         editorOpen={editorOpen}
         onToggleEditor={toggleEditor}
         previewing={previewedFixIdx !== null}

@@ -1829,6 +1829,18 @@ button {
 .shape-handle--bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
 .shape-handle--br { bottom: -5px; right: -5px; cursor: nwse-resize; }
 .demo-element__handle { z-index: 2; }
+/* Issue highlight — drawn when the Editor panel is referencing this
+   element. Shapes paint a translucent red wash over the silhouette
+   (a second SVG layer in JSX); texts highlight only the failing run
+   with a wavy red underline + translucent red background. */
+.text-run--issue {
+  background: rgba(255, 59, 48, 0.16);
+  text-decoration: underline wavy #ff3b30;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  padding: 0 1px;
+}
 /* Size badge that floats next to the resizing element's bottom-right. */
 .resize-badge {
   position: absolute;

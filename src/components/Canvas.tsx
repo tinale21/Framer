@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { shapeBox } from '../types';
-import type { Scene, SceneSetter, DemoEl, TextEl, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
+import type { Scene, SceneSetter, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
+import { runsToHtml, parseEditableToRuns, getSelectionOffsets, setSelectionOffsets } from '../textRuns';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -41,7 +42,11 @@ type Props = {
   editingText?: number | null;
   selectedText?: number | null;
   onPlaceText?: (x: number, y: number) => void;
-  onChangeText?: (key: number, text: string) => void;
+  onChangeText?: (key: number, text: string, runs?: TextRun[]) => void;
+  // Reports the current text-character selection inside the editing text
+  // (or `null` when nothing is selected / no text is being edited). Used so
+  // the right-panel color picker can color just the highlighted portion.
+  onTextSelectionChange?: (sel: { key: number; start: number; end: number } | null) => void;
   onMoveText?: (key: number, x: number, y: number) => void;
   onDropTextInStack?: (key: number) => void;
   onPopTextFromStack?: (key: number) => void;
@@ -57,6 +62,10 @@ type Props = {
   vectorTool?: VectorKind | null;
   shapes?: VectorEl[];
   selectedShape?: number | null;
+  // Highlight a single shape or text on the canvas (Editor → "current issue").
+  // For texts, `color` lets the renderer outline just the failing segment
+  // instead of the entire text box.
+  highlightedIssue?: { kind: 'shape' | 'text'; key: number; color?: string } | null;
   onCreateShape?: (
     kind: 'rectangle' | 'oval' | 'polygon' | 'star',
     x: number, y: number, w: number, h: number,
@@ -99,6 +108,7 @@ export default function Canvas({
   selectedText = null,
   onPlaceText,
   onChangeText,
+  onTextSelectionChange,
   onMoveText,
   onDropTextInStack,
   onPopTextFromStack,
@@ -118,6 +128,7 @@ export default function Canvas({
   vectorTool = null,
   shapes = [],
   selectedShape = null,
+  highlightedIssue = null,
   onCreateShape,
   onCreatePath,
   onSelectShape,
@@ -864,10 +875,12 @@ export default function Canvas({
     textAlign: t.align,
     color: t.color,
   });
-  const renderShapeSvg = (s: VectorEl, w: number, h: number) => {
-    const fill = s.fill ?? 'none';
-    const stroke = s.stroke?.color ?? 'none';
-    const sw = s.stroke?.width ?? 0;
+  const renderShapeSvg = (s: VectorEl, w: number, h: number, fillOverride?: string) => {
+    const fill = fillOverride ?? (s.fill ?? 'none');
+    // When painting an overlay, drop the stroke so the highlight follows
+    // just the filled silhouette and doesn't double the outline.
+    const stroke = fillOverride ? 'none' : (s.stroke?.color ?? 'none');
+    const sw = fillOverride ? 0 : (s.stroke?.width ?? 0);
     const strokeProps = {
       fill, stroke, strokeWidth: sw,
       vectorEffect: 'non-scaling-stroke' as const,
@@ -949,20 +962,26 @@ export default function Canvas({
             }}
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
-          >
-            {t.text}
-          </div>
+            dangerouslySetInnerHTML={{
+              __html: runsToHtml(t.text, t.runs,
+                highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
+                  ? { color: highlightedIssue.color, textColor: t.color }
+                  : undefined),
+            }}
+          />
         ))}
         {stackShapes.map(s => {
           const bb = shapeBox(s);
           const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
           const selected = selectedShape === s.key;
+          const flagged = highlightedIssue?.kind === 'shape' && highlightedIssue.key === s.key;
           return (
             <div
               key={s.key}
               className={
                 'demo-stack__shape vec-shape--' + s.kind +
-                (selected ? ' demo-stack__shape--selected vec-shape--selected' : '')
+                (selected ? ' demo-stack__shape--selected vec-shape--selected' : '') +
+                (flagged ? ' vec-shape--issue' : '')
               }
               style={{
                 width: `${w}px`, height: `${h}px`,
@@ -973,6 +992,7 @@ export default function Canvas({
             >
               <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
                 {renderShapeSvg(s, w, h)}
+                {flagged && renderShapeSvg(s, w, h, 'rgba(255, 59, 48, 0.35)')}
               </svg>
               {selected && (
                 <div className="vec-shape__select">
@@ -1095,12 +1115,15 @@ export default function Canvas({
             const bb = shapeBox(s);
             const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
             const selected = selectedShape === s.key;
+            const flagged = highlightedIssue?.kind === 'shape' && highlightedIssue.key === s.key;
             return (
               <div
                 key={s.key}
                 ref={s.key === draggingShape ? draggingShapeElRef : undefined}
                 className={
-                  'vec-shape vec-shape--' + s.kind + (selected ? ' vec-shape--selected' : '')
+                  'vec-shape vec-shape--' + s.kind
+                  + (selected ? ' vec-shape--selected' : '')
+                  + (flagged ? ' vec-shape--issue' : '')
                 }
                 style={{ left: `${bb.x}px`, top: `${bb.y}px`, width: `${w}px`, height: `${h}px` }}
                 onMouseDown={e => handleShapeMouseDown(e, s)}
@@ -1108,6 +1131,7 @@ export default function Canvas({
               >
                 <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
                   {renderShapeSvg(s, w, h)}
+                  {flagged && renderShapeSvg(s, w, h, 'rgba(255, 59, 48, 0.35)')}
                 </svg>
                 {selected && (
                   <div className="vec-shape__select">
@@ -1187,17 +1211,15 @@ export default function Canvas({
                 }}
               >
                 {editing ? (
-                  <textarea
-                    className="text-el__input"
-                    value={t.text}
-                    autoFocus
-                    rows={1}
+                  <EditableText
+                    text={t.text}
+                    runs={t.runs}
                     style={textStyle(t)}
-                    onChange={e => onChangeText?.(t.key, e.target.value)}
+                    onChange={(text, runs) => onChangeText?.(t.key, text, runs)}
+                    onSelectionChange={sel => onTextSelectionChange?.(
+                      sel ? { key: t.key, start: sel.start, end: sel.end } : null
+                    )}
                     onBlur={() => onEndTextEdit?.(t.key, t.text.trim() === '')}
-                    onMouseDown={e => e.stopPropagation()}
-                    onClick={e => e.stopPropagation()}
-                    onKeyDown={e => { if (e.key === 'Escape') e.currentTarget.blur(); }}
                   />
                 ) : (
                   <div
@@ -1206,9 +1228,13 @@ export default function Canvas({
                     onMouseDown={e => handleTextMouseDown(e, t)}
                     onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
                     onDoubleClick={e => { e.stopPropagation(); onEditText?.(t.key); }}
-                  >
-                    {t.text}
-                  </div>
+                    dangerouslySetInnerHTML={{
+                      __html: runsToHtml(t.text, t.runs,
+                        highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
+                          ? { color: highlightedIssue.color, textColor: t.color }
+                          : undefined),
+                    }}
+                  />
                 )}
                 {selected && !editing && (
                   <>
@@ -1380,4 +1406,107 @@ function CanvasContent({ scene, onSceneChange, stackTutorialDisabled }: ContentP
     default:
       return null;
   }
+}
+
+// Free-form contentEditable that renders styled spans from `runs` (or plain
+// text when there's no per-segment coloring) and reports text + runs +
+// caret/selection back as the user types. The DOM is the source of truth
+// while editing; React only resets the inner HTML when the incoming runs
+// change from outside (e.g. the picker colored a selection).
+function EditableText({
+  text, runs, style, onChange, onSelectionChange, onBlur,
+}: {
+  text: string;
+  runs?: TextRun[];
+  style: React.CSSProperties;
+  onChange: (text: string, runs: TextRun[]) => void;
+  onSelectionChange?: (sel: { start: number; end: number } | null) => void;
+  onBlur?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const lastHtmlRef = useRef<string>('');
+
+  // Initial mount: stamp the runs HTML and focus / place caret at end.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const html = runsToHtml(text, runs);
+    el.innerHTML = html;
+    lastHtmlRef.current = html;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // External update (e.g. picker colored a selection) — restamp the DOM
+  // only when the desired HTML actually differs from what the user typed,
+  // and preserve the selection across the swap.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const desired = runsToHtml(text, runs);
+    if (desired === lastHtmlRef.current) return;
+    const before = getSelectionOffsets(el);
+    el.innerHTML = desired;
+    lastHtmlRef.current = desired;
+    if (before) setSelectionOffsets(el, before.start, before.end);
+  }, [text, runs]);
+
+  const handleInput = () => {
+    const el = ref.current;
+    if (!el) return;
+    lastHtmlRef.current = el.innerHTML;
+    const { text: nextText, runs: nextRuns } = parseEditableToRuns(el);
+    onChange(nextText, nextRuns);
+  };
+
+  const reportSelection = () => {
+    const el = ref.current;
+    if (!el) return;
+    const offsets = getSelectionOffsets(el);
+    // Don't report nulls — a blur to the right-sidebar (picker) drops the
+    // browser selection, but we want App to remember the last real range
+    // so a color pick can still be applied to it. App clears the cached
+    // selection itself when edit mode ends.
+    if (offsets) onSelectionChange?.(offsets);
+  };
+
+  // contentEditable doesn't emit React's onSelect reliably — listen on the
+  // document instead so highlights made via keyboard / mouse drag are seen.
+  useEffect(() => {
+    const onChange = () => reportSelection();
+    document.addEventListener('selectionchange', onChange);
+    return () => document.removeEventListener('selectionchange', onChange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="text-el__input"
+      contentEditable
+      suppressContentEditableWarning
+      style={style}
+      onInput={handleInput}
+      onSelect={reportSelection}
+      onKeyUp={reportSelection}
+      onMouseUp={reportSelection}
+      onBlur={e => {
+        // If focus is moving into the right sidebar (picker / panel),
+        // stay in edit mode and keep the selection alive so a chosen
+        // color can be applied to the highlighted characters.
+        const next = e.relatedTarget as HTMLElement | null;
+        if (next && next.closest('.right-sidebar')) return;
+        onBlur?.();
+      }}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => { if (e.key === 'Escape') (e.currentTarget as HTMLElement).blur(); }}
+    />
+  );
 }
