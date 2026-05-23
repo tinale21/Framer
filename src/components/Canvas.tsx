@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { shapeBox } from '../types';
 import type { Scene, SceneSetter, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
-import { runsToHtml, parseEditableToRuns, getSelectionOffsets, setSelectionOffsets } from '../textRuns';
+import { runsToHtml, renderRuns, parseEditableToRuns, getSelectionOffsets } from '../textRuns';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -43,9 +43,9 @@ type Props = {
   selectedText?: number | null;
   onPlaceText?: (x: number, y: number) => void;
   onChangeText?: (key: number, text: string, runs?: TextRun[]) => void;
-  // Reports the current text-character selection inside the editing text
-  // (or `null` when nothing is selected / no text is being edited). Used so
-  // the right-panel color picker can color just the highlighted portion.
+  // Last non-empty character-range selection inside the editing text, so
+  // the picker can re-target the contentEditable even after focus moves
+  // to the swatch / hex input.
   onTextSelectionChange?: (sel: { key: number; start: number; end: number } | null) => void;
   onMoveText?: (key: number, x: number, y: number) => void;
   onDropTextInStack?: (key: number) => void;
@@ -63,7 +63,7 @@ type Props = {
   shapes?: VectorEl[];
   selectedShape?: number | null;
   // Highlight a single shape or text on the canvas (Editor → "current issue").
-  // For texts, `color` lets the renderer outline just the failing segment
+  // For texts, `color` lets the renderer wash only the failing segment
   // instead of the entire text box.
   highlightedIssue?: { kind: 'shape' | 'text'; key: number; color?: string } | null;
   onCreateShape?: (
@@ -952,23 +952,20 @@ export default function Canvas({
         {stackTexts.map(t => (
           <div
             key={t.key}
-            className={
-              'demo-stack__text' +
-              (selectedText === t.key ? ' demo-stack__text--selected' : '')
-            }
+            className={'demo-stack__text' + (selectedText === t.key ? ' demo-stack__text--selected' : '')}
+            data-text-editor={t.key}
             style={{
               ...textStyle(t),
               ...(t.key === draggingTextKey ? { opacity: 0 } : {}),
             }}
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
-            dangerouslySetInnerHTML={{
-              __html: runsToHtml(t.text, t.runs,
-                highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
-                  ? { color: highlightedIssue.color, textColor: t.color }
-                  : undefined),
-            }}
-          />
+          >
+            {renderRuns(t.text, t.runs,
+              highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
+                ? { color: highlightedIssue.color, textColor: t.color }
+                : undefined)}
+          </div>
         ))}
         {stackShapes.map(s => {
           const bb = shapeBox(s);
@@ -1212,14 +1209,15 @@ export default function Canvas({
               >
                 {editing ? (
                   <EditableText
+                    textKey={t.key}
                     text={t.text}
                     runs={t.runs}
                     style={textStyle(t)}
                     onChange={(text, runs) => onChangeText?.(t.key, text, runs)}
+                    onEnd={(isEmpty) => onEndTextEdit?.(t.key, isEmpty)}
                     onSelectionChange={sel => onTextSelectionChange?.(
                       sel ? { key: t.key, start: sel.start, end: sel.end } : null
                     )}
-                    onBlur={() => onEndTextEdit?.(t.key, t.text.trim() === '')}
                   />
                 ) : (
                   <div
@@ -1228,13 +1226,12 @@ export default function Canvas({
                     onMouseDown={e => handleTextMouseDown(e, t)}
                     onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
                     onDoubleClick={e => { e.stopPropagation(); onEditText?.(t.key); }}
-                    dangerouslySetInnerHTML={{
-                      __html: runsToHtml(t.text, t.runs,
-                        highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
-                          ? { color: highlightedIssue.color, textColor: t.color }
-                          : undefined),
-                    }}
-                  />
+                  >
+                    {renderRuns(t.text, t.runs,
+                      highlightedIssue?.kind === 'text' && highlightedIssue.key === t.key && highlightedIssue.color
+                        ? { color: highlightedIssue.color, textColor: t.color }
+                        : undefined)}
+                  </div>
                 )}
                 {selected && !editing && (
                   <>
@@ -1408,31 +1405,33 @@ function CanvasContent({ scene, onSceneChange, stackTutorialDisabled }: ContentP
   }
 }
 
-// Free-form contentEditable that renders styled spans from `runs` (or plain
-// text when there's no per-segment coloring) and reports text + runs +
-// caret/selection back as the user types. The DOM is the source of truth
-// while editing; React only resets the inner HTML when the incoming runs
-// change from outside (e.g. the picker colored a selection).
+// contentEditable text editor. The DOM is the source of truth while
+// editing; on input we extract runs and bubble them up to App. We
+// intentionally do NOT mirror App's runs back into the DOM on every
+// re-render — that would clobber the live selection mid-stream and was
+// the root cause of "color goes to the wrong segment after the first
+// pick". Color application is done by App calling
+// `document.execCommand('foreColor')` on the focused contentEditable,
+// which uses the browser's native selection (and Framer-style behaves
+// correctly across consecutive in-place re-selections).
 function EditableText({
-  text, runs, style, onChange, onSelectionChange, onBlur,
+  textKey, text, runs, style, onChange, onEnd, onSelectionChange,
 }: {
+  textKey: number;
   text: string;
   runs?: TextRun[];
   style: React.CSSProperties;
   onChange: (text: string, runs: TextRun[]) => void;
+  onEnd: (isEmpty: boolean) => void;
   onSelectionChange?: (sel: { start: number; end: number } | null) => void;
-  onBlur?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const lastHtmlRef = useRef<string>('');
-
-  // Initial mount: stamp the runs HTML and focus / place caret at end.
+  // Stamp the initial HTML once on mount; never restamp from props after
+  // that, so the user's caret / selection isn't disturbed by re-renders.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const html = runsToHtml(text, runs);
-    el.innerHTML = html;
-    lastHtmlRef.current = html;
+    el.innerHTML = runsToHtml(text, runs);
     el.focus();
     const range = document.createRange();
     range.selectNodeContents(el);
@@ -1443,47 +1442,23 @@ function EditableText({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // External update (e.g. picker colored a selection) — restamp the DOM
-  // only when the desired HTML actually differs from what the user typed,
-  // and preserve the selection across the swap.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const desired = runsToHtml(text, runs);
-    if (desired === lastHtmlRef.current) return;
-    const before = getSelectionOffsets(el);
-    el.innerHTML = desired;
-    lastHtmlRef.current = desired;
-    if (before) setSelectionOffsets(el, before.start, before.end);
-  }, [text, runs]);
-
   const handleInput = () => {
     const el = ref.current;
     if (!el) return;
-    lastHtmlRef.current = el.innerHTML;
     const { text: nextText, runs: nextRuns } = parseEditableToRuns(el);
     onChange(nextText, nextRuns);
   };
 
+  // Push the live range up so App can refocus + restore it before
+  // running execCommand. We only report non-empty ranges — caret-only
+  // selections shouldn't override a saved range while the user is
+  // interacting with the picker.
   const reportSelection = () => {
     const el = ref.current;
     if (!el) return;
     const offsets = getSelectionOffsets(el);
-    // Don't report nulls — a blur to the right-sidebar (picker) drops the
-    // browser selection, but we want App to remember the last real range
-    // so a color pick can still be applied to it. App clears the cached
-    // selection itself when edit mode ends.
-    if (offsets) onSelectionChange?.(offsets);
+    if (offsets && offsets.start !== offsets.end) onSelectionChange?.(offsets);
   };
-
-  // contentEditable doesn't emit React's onSelect reliably — listen on the
-  // document instead so highlights made via keyboard / mouse drag are seen.
-  useEffect(() => {
-    const onChange = () => reportSelection();
-    document.addEventListener('selectionchange', onChange);
-    return () => document.removeEventListener('selectionchange', onChange);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div
@@ -1491,22 +1466,26 @@ function EditableText({
       className="text-el__input"
       contentEditable
       suppressContentEditableWarning
+      data-text-editor={textKey}
       style={style}
       onInput={handleInput}
-      onSelect={reportSelection}
-      onKeyUp={reportSelection}
       onMouseUp={reportSelection}
+      onKeyUp={reportSelection}
+      onSelect={reportSelection}
       onBlur={e => {
-        // If focus is moving into the right sidebar (picker / panel),
-        // stay in edit mode and keep the selection alive so a chosen
-        // color can be applied to the highlighted characters.
+        // Stay in edit mode when focus moves to the right sidebar
+        // (picker) OR to a non-focusable element (the SV / hue / alpha
+        // squares are plain divs that don't take focus, leaving
+        // `relatedTarget` null).
         const next = e.relatedTarget as HTMLElement | null;
-        if (next && next.closest('.right-sidebar')) return;
-        onBlur?.();
+        if (!next || next.closest('.right-sidebar')) return;
+        const el = ref.current;
+        onEnd(!el || el.innerText.trim() === '');
       }}
-      onMouseDown={e => e.stopPropagation()}
+      onMouseDown={e => { e.stopPropagation(); onSelectionChange?.(null); }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => { if (e.key === 'Escape') (e.currentTarget as HTMLElement).blur(); }}
     />
   );
 }
+

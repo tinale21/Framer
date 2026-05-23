@@ -16,7 +16,7 @@ import type {
   Scene, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt,
   VectorFill, VectorStroke, Issue,
 } from './types';
-import { applyColorToRange } from './textRuns';
+import { setSelectionOffsets } from './textRuns';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -283,37 +283,54 @@ export default function App() {
     }));
   }, []);
   const changeText = useCallback((key: number, text: string, runs?: TextRun[]) => {
-    setTexts(prev => prev.map(t => (t.key === key ? { ...t, text, runs: runs && runs.length > 0 ? runs : undefined } : t)));
+    setTexts(prev => prev.map(t => (
+      t.key === key
+        ? { ...t, text, runs: runs && runs.some(r => r.color) ? runs : undefined }
+        : t
+    )));
   }, []);
-  // Tracks the character range currently selected inside the editing text,
-  // so the right-panel color picker can color just the highlight rather
-  // than the whole box.
-  const [textSelection, setTextSelection] = useState<{ key: number; start: number; end: number } | null>(null);
+  // Most recent non-empty range the user highlighted inside the editing
+  // text. Cleared on mousedown (to start a fresh drag) and on edit-end.
+  // Held in a ref so `setTextStyleScoped` reads the latest value even
+  // when invoked from a stale picker-mousemove listener closure (the
+  // picker's window handlers re-bind only when h/a change, so during an
+  // SV-drag a state-derived closure would point at the old range from
+  // when the drag started).
+  const textSelectionRef = useRef<{ key: number; start: number; end: number } | null>(null);
+  const setTextSelection = useCallback((v: { key: number; start: number; end: number } | null) => {
+    textSelectionRef.current = v;
+  }, []);
   const moveText = useCallback((key: number, x: number, y: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, x, y } : t)));
   }, []);
   const setTextStyle = useCallback((key: number, patch: Partial<TextEl>) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, ...patch } : t)));
   }, []);
-  // If a text-character selection is live and the patch is a color change,
-  // apply the color to just that range — splitting the run list — instead
-  // of overwriting the whole text's color.
+  // Color changes are routed through the browser's `execCommand('foreColor')`
+  // when the contentEditable is focused AND has a non-collapsed selection —
+  // that's how Framer's per-segment coloring stays stable across multiple
+  // in-place re-selections, since the browser tracks the live selection
+  // natively. Otherwise (caret only, or text not in edit mode) it falls
+  // back to changing the box's default color.
   const setTextStyleScoped = useCallback((key: number, patch: Partial<TextEl>) => {
-    const sel = textSelection;
-    if (
-      patch.color !== undefined
-      && Object.keys(patch).length === 1
-      && sel && sel.key === key && sel.start < sel.end
-    ) {
-      setTexts(prev => prev.map(t => {
-        if (t.key !== key) return t;
-        const runs = applyColorToRange(t.text, t.runs, sel.start, sel.end, patch.color!);
-        return { ...t, runs };
-      }));
-      return;
+    const colorOnly = patch.color !== undefined && Object.keys(patch).length === 1;
+    // Always read from the ref — closure-captured state would be stale
+    // when a long-lived picker listener invokes this mid-drag.
+    const sel = textSelectionRef.current;
+    if (colorOnly && sel && sel.key === key && sel.start < sel.end) {
+      const editor = document.querySelector(
+        `[data-text-editor="${key}"][contenteditable]`,
+      ) as HTMLElement | null;
+      if (editor) {
+        editor.focus();
+        setSelectionOffsets(editor, sel.start, sel.end);
+        try { document.execCommand('styleWithCSS', false, 'true'); } catch { /* noop */ }
+        document.execCommand('foreColor', false, patch.color!);
+        return;
+      }
     }
     setTextStyle(key, patch);
-  }, [textSelection, setTextStyle]);
+  }, [setTextStyle]);
   const dropTextInStack = useCallback((key: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
   }, []);
@@ -604,8 +621,6 @@ export default function App() {
     if (!currentIssue || previewedFixIdx === null) return;
     const fix = currentIssue.fixes[previewedFixIdx];
     if (currentIssue.targetKind === 'text') {
-      // Replace every segment that uses the issue's color with the fix —
-      // both the default `color` and any matching run overrides.
       const target = currentIssue.currentColor.toLowerCase();
       setTexts(prev => prev.map(t => {
         if (t.key !== currentIssue.targetKey) return t;

@@ -44,10 +44,10 @@ export type LayoutOpts = {
   padL: string;
 };
 
-// A single styled segment within a text. When `runs` is set on a TextEl it
-// holds an ordered list of these — concatenating the `text` fields yields
-// the plain-text content. `color` overrides the TextEl's default color for
-// just this segment; undefined falls back to the default.
+// A single styled segment within a text. When `runs` is set on a TextEl
+// it holds an ordered list of these — concatenating the `text` fields
+// yields the plain-text content. `color` overrides the TextEl's default
+// color for just this segment; undefined falls back to the default.
 export type TextRun = { text: string; color?: string };
 
 // A text element placed on the canvas: a unique key, a free position,

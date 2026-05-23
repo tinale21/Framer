@@ -178,6 +178,10 @@ export default function ColorPicker({ value, onChange, onClose }: {
     setColor(h, ns, nv, a);
   };
   const startSvDrag = (e: React.MouseEvent) => {
+    // Stop the focused contentEditable from blurring — text-segment color
+    // application relies on `execCommand` running while the editor still
+    // owns the selection.
+    e.preventDefault();
     svDragRef.current = true;
     updateSvFrom(e.clientX, e.clientY);
   };
@@ -202,6 +206,7 @@ export default function ColorPicker({ value, onChange, onClose }: {
     setColor(x * 360, s, v, a);
   };
   const startHueDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
     hueDragRef.current = true;
     updateHueFrom(e.clientX);
   };
@@ -226,6 +231,7 @@ export default function ColorPicker({ value, onChange, onClose }: {
     setColor(h, s, v, na);
   };
   const startAlphaDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
     alphaDragRef.current = true;
     updateAlphaFrom(e.clientX);
   };
