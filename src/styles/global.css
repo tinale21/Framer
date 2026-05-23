@@ -1724,6 +1724,330 @@ button {
   color: #f0f0f0;
 }
 
+/* ===== Vector tool ===== */
+/* While a vector tool is armed, the whole canvas shows the crosshair. */
+.canvas-wrap--vector,
+.canvas-wrap--vector * {
+  cursor: crosshair !important;
+}
+.shapes-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.vec-shape {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+}
+/* The grey shape body — clipped per kind so all four share one fill rule. */
+.vec-fill {
+  width: 100%;
+  height: 100%;
+  background: #cccccc;
+}
+.vec-fill--rectangle { border-radius: 2px; }
+.vec-fill--oval { border-radius: 50%; }
+.vec-fill--polygon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+.vec-fill--star {
+  clip-path: polygon(
+    50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+    50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%
+  );
+}
+/* Selected shape: a blue bounding box with four round corner handles. */
+.vec-shape__select {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #0099ff;
+  pointer-events: none;
+}
+.shape-handle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: #ffffff;
+  border: 1px solid #0099ff;
+  border-radius: 50%;
+}
+.shape-handle--tl { top: -4px; left: -4px; }
+.shape-handle--tr { top: -4px; right: -4px; }
+.shape-handle--bl { bottom: -4px; left: -4px; }
+.shape-handle--br { bottom: -4px; right: -4px; }
+/* Live preview while drag-drawing a shape. */
+.vec-draw {
+  position: absolute;
+  border: 1px solid #0099ff;
+  pointer-events: none;
+}
+.vec-draw .vec-fill { opacity: 0.6; }
+.vec-size-badge {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 7px);
+  background: #0099ff;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ===== Vector shape fill/stroke editors (inside PropsPanel) ===== */
+.props-row--sub {
+  padding-left: 14px;
+  font-weight: 400;
+  color: #555555;
+}
+.vec-num-input {
+  width: 56px;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #e2e2e2;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #333333;
+  text-align: right;
+}
+.color-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Hide the native color input's chrome so it shows as a clean square swatch. */
+.color-control__swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d8d8d8;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.color-control__swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.color-control__swatch::-webkit-color-swatch { border: none; border-radius: 3px; }
+.color-control__swatch::-moz-color-swatch { border: none; border-radius: 3px; }
+.color-control__hex {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #333333;
+  letter-spacing: 0.2px;
+}
+.color-control__x {
+  background: none;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  color: #999999;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.color-control__x:hover { color: #333333; }
+
+/* ===== Color picker popover ===== */
+.color-picker {
+  width: 220px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
+  color: #222222;
+  font-size: 12px;
+  user-select: none;
+}
+.color-picker__contrast-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: #333333;
+  font-size: 12px;
+}
+.color-picker__contrast-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-picker__contrast-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.color-picker__ratio { font-variant-numeric: tabular-nums; color: #333333; }
+.color-picker__aa {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #888888;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.color-picker__aa:disabled { cursor: default; }
+.color-picker__aa:not(:disabled):hover { color: #333333; }
+.color-picker__aa--pass { color: #1aa055; }
+.color-picker__tuning {
+  background: none;
+  border: none;
+  color: #6a6a6a;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.color-picker__sv {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+.color-picker__sv-curve {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.color-picker__sv-cursor {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.color-picker__sliders-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.color-picker__eyedropper {
+  background: none;
+  border: none;
+  color: #6a6a6a;
+  cursor: pointer;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.color-picker__sliders-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.color-picker__hue,
+.color-picker__alpha {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.color-picker__alpha {
+  background:
+    linear-gradient(45deg, #c8c8c8 25%, transparent 25%, transparent 75%, #c8c8c8 75%) 0 0/8px 8px,
+    linear-gradient(45deg, #c8c8c8 25%, transparent 25%, transparent 75%, #c8c8c8 75%) 4px 4px/8px 8px,
+    #ffffff;
+  overflow: hidden;
+}
+.color-picker__alpha-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+}
+.color-picker__slider-cursor {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.18);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.color-picker__bottom {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 12px;
+}
+.color-picker__format {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f3f3f3;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: #333333;
+  cursor: pointer;
+}
+.color-picker__hex-input {
+  flex: 1;
+  min-width: 0;
+  background: #f3f3f3;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: #333333;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.color-picker__hex-input:focus {
+  outline: none;
+  border-color: #0099ff;
+}
+.color-picker__alpha-wrap {
+  display: inline-flex;
+  align-items: center;
+  background: #f3f3f3;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  padding: 0 6px;
+  gap: 2px;
+}
+.color-picker__alpha-input {
+  width: 24px;
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: #333333;
+  text-align: right;
+  font-family: inherit;
+}
+.color-picker__alpha-input:focus { outline: none; }
+.color-picker__pct {
+  color: #999999;
+  font-size: 11px;
+}
+
 /* Element hover popout — uses the same frame size as the Grid popup
    but renders the Elements SVG (with embedded image previews) and
    scrolls when the SVG overflows the frame height */

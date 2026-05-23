@@ -1,5 +1,7 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import type { Scene, SceneSetter, LayoutOpts } from '../types';
+import type {
+  Scene, SceneSetter, LayoutOpts, VectorKind, VectorEl, VectorFill, VectorStroke,
+} from '../types';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
   ComponentBadge, Chevron,
@@ -10,6 +12,7 @@ import LayoutOptions from './LayoutOptions';
 import VectorPopout from './VectorPopout';
 import ComponentPopout from './ComponentPopout';
 import BaseHoverPopout from './BaseHoverPopout';
+import ColorPicker from './ColorPicker';
 
 type InsertProps = {
   scene: Scene;
@@ -18,12 +21,17 @@ type InsertProps = {
   onRequestImageUpload: () => void;
   onArmText: () => void;
   textArmed: boolean;
+  onArmVector: (kind: VectorKind) => void;
+  vectorArmed: boolean;
 };
 type Props = InsertProps & {
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
   stackSelected: boolean;
+  selectedShapeEl: VectorEl | null;
+  onSetShapeFill: (key: number, fill: VectorFill) => void;
+  onSetShapeStroke: (key: number, stroke: VectorStroke) => void;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -39,9 +47,10 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  layoutOpts, onLayoutChange, layoutTouched, stackSelected,
+  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected,
+  selectedShapeEl, onSetShapeFill, onSetShapeStroke,
 }: Props) {
-  if (stackSelected || FORCE_PROPS_SCENES.includes(scene)) {
+  if (selectedShapeEl || stackSelected || FORCE_PROPS_SCENES.includes(scene)) {
     return (
       <PropsPanel
         scene={scene}
@@ -49,6 +58,9 @@ export default function RightSidebar({
         layoutOpts={layoutOpts}
         onLayoutChange={onLayoutChange}
         layoutTouched={layoutTouched}
+        shape={selectedShapeEl}
+        onSetFill={fill => selectedShapeEl && onSetShapeFill(selectedShapeEl.key, fill)}
+        onSetStroke={stroke => selectedShapeEl && onSetShapeStroke(selectedShapeEl.key, stroke)}
       />
     );
   }
@@ -60,12 +72,15 @@ export default function RightSidebar({
       onRequestImageUpload={onRequestImageUpload}
       onArmText={onArmText}
       textArmed={textArmed}
+      onArmVector={onArmVector}
+      vectorArmed={vectorArmed}
     />
   );
 }
 
 function InsertPanel({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
+  onArmVector, vectorArmed,
 }: InsertProps) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
@@ -270,13 +285,24 @@ function InsertPanel({
           onMouseEnter={showVectorPopout}
           onMouseLeave={hideVectorPopoutSoon}
         >
-          <button className={`insert-tile ${highlightTriple ? 'insert-tile--highlighted' : ''}`}>
+          <button
+            className={
+              'insert-tile' +
+              (highlightTriple ? ' insert-tile--highlighted' : '') +
+              (vectorArmed ? ' insert-tile--selected' : '')
+            }
+          >
             <span className="insert-tile__icon"><IconVector /></span>
             Vector
           </button>
           {vectorHovered && (
             <div onMouseEnter={showVectorPopout} onMouseLeave={hideVectorPopoutSoon}>
-              <VectorPopout />
+              <VectorPopout
+                onArmVector={kind => {
+                  onArmVector(kind);
+                  setVectorHovered(false);
+                }}
+              />
             </div>
           )}
         </div>
@@ -322,13 +348,144 @@ function InsertPanel({
   );
 }
 
-function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange, layoutTouched }: {
+function PropsPanel({
+  scene, onSceneChange, layoutOpts, onLayoutChange, layoutTouched,
+  shape, onSetFill, onSetStroke,
+}: {
   scene: Scene;
   onSceneChange: SceneSetter;
   layoutOpts: LayoutOpts;
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
+  shape: VectorEl | null;
+  onSetFill: (fill: VectorFill) => void;
+  onSetStroke: (stroke: VectorStroke) => void;
 }) {
+  // Color-picker popover state — which swatch opened it, and its fixed
+  // position (right edge + top, so the picker pops to the left of the row).
+  const [picker, setPicker] = useState<{ for: 'fill' | 'stroke'; right: number; top: number } | null>(null);
+  const [strokeExpanded, setStrokeExpanded] = useState(true);
+  const shapeKey = shape?.key ?? null;
+  useEffect(() => { setPicker(null); }, [shapeKey]);
+  const togglePicker = (which: 'fill' | 'stroke') => (e: React.MouseEvent) => {
+    if (picker?.for === which) { setPicker(null); return; }
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPicker({
+      for: which,
+      right: window.innerWidth - r.left + 8,
+      top: Math.max(8, Math.min(window.innerHeight - 320, r.top - 24)),
+    });
+  };
+  // Fill / Stroke rows are decorative (static "+") for the stack context;
+  // when a vector shape is selected they become interactive editors.
+  const renderFillRow = () => {
+    if (!shape) {
+      return (
+        <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}>
+          <span>Fill</span>
+        </div>
+      );
+    }
+    if (shape.fill === null) {
+      return (
+        <div
+          className="props-row props-row--plus"
+          style={{ justifyContent: 'space-between', cursor: 'pointer' }}
+          onClick={() => onSetFill('#cccccc')}
+        >
+          <span>Fill</span>
+        </div>
+      );
+    }
+    const fill = shape.fill;
+    return (
+      <div className="props-row" style={{ justifyContent: 'space-between' }}>
+        <span>Fill</span>
+        <span className="color-control">
+          <button
+            type="button"
+            className="color-control__swatch"
+            data-color-trigger
+            style={{ background: fill }}
+            onClick={togglePicker('fill')}
+            aria-label="Fill color"
+          />
+          <span className="color-control__hex">{fill.replace('#', '').toUpperCase()}</span>
+          <button type="button" className="color-control__x"
+            onClick={() => { onSetFill(null); setPicker(null); }}
+            aria-label="Remove fill">×</button>
+        </span>
+      </div>
+    );
+  };
+  const renderStrokeRow = () => {
+    if (!shape) {
+      return (
+        <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}>
+          <span>Stroke</span>
+        </div>
+      );
+    }
+    if (shape.stroke === null) {
+      return (
+        <div
+          className="props-row props-row--plus"
+          style={{ justifyContent: 'space-between', cursor: 'pointer' }}
+          onClick={() => {
+            onSetStroke({ color: '#aaaaaa', width: 1 });
+            setStrokeExpanded(true);
+          }}
+        >
+          <span>Stroke</span>
+        </div>
+      );
+    }
+    const stroke = shape.stroke;
+    return (
+      <>
+        <div
+          className="props-row"
+          style={{ justifyContent: 'space-between', cursor: 'pointer' }}
+          onClick={() => setStrokeExpanded(e => !e)}
+        >
+          <span>Stroke</span>
+          <span className="props-layout__chev">
+            <Chevron dir={strokeExpanded ? 'down' : 'right'} size={12} />
+          </span>
+        </div>
+        {strokeExpanded && (
+          <>
+            <div className="props-row props-row--sub">
+              <span>Color</span>
+              <span className="color-control">
+                <button
+                  type="button"
+                  className="color-control__swatch"
+                  data-color-trigger
+                  style={{ background: stroke.color }}
+                  onClick={togglePicker('stroke')}
+                  aria-label="Stroke color"
+                />
+                <span className="color-control__hex">{stroke.color.replace('#', '').toUpperCase()}</span>
+                <button type="button" className="color-control__x"
+                  onClick={() => { onSetStroke(null); setPicker(null); }}
+                  aria-label="Remove stroke">×</button>
+              </span>
+            </div>
+            <div className="props-row props-row--sub">
+              <span>Width</span>
+              <input type="number" min={0} max={20} step={1} className="vec-num-input"
+                value={stroke.width}
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10);
+                  onSetStroke({ ...stroke, width: Math.max(0, Number.isFinite(v) ? v : 0) });
+                }} />
+            </div>
+          </>
+        )}
+      </>
+    );
+  };
   const promptLayout = scene === 'demo-7-layout-prompt';
   // The guided demo opens the Layout options at the layout-panel step.
   const demoPanelOpen = scene === 'demo-7-layout-panel';
@@ -415,10 +572,24 @@ function PropsPanel({ scene, onSceneChange, layoutOpts, onLayoutChange, layoutTo
         <div className="props-section-title" style={{ padding: 0 }}>Appearance</div>
         <div className="props-row">Typography</div>
         <div className="props-row">Opacity</div>
-        <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}><span>Fill</span></div>
-        <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}><span>Stroke</span></div>
+        {renderFillRow()}
+        {renderStrokeRow()}
         <div className="props-row props-row--plus" style={{ justifyContent: 'space-between' }}><span>Effects</span></div>
       </div>
+      {picker && shape &&
+        (picker.for === 'fill' ? shape.fill !== null : shape.stroke !== null) && (
+        <div style={{ position: 'fixed', right: picker.right, top: picker.top, zIndex: 1000 }}>
+          <ColorPicker
+            value={picker.for === 'fill' ? shape.fill! : shape.stroke!.color}
+            onChange={hex => {
+              if (picker.for === 'fill') onSetFill(hex);
+              else if (shape.stroke) onSetStroke({ ...shape.stroke, color: hex });
+            }}
+            onClose={() => setPicker(null)}
+          />
+        </div>
+      )}
     </aside>
   );
 }
+

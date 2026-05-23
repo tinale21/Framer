@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Scene, SceneSetter, DemoEl, TextEl, LayoutOpts } from '../types';
+import { shapeBox } from '../types';
+import type { Scene, SceneSetter, DemoEl, TextEl, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
 import { Play, Plus, Cursor } from '../icons';
 
 const INITIAL_Y = 84;
@@ -53,6 +54,18 @@ type Props = {
   stackSelected?: boolean;
   onSelectStack?: () => void;
   stackTutorialDisabled?: boolean;
+  vectorTool?: VectorKind | null;
+  shapes?: VectorEl[];
+  selectedShape?: number | null;
+  onCreateShape?: (
+    kind: 'rectangle' | 'oval' | 'polygon' | 'star',
+    x: number, y: number, w: number, h: number,
+  ) => void;
+  onCreatePath?: (points: Pt[], closed: boolean) => void;
+  onSelectShape?: (key: number) => void;
+  onMoveShape?: (key: number, x: number, y: number) => void;
+  pathDraft?: Pt[];
+  onAddPathPoint?: (p: Pt) => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter; stackTutorialDisabled?: boolean };
 
@@ -60,6 +73,7 @@ const CHROME_DIMMED: Scene[] = [
   'demo-3-drawing-frame',
   'demo-4-stack-created',
 ];
+
 
 export default function Canvas({
   scene,
@@ -97,6 +111,15 @@ export default function Canvas({
   stackSelected = false,
   onSelectStack,
   stackTutorialDisabled = false,
+  vectorTool = null,
+  shapes = [],
+  selectedShape = null,
+  onCreateShape,
+  onCreatePath,
+  onSelectShape,
+  onMoveShape,
+  pathDraft = [],
+  onAddPathPoint,
 }: Props) {
   // The early demo steps dim the frame chrome.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
@@ -136,6 +159,25 @@ export default function Canvas({
     { tx: number; ty: number; sx: number; sy: number; moved: boolean; fromStack: boolean } | null
   >(null);
   const draggingTextElRef = useRef<HTMLDivElement>(null);
+
+  // Vector tool: drag on the canvas to draw a shape. `vecDraw` is the live
+  // rect (frame-card pixels) shown as a preview; `vecRectRef` mirrors it so
+  // the mouseup handler can read the final size.
+  const [vecDraw, setVecDraw] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [vecDrawing, setVecDrawing] = useState(false);
+  const vecStartRef = useRef<{ x: number; y: number } | null>(null);
+  const vecRectRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const vecDrewRef = useRef(false);
+  // Dragging a placed shape to move it.
+  const [draggingShape, setDraggingShape] = useState<number | null>(null);
+  const shapeGrabRef = useRef<
+    { sx: number; sy: number; ox: number; oy: number; moved: boolean } | null
+  >(null);
+
+  // Path tool: pathDraft (in-progress anchor points) lives in App so its
+  // keydown handler can pop the last point on Delete. pathCursor is purely a
+  // rubber-band visual and stays local.
+  const [pathCursor, setPathCursor] = useState<Pt | null>(null);
 
   // Which drop-zone outline is shown during a drag. The outline sweeps one at
   // a time: frame → white canvas when dragging in, white canvas → frame out.
@@ -325,6 +367,93 @@ export default function Canvas({
   }, [draggingTextKey, onMoveText, onDropTextInStack, onPopTextFromStack, scale,
       startDropSweep, endDropSweep]);
 
+  // Drag-to-draw a vector shape: track the pointer in frame-card space, then
+  // hand the final rect to App, which stores and selects the shape.
+  useEffect(() => {
+    if (!vecDrawing) return;
+    const onMove = (e: MouseEvent) => {
+      const start = vecStartRef.current;
+      const fc = frameCardRef.current;
+      if (!start || !fc) return;
+      const r = fc.getBoundingClientRect();
+      const cx = (e.clientX - r.left) / scale;
+      const cy = (e.clientY - r.top) / scale;
+      const rect = {
+        x: Math.min(start.x, cx), y: Math.min(start.y, cy),
+        w: Math.abs(cx - start.x), h: Math.abs(cy - start.y),
+      };
+      vecRectRef.current = rect;
+      setVecDraw(rect);
+    };
+    const onUp = () => {
+      const rect = vecRectRef.current;
+      setVecDrawing(false);
+      setVecDraw(null);
+      vecStartRef.current = null;
+      vecRectRef.current = null;
+      // Swallow the click that trails the draw, then clear the flag so the
+      // next genuine click still works. The click fires before setTimeout(0).
+      vecDrewRef.current = true;
+      window.setTimeout(() => { vecDrewRef.current = false; }, 0);
+      // The Path tool is click-based and never starts this drag-draw.
+      if (!rect || !vectorTool || vectorTool === 'path') return;
+      // A click or tiny drag drops a default-sized shape at the cursor.
+      const w = rect.w < 8 ? 160 : rect.w;
+      const h = rect.h < 8 ? 120 : rect.h;
+      onCreateShape?.(vectorTool, rect.x, rect.y, w, h);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [vecDrawing, scale, vectorTool, onCreateShape]);
+
+  // Drag a placed shape to move it; a press without a drag selects it.
+  useEffect(() => {
+    if (draggingShape === null) return;
+    const key = draggingShape;
+    const onMove = (e: MouseEvent) => {
+      const grab = shapeGrabRef.current;
+      if (!grab) return;
+      if (!grab.moved && Math.hypot(e.clientX - grab.sx, e.clientY - grab.sy) > DRAG_THRESHOLD) {
+        grab.moved = true;
+      }
+      if (!grab.moved) return;
+      onMoveShape?.(key, grab.ox + (e.clientX - grab.sx) / scale, grab.oy + (e.clientY - grab.sy) / scale);
+    };
+    const onUp = () => {
+      const grab = shapeGrabRef.current;
+      setDraggingShape(null);
+      shapeGrabRef.current = null;
+      if (grab && !grab.moved) onSelectShape?.(key);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [draggingShape, scale, onMoveShape, onSelectShape]);
+
+  // While drafting a path, track the cursor in frame-card space so the
+  // rubber-band line from the last anchor to the cursor renders smoothly.
+  useEffect(() => {
+    if (pathDraft.length === 0) return;
+    const onMove = (e: MouseEvent) => {
+      const fc = frameCardRef.current;
+      if (!fc) return;
+      const r = fc.getBoundingClientRect();
+      setPathCursor({
+        x: (e.clientX - r.left) / scale,
+        y: (e.clientY - r.top) / scale,
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, [pathDraft.length, scale]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -350,8 +479,11 @@ export default function Canvas({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // An armed vector tool draws on mousedown anywhere — on the white frame
+    // or out in the workspace around it, so shapes can be made then dragged in.
+    if (vectorTool) { handleVectorMouseDown(e); return; }
     // The stack-drawing step and the text tool own the pointer; otherwise
-    // (including the demo-6 placement step) the canvas can be panned.
+    // (including the demo-6 step) the canvas can be panned.
     if (demoSpotlight || textMode) return;
     if ((e.target as HTMLElement).closest('button')) return;
     dragRef.current = {
@@ -364,6 +496,8 @@ export default function Canvas({
   };
 
   const handleSurroundClick = (e: React.MouseEvent) => {
+    if (vecDrewRef.current) return; // a vector draw just finished
+    if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     if (demoSpotlight || demo6 || isDragging) return;
     onDeselectText?.();
@@ -372,6 +506,8 @@ export default function Canvas({
 
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (vecDrewRef.current) return;
+    if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     if (demoSpotlight || demo6 || isDragging) return;
     onDeselectText?.();
@@ -380,6 +516,8 @@ export default function Canvas({
 
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (vecDrewRef.current) return;
+    if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     if (demo6) { if (!isDragging) onSelectEl?.(null); return; }
     if (demoSpotlight || isDragging) return;
@@ -397,6 +535,55 @@ export default function Canvas({
     demoStartRef.current = { x, y };
     setDemoRect({ x, y, w: 0, h: 0 });
     setDemoPhase('drawing');
+  };
+
+  // Press on the canvas with a box-shape tool armed — start drag-drawing.
+  // The Path tool is click-based instead, so it's handled in the click
+  // handlers (handlePathClickAt) and bails out here.
+  const handleVectorMouseDown = (e: React.MouseEvent) => {
+    const fc = frameCardRef.current;
+    if (!fc || !vectorTool || vectorTool === 'path') return;
+    e.stopPropagation();
+    const r = fc.getBoundingClientRect();
+    const x = (e.clientX - r.left) / scale;
+    const y = (e.clientY - r.top) / scale;
+    vecStartRef.current = { x, y };
+    vecRectRef.current = { x, y, w: 0, h: 0 };
+    setVecDraw({ x, y, w: 0, h: 0 });
+    setVecDrawing(true);
+  };
+
+  // Click anywhere on the canvas/workspace with the Path tool armed — drop
+  // an anchor point. Clicking near the first anchor (3+ points) closes the
+  // path; clicking near the last anchor (2+ points) finishes it open.
+  const handlePathClickAt = (e: React.MouseEvent) => {
+    const fc = frameCardRef.current;
+    if (!fc) return;
+    const r = fc.getBoundingClientRect();
+    const x = (e.clientX - r.left) / scale;
+    const y = (e.clientY - r.top) / scale;
+    const finish = (closed: boolean) => {
+      onCreatePath?.([...pathDraft], closed);
+      // App clears pathDraft inside onCreatePath; just drop the cursor.
+      setPathCursor(null);
+    };
+    if (pathDraft.length >= 3) {
+      const first = pathDraft[0];
+      const d = Math.hypot(
+        e.clientX - (r.left + first.x * scale),
+        e.clientY - (r.top + first.y * scale),
+      );
+      if (d < 10) { finish(true); return; }
+    }
+    if (pathDraft.length >= 2) {
+      const last = pathDraft[pathDraft.length - 1];
+      const d = Math.hypot(
+        e.clientX - (r.left + last.x * scale),
+        e.clientY - (r.top + last.y * scale),
+      );
+      if (d < 10) { finish(false); return; }
+    }
+    onAddPathPoint?.({ x, y });
   };
 
   const handleTextMouseDown = (e: React.MouseEvent, t: TextEl) => {
@@ -449,6 +636,18 @@ export default function Canvas({
       fromStack,
     };
     setDraggingKey(el.key);
+  };
+
+  // Press on a placed shape. With a box tool armed it starts a new draw; with
+  // Path armed it lets the click bubble so a point gets dropped; otherwise it
+  // begins a move (a press without a drag selects the shape).
+  const handleShapeMouseDown = (e: React.MouseEvent, s: VectorEl) => {
+    if (vectorTool === 'path') return;
+    e.stopPropagation();
+    if (vectorTool) { handleVectorMouseDown(e); return; }
+    const bb = shapeBox(s);
+    shapeGrabRef.current = { sx: e.clientX, sy: e.clientY, ox: bb.x, oy: bb.y, moved: false };
+    setDraggingShape(s.key);
   };
 
   const demoBoxStyle = {
@@ -572,6 +771,7 @@ export default function Canvas({
         'canvas-wrap' +
         (isDragging ? ' canvas-wrap--dragging' : '') +
         (textMode ? ' canvas-wrap--text' : '') +
+        (vectorTool ? ' canvas-wrap--vector' : '') +
         (stackReady ? ' canvas-wrap--callout-room' : '')
       }
       onMouseDown={handleMouseDown}
@@ -618,7 +818,9 @@ export default function Canvas({
             (stackSelected ? ' canvas-content--no-outline' : '')
           }
           onClick={handleCanvasContentClick}
-          onMouseDown={demoSpotlight ? handleDemoMouseDown : undefined}
+          onMouseDown={
+            demoSpotlight ? handleDemoMouseDown : vectorTool ? handleVectorMouseDown : undefined
+          }
         >
           {demoSpotlight ? (
             <>
@@ -633,6 +835,113 @@ export default function Canvas({
               onSceneChange={onSceneChange}
               stackTutorialDisabled={stackTutorialDisabled}
             />
+          )}
+        </div>
+
+        {/* Vector shapes live in the frame-card so they pan and zoom with it. */}
+        <div className="shapes-layer">
+          {shapes.map(s => {
+            const bb = shapeBox(s);
+            const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
+            const selected = selectedShape === s.key;
+            const fill = s.fill ?? 'none';
+            const stroke = s.stroke?.color ?? 'none';
+            const sw = s.stroke?.width ?? 0;
+            const strokeProps = {
+              fill, stroke, strokeWidth: sw,
+              vectorEffect: 'non-scaling-stroke' as const,
+            };
+            let inner: React.ReactNode;
+            if (s.kind === 'path') {
+              const pts = s.points.map(p => `${p.x - bb.x},${p.y - bb.y}`).join(' ');
+              inner = s.closed
+                ? <polygon points={pts} {...strokeProps} />
+                : <polyline points={pts} {...strokeProps} />;
+            } else if (s.kind === 'rectangle') {
+              inner = <rect x={0} y={0} width={w} height={h} rx={2} {...strokeProps} />;
+            } else if (s.kind === 'oval') {
+              inner = <ellipse cx={w / 2} cy={h / 2} rx={w / 2} ry={h / 2} {...strokeProps} />;
+            } else if (s.kind === 'polygon') {
+              const pts = `${w * 0.25},0 ${w * 0.75},0 ${w},${h * 0.5} ${w * 0.75},${h} ${w * 0.25},${h} 0,${h * 0.5}`;
+              inner = <polygon points={pts} {...strokeProps} />;
+            } else {
+              // star (5-pointed) — same proportions as the popout/icon
+              const sp = (px: number, py: number) => `${(px * w) / 100},${(py * h) / 100}`;
+              const pts = [
+                sp(50, 0), sp(61, 35), sp(98, 35), sp(68, 57), sp(79, 91),
+                sp(50, 70), sp(21, 91), sp(32, 57), sp(2, 35), sp(39, 35),
+              ].join(' ');
+              inner = <polygon points={pts} {...strokeProps} />;
+            }
+            return (
+              <div
+                key={s.key}
+                className={
+                  'vec-shape vec-shape--' + s.kind + (selected ? ' vec-shape--selected' : '')
+                }
+                style={{ left: `${bb.x}px`, top: `${bb.y}px`, width: `${w}px`, height: `${h}px` }}
+                onMouseDown={e => handleShapeMouseDown(e, s)}
+                onClick={e => { if (vectorTool !== 'path') e.stopPropagation(); }}
+              >
+                <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
+                  {inner}
+                </svg>
+                {selected && (
+                  <div className="vec-shape__select">
+                    <span className="shape-handle shape-handle--tl" />
+                    <span className="shape-handle shape-handle--tr" />
+                    <span className="shape-handle shape-handle--bl" />
+                    <span className="shape-handle shape-handle--br" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {vecDraw && vectorTool && vectorTool !== 'path' && (
+            <div
+              className="vec-draw"
+              style={{
+                left: `${vecDraw.x}px`, top: `${vecDraw.y}px`,
+                width: `${vecDraw.w}px`, height: `${vecDraw.h}px`,
+              }}
+            >
+              <div className={'vec-fill vec-fill--' + vectorTool} />
+              <span className="vec-size-badge">
+                {Math.round(vecDraw.w)} × {Math.round(vecDraw.h)}
+              </span>
+            </div>
+          )}
+          {pathDraft.length > 0 && (
+            <svg
+              className="path-draft"
+              width="100%" height="100%"
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                overflow: 'visible', pointerEvents: 'none',
+              }}
+            >
+              {pathDraft.length >= 2 && (
+                <polyline
+                  points={pathDraft.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none" stroke="#0099ff" strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+              {pathCursor && (
+                <line
+                  x1={pathDraft[pathDraft.length - 1].x}
+                  y1={pathDraft[pathDraft.length - 1].y}
+                  x2={pathCursor.x} y2={pathCursor.y}
+                  stroke="#0099ff" strokeWidth={1} strokeDasharray="3 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+              {pathDraft.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r={3.5}
+                  fill="#ffffff" stroke="#0099ff" strokeWidth={1.5}
+                  vectorEffect="non-scaling-stroke" />
+              ))}
+            </svg>
           )}
         </div>
 
@@ -686,8 +995,10 @@ export default function Canvas({
           })}
         </div>
 
-        {/* Free elements live in the frame-card so they pan and zoom with it. */}
-        {demo6 && freeEls.map(el => (
+        {/* Free elements live in the frame-card so they pan and zoom with it.
+            Rendered in any scene so items added outside the stack persist
+            after the demo / after the stack is deleted. */}
+        {freeEls.map(el => (
           <div
             key={el.key}
             ref={el.key === draggingKey ? draggingElRef : undefined}

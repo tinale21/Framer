@@ -9,7 +9,10 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
-import type { Scene, DemoEl, TextEl, LayoutOpts } from './types';
+import type {
+  Scene, DemoEl, TextEl, LayoutOpts, VectorKind, VectorEl, Pt,
+  VectorFill, VectorStroke,
+} from './types';
 
 const SHOW_POPOUT: Scene[] = [
   'base-hover',
@@ -43,6 +46,17 @@ export default function App() {
   const [editingText, setEditingText] = useState<number | null>(null);
   const [selectedText, setSelectedText] = useState<number | null>(null);
   const textKeyRef = useRef(0);
+  // Vector tool: the Vector popout arms a shape kind (`vectorTool`); the next
+  // drag on the canvas draws it. Shapes persist on the canvas like text.
+  const [vectorTool, setVectorTool] = useState<VectorKind | null>(null);
+  const [shapes, setShapes] = useState<VectorEl[]>([]);
+  const [selectedShape, setSelectedShape] = useState<number | null>(null);
+  const shapeKeyRef = useRef(0);
+  // Path tool: in-progress anchor points while drafting (click to add). Lives
+  // in App so the keydown handler can pop the last point on Delete.
+  const [pathDraft, setPathDraft] = useState<Pt[]>([]);
+  // Switching away from the Path tool (e.g. Escape) drops the draft.
+  if (vectorTool !== 'path' && pathDraft.length > 0) setPathDraft([]);
   // The demo stack's layout, set by the demo-7 Layout panel. Defaults match
   // the stack's resting look — a vertical, centered column.
   const [layoutOpts, setLayoutOpts] = useState<LayoutOpts>({
@@ -94,6 +108,8 @@ export default function App() {
     setSelectedEl(key);
     setSelectedText(null); // only one thing is selected at a time
     setEditingText(null);
+    setSelectedShape(null);
+    setVectorTool(null);
     // The callout is only for the guided demo step — picking an element
     // from the highlighted Insert section.
     setCalloutEl(scene === 'demo-5-insert-highlighted' ? key : null);
@@ -127,6 +143,7 @@ export default function App() {
     setSelectedText(null);
     setEditingText(null);
     setStackSelected(false);
+    setSelectedShape(null);
   }, []);
   // Selecting the whole stack clears any element / text selection — only
   // one thing is selected (and so deletable) at a time.
@@ -135,6 +152,7 @@ export default function App() {
     setSelectedEl(null);
     setSelectedText(null);
     setEditingText(null);
+    setSelectedShape(null);
   }, []);
   // Clears all placed content — used by Discard and the keyboard delete.
   const clearCanvasState = useCallback(() => {
@@ -144,6 +162,8 @@ export default function App() {
     setEditingText(null);
     setDemoElements([]);
     setTexts([]);
+    setShapes([]);
+    setSelectedShape(null);
   }, []);
   // Finishing the demo: Save keeps the canvas (ends at `demo-final`), Discard
   // clears it (ends at `base`). When "Disable stack tutorial" was ticked, both
@@ -155,14 +175,88 @@ export default function App() {
     setScene(stackTutorialDisabled ? 'disabled-tutorial-modal' : end);
   }, [clearCanvasState, stackTutorialDisabled]);
 
-  const armText = () => setTextMode(m => !m); // clicking the tile toggles it
+  const armText = () => { setTextMode(m => !m); setVectorTool(null); };
   const placeText = useCallback((x: number, y: number) => {
     const key = textKeyRef.current++;
     setTexts(prev => [...prev, { key, x, y, text: '', inStack: false }]);
     setEditingText(key);
     setSelectedText(key);
     setSelectedEl(null); // only one thing is selected at a time
+    setSelectedShape(null);
     setTextMode(false); // the text tool is one-shot, like Figma
+  }, []);
+  // Arming a vector tool from the Vector popout disarms the text tool; the
+  // next drag on the canvas draws the shape.
+  const armVector = useCallback((kind: VectorKind) => {
+    setVectorTool(kind);
+    setTextMode(false);
+  }, []);
+  // Drawing finishes here — the new shape is stored and selected, and the
+  // tool disarms (one-shot, like the text tool).
+  const createShape = useCallback(
+    (kind: 'rectangle' | 'oval' | 'polygon' | 'star',
+     x: number, y: number, w: number, h: number) => {
+      const key = shapeKeyRef.current++;
+      // Default look matches Framer: grey fill, no stroke.
+      setShapes(prev => [
+        ...prev,
+        { key, kind, x, y, w, h, fill: '#cccccc', stroke: null },
+      ]);
+      setSelectedShape(key);
+      setSelectedEl(null);
+      setSelectedText(null);
+      setEditingText(null);
+      setStackSelected(false);
+      setVectorTool(null);
+    },
+    [],
+  );
+  // Path is committed once the user closes it (clicking the first point) or
+  // finishes it open (clicking the last point). Default look: thin grey
+  // stroke, no fill — fill can be added from the Shape panel.
+  const createPath = useCallback((points: Pt[], closed: boolean) => {
+    const key = shapeKeyRef.current++;
+    setShapes(prev => [
+      ...prev,
+      { key, kind: 'path', points, closed,
+        fill: null, stroke: { color: '#aaaaaa', width: 1 } },
+    ]);
+    setSelectedShape(key);
+    setSelectedEl(null);
+    setSelectedText(null);
+    setEditingText(null);
+    setStackSelected(false);
+    setVectorTool(null);
+    setPathDraft([]);
+  }, []);
+  const addPathPoint = useCallback((p: Pt) => {
+    setPathDraft(prev => [...prev, p]);
+  }, []);
+  const setShapeFill = useCallback((key: number, fill: VectorFill) => {
+    setShapes(prev => prev.map(s => (s.key === key ? { ...s, fill } : s)));
+  }, []);
+  const setShapeStroke = useCallback((key: number, stroke: VectorStroke) => {
+    setShapes(prev => prev.map(s => (s.key === key ? { ...s, stroke } : s)));
+  }, []);
+  const selectShape = useCallback((key: number) => {
+    setSelectedShape(key);
+    setSelectedEl(null);
+    setSelectedText(null);
+    setEditingText(null);
+    setStackSelected(false);
+  }, []);
+  // Move a shape — for boxes, set the new top-left; for paths, translate all
+  // anchor points so the new bbox top-left matches (x, y).
+  const moveShape = useCallback((key: number, x: number, y: number) => {
+    setShapes(prev => prev.map(s => {
+      if (s.key !== key) return s;
+      if (s.kind === 'path') {
+        const xs = s.points.map(p => p.x), ys = s.points.map(p => p.y);
+        const dx = x - Math.min(...xs), dy = y - Math.min(...ys);
+        return { ...s, points: s.points.map(p => ({ x: p.x + dx, y: p.y + dy })) };
+      }
+      return { ...s, x, y };
+    }));
   }, []);
   const changeText = useCallback((key: number, text: string) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, text } : t)));
@@ -181,12 +275,14 @@ export default function App() {
     setEditingText(null);
     setSelectedEl(null); // only one thing is selected at a time
     setStackSelected(false);
+    setSelectedShape(null);
   }, []);
   const editText = useCallback((key: number) => {
     setSelectedText(key);
     setEditingText(key);
     setSelectedEl(null); // only one thing is selected at a time
     setStackSelected(false);
+    setSelectedShape(null);
   }, []);
   const deselectText = useCallback(() => {
     setSelectedText(null);
@@ -212,9 +308,11 @@ export default function App() {
       // Shape panel, while a stack is selected).
       if (e.key === 'Escape') {
         setTextMode(false);
+        setVectorTool(null);
         setStackSelected(false);
         setSelectedEl(null);
         setSelectedText(null);
+        setSelectedShape(null);
         setSelection('none');
         return;
       }
@@ -224,9 +322,22 @@ export default function App() {
         return;
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      // While drafting a path, Delete pops the most recent anchor point
+      // (Figma / Illustrator behavior) instead of deleting a selected shape.
+      if (pathDraft.length > 0) {
+        setPathDraft(prev => prev.slice(0, -1));
+        return;
+      }
       if (stackSelected) {
-        // Deleting the stack blanks the canvas.
-        clearCanvasState();
+        // Delete the stack itself and any items inside it; free items
+        // elsewhere on the canvas (shapes, free elements, free texts) stay.
+        setStackSelected(false);
+        setSelectedEl(null);
+        setSelectedText(null);
+        setEditingText(null);
+        setSelectedShape(null);
+        setDemoElements(prev => prev.filter(el => !el.inStack));
+        setTexts(prev => prev.filter(t => !t.inStack));
         setScene('base');
         return;
       }
@@ -239,10 +350,14 @@ export default function App() {
         setSelectedText(null);
         setEditingText(null);
       }
+      if (selectedShape !== null) {
+        setShapes(prev => prev.filter(s => s.key !== selectedShape));
+        setSelectedShape(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl, selectedText, stackSelected, clearCanvasState]);
+  }, [selectedEl, selectedText, selectedShape, stackSelected, pathDraft.length, clearCanvasState]);
 
   // The completion screen appears ~3s after the first layout adjustment.
   useEffect(() => {
@@ -252,11 +367,14 @@ export default function App() {
   }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
-  const selectFrame = () => { setSelection('frame'); setStackSelected(false); };
-  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); };
-  const deselect = () => { setSelection('none'); setStackSelected(false); };
+  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); };
+  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); };
+  const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); };
   const toggleDarkMode = () => setDarkMode(d => !d);
 
+  const selectedShapeEl: VectorEl | null = selectedShape !== null
+    ? shapes.find(s => s.key === selectedShape) ?? null
+    : null;
   const showPopout = SHOW_POPOUT.includes(scene);
   const showDemoTint =
     scene === 'demo-1-stack-highlighted' ||
@@ -306,6 +424,15 @@ export default function App() {
           stackSelected={stackSelected}
           onSelectStack={selectStack}
           stackTutorialDisabled={stackTutorialDisabled}
+          vectorTool={vectorTool}
+          shapes={shapes}
+          selectedShape={selectedShape}
+          onCreateShape={createShape}
+          onCreatePath={createPath}
+          onSelectShape={selectShape}
+          onMoveShape={moveShape}
+          pathDraft={pathDraft}
+          onAddPathPoint={addPathPoint}
         />
         <RightSidebar
           scene={scene}
@@ -314,10 +441,15 @@ export default function App() {
           onRequestImageUpload={requestImageUpload}
           onArmText={armText}
           textArmed={textMode}
+          onArmVector={armVector}
+          vectorArmed={vectorTool !== null}
           layoutOpts={layoutOpts}
           onLayoutChange={changeLayout}
           layoutTouched={layoutTouched}
           stackSelected={stackSelected}
+          selectedShapeEl={selectedShapeEl}
+          onSetShapeFill={setShapeFill}
+          onSetShapeStroke={setShapeStroke}
         />
       </div>
       <BottomToolbar darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />

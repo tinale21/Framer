@@ -68,3 +68,30 @@ export type DemoEl = {
   // stack so the element keeps the size it had inside it.
   width?: number;
 };
+
+// A vector shape drawn on the canvas with the Vector tool. The geometric
+// shapes carry a bbox; Path carries its anchor points (drawn click by click)
+// and a closed flag. All coordinates live in the frame-card's own
+// (un-zoomed) space so shapes pan and zoom with the frame. Both kinds share
+// a fill (hex string or null = no fill) and an optional stroke.
+export type VectorKind = 'rectangle' | 'oval' | 'polygon' | 'star' | 'path';
+export type Pt = { x: number; y: number };
+export type VectorFill = string | null;
+export type VectorStroke = { color: string; width: number } | null;
+type VectorStyle = { fill: VectorFill; stroke: VectorStroke };
+export type VectorEl =
+  | ({ key: number; kind: 'rectangle' | 'oval' | 'polygon' | 'star';
+       x: number; y: number; w: number; h: number } & VectorStyle)
+  | ({ key: number; kind: 'path'; points: Pt[]; closed: boolean } & VectorStyle);
+
+// The bbox of any shape in frame-card space — boxes carry one directly; for
+// paths it's derived from the anchor points.
+export function shapeBox(s: VectorEl): { x: number; y: number; w: number; h: number } {
+  if (s.kind === 'path') {
+    if (s.points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    const xs = s.points.map(p => p.x), ys = s.points.map(p => p.y);
+    const minX = Math.min(...xs), minY = Math.min(...ys);
+    return { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY };
+  }
+  return { x: s.x, y: s.y, w: s.w, h: s.h };
+}

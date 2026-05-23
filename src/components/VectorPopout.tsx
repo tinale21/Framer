@@ -1,16 +1,8 @@
-const ITEMS = [
+import type { VectorKind } from '../types';
+
+const ITEMS: { kind: VectorKind; label: string; icon: React.ReactNode }[] = [
   {
-    label: 'Path',
-    icon: (
-      <svg width="22" height="22" viewBox="22.5 18.5 9 9" fill="currentColor">
-        <path
-          fillRule="evenodd"
-          d="M28.25 19.25V21.1625L25.1625 24.25H23.25V26.75H25.75V24.8417L28.8417 21.75H30.75V19.25H28.25ZM29.0833 20.0833H29.9167V20.9167H29.0833V20.0833ZM24.0833 25.0833H24.9167V25.9167H24.0833V25.0833Z"
-        />
-      </svg>
-    ),
-  },
-  {
+    kind: 'rectangle',
     label: 'Rectangle',
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
@@ -19,7 +11,8 @@ const ITEMS = [
     ),
   },
   {
-    label: 'Ellipse',
+    kind: 'oval',
+    label: 'Oval',
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
         <circle cx="11" cy="11" r="9" />
@@ -27,14 +20,16 @@ const ITEMS = [
     ),
   },
   {
+    kind: 'polygon',
     label: 'Polygon',
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
-        <path d="M11 2L20 18H2L11 2Z" />
+        <path d="M6 2.5H16L21 11L16 19.5H6L1 11L6 2.5Z" />
       </svg>
     ),
   },
   {
+    kind: 'star',
     label: 'Star',
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
@@ -42,13 +37,28 @@ const ITEMS = [
       </svg>
     ),
   },
+  {
+    kind: 'path',
+    label: 'Path',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 18L9 7L13 14L19 4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="3" cy="18" r="1.6" fill="currentColor" />
+        <circle cx="19" cy="4" r="1.6" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
-export default function VectorPopout() {
+export default function VectorPopout({ onArmVector }: { onArmVector: (kind: VectorKind) => void }) {
   return (
     <div className="popout-vector">
       {ITEMS.map(item => (
-        <button key={item.label} className="popout-vector__item">
+        <button
+          key={item.kind}
+          className="popout-vector__item"
+          onClick={() => onArmVector(item.kind)}
+        >
           <span className="popout-vector__item-icon">{item.icon}</span>
           {item.label}
         </button>
