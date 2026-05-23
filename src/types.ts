@@ -60,6 +60,7 @@ export type TextEl = {
   letterSpacing?: number;    // px; undefined means 0
   align?: 'left' | 'center' | 'right';
   color?: string;            // hex; undefined means the default text color
+  width?: number;            // explicit width in px (set by resize); undefined means auto-fit
 };
 
 // A demo element instance: a unique key, the element type, a free

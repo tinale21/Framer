@@ -64,6 +64,8 @@ type Props = {
   onCreatePath?: (points: Pt[], closed: boolean) => void;
   onSelectShape?: (key: number) => void;
   onMoveShape?: (key: number, x: number, y: number) => void;
+  onResizeShape?: (key: number, x: number, y: number, w: number, h: number) => void;
+  onResizeText?: (key: number, size: number) => void;
   onDropShapeInStack?: (key: number) => void;
   onPopShapeFromStack?: (key: number) => void;
   pathDraft?: Pt[];
@@ -120,6 +122,8 @@ export default function Canvas({
   onCreatePath,
   onSelectShape,
   onMoveShape,
+  onResizeShape,
+  onResizeText,
   onDropShapeInStack,
   onPopShapeFromStack,
   pathDraft = [],
@@ -183,6 +187,61 @@ export default function Canvas({
   // keydown handler can pop the last point on Delete. pathCursor is purely a
   // rubber-band visual and stays local.
   const [pathCursor, setPathCursor] = useState<Pt | null>(null);
+
+  // Drag-to-resize state — works for shapes (2D), elements + texts (width
+  // only). Tracks the dragged corner, initial bbox, and start mouse pos.
+  type ResizeKind = 'shape' | 'element' | 'text';
+  type ResizeCorner = 'tl' | 'tr' | 'bl' | 'br';
+  const [resizing, setResizing] = useState<
+    | { kind: ResizeKind; key: number; corner: ResizeCorner;
+        sx: number; sy: number; ox: number; oy: number; ow: number; oh: number;
+        osize?: number }
+    | null
+  >(null);
+  const [resizeRect, setResizeRect] = useState<
+    { x: number; y: number; w: number; h: number } | null
+  >(null);
+  const resizeJustEndedRef = useRef(false);
+  const spaceDownRef = useRef(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  useEffect(() => {
+    const isTyping = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || isTyping(e.target)) return;
+      if (e.type === 'keydown') {
+        if (!spaceDownRef.current) { spaceDownRef.current = true; setSpaceHeld(true); }
+        e.preventDefault(); // stop page scroll
+      } else {
+        spaceDownRef.current = false;
+        setSpaceHeld(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+    };
+  }, []);
+  const startResize = (
+    e: React.MouseEvent, kind: ResizeKind, key: number, corner: ResizeCorner,
+    bbox: { x: number; y: number; w: number; h: number },
+    osize?: number,
+  ) => {
+    e.stopPropagation();
+    setResizing({
+      kind, key, corner,
+      sx: e.clientX, sy: e.clientY,
+      ox: bbox.x, oy: bbox.y, ow: bbox.w, oh: bbox.h,
+      osize,
+    });
+    setResizeRect(bbox);
+  };
 
   // Which drop-zone outline is shown during a drag. The outline sweeps one at
   // a time: frame → white canvas when dragging in, white canvas → frame out.
@@ -457,6 +516,52 @@ export default function Canvas({
     };
   }, [draggingShape, scale, onMoveShape, onSelectShape, onDropShapeInStack, onPopShapeFromStack]);
 
+  // Drag-to-resize: track the mouse globally while a handle is held, compute
+  // a new bbox from the corner being dragged, and commit per-kind. Width-only
+  // kinds (element / text) ignore the y delta.
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      const dx = (e.clientX - resizing.sx) / scale;
+      const dy = (e.clientY - resizing.sy) / scale;
+      const widthOnly = resizing.kind !== 'shape';
+      let x = resizing.ox, y = resizing.oy, w = resizing.ow, h = resizing.oh;
+      if (resizing.corner === 'tl' || resizing.corner === 'bl') { x += dx; w -= dx; }
+      if (resizing.corner === 'tr' || resizing.corner === 'br') { w += dx; }
+      if (!widthOnly) {
+        if (resizing.corner === 'tl' || resizing.corner === 'tr') { y += dy; h -= dy; }
+        if (resizing.corner === 'bl' || resizing.corner === 'br') { h += dy; }
+      }
+      // Clamp minimums; re-anchor x/y on the left/top corners when clipping.
+      if (w < 8) { if (resizing.corner === 'tl' || resizing.corner === 'bl') x = resizing.ox + resizing.ow - 8; w = 8; }
+      if (!widthOnly && h < 8) { if (resizing.corner === 'tl' || resizing.corner === 'tr') y = resizing.oy + resizing.oh - 8; h = 8; }
+      setResizeRect({ x, y, w, h });
+      if (resizing.kind === 'shape') onResizeShape?.(resizing.key, x, y, w, h);
+      else if (resizing.kind === 'element') onMoveElement?.(resizing.key, x, resizing.oy, w);
+      else if (resizing.kind === 'text') {
+        // Scale font-size proportionally to the bbox area change so dragging
+        // a corner makes the actual text bigger / smaller (Figma-style).
+        const ratio = Math.sqrt((Math.max(8, w) * Math.max(8, h)) / (resizing.ow * resizing.oh));
+        const next = Math.max(6, Math.min(120, Math.round((resizing.osize ?? 16) * ratio)));
+        onResizeText?.(resizing.key, next);
+      }
+    };
+    const onUp = () => {
+      setResizing(null);
+      setResizeRect(null);
+      // Suppress the click that fires right after the mouseup so the canvas
+      // doesn't deselect the just-resized element.
+      resizeJustEndedRef.current = true;
+      window.setTimeout(() => { resizeJustEndedRef.current = false; }, 0);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [resizing, scale, onResizeShape, onMoveElement, onResizeText]);
+
   // While drafting a path, track the cursor in frame-card space so the
   // rubber-band line from the last anchor to the cursor renders smoothly.
   useEffect(() => {
@@ -502,10 +607,16 @@ export default function Canvas({
     // An armed vector tool draws on mousedown anywhere — on the white frame
     // or out in the workspace around it, so shapes can be made then dragged in.
     if (vectorTool) { handleVectorMouseDown(e); return; }
-    // The stack-drawing step and the text tool own the pointer; otherwise
-    // (including the demo-6 step) the canvas can be panned.
+    // The stack-drawing step and the text tool own the pointer.
     if (demoSpotlight || textMode) return;
-    if ((e.target as HTMLElement).closest('button')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    // Pan when dragging on the gray workspace surround, OR anywhere with
+    // Space held / middle mouse — but never on a plain drag that started
+    // on the frame card itself (so users can't accidentally move the frame).
+    const onFrame = !!target.closest('.frame-card');
+    const panGesture = spaceDownRef.current || e.button === 1 || !onFrame;
+    if (!panGesture) return;
     dragRef.current = {
       startMx: e.clientX,
       startMy: e.clientY,
@@ -515,11 +626,17 @@ export default function Canvas({
     };
   };
 
+  // Stay inert during the active draw demo and the guided-on demo-6 step,
+  // but let the user dismiss selections everywhere else (including demo-6
+  // with the tutorial disabled and demo-final).
+  const demoBlocksDeselect = demoSpotlight || (demo6 && !stackTutorialDisabled);
+
   const handleSurroundClick = (e: React.MouseEvent) => {
     if (vecDrewRef.current) return; // a vector draw just finished
+    if (resizeJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
-    if (demoSpotlight || demo6 || isDragging) return;
+    if (demoBlocksDeselect || isDragging) return;
     onDeselectText?.();
     onDeselect?.();
   };
@@ -527,9 +644,10 @@ export default function Canvas({
   const handleFrameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (vecDrewRef.current) return;
+    if (resizeJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
-    if (demoSpotlight || demo6 || isDragging) return;
+    if (demoBlocksDeselect || isDragging) return;
     onDeselectText?.();
     onSelectFrame?.();
   };
@@ -537,9 +655,12 @@ export default function Canvas({
   const handleCanvasContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (vecDrewRef.current) return;
+    if (resizeJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
-    if (demo6) { if (!isDragging) onSelectEl?.(null); return; }
+    // Guided demo-6 only clears the element selection; the free variant
+    // falls through to a normal deselect so the right panel can switch back.
+    if (demo6 && !stackTutorialDisabled) { if (!isDragging) onSelectEl?.(null); return; }
     if (demoSpotlight || isDragging) return;
     onDeselectText?.();
     onSelectCanvas?.();
@@ -874,6 +995,7 @@ export default function Canvas({
         (isDragging ? ' canvas-wrap--dragging' : '') +
         (textMode ? ' canvas-wrap--text' : '') +
         (vectorTool ? ' canvas-wrap--vector' : '') +
+        (spaceHeld ? ' canvas-wrap--pan' : '') +
         (stackReady ? ' canvas-wrap--callout-room' : '')
       }
       onMouseDown={handleMouseDown}
@@ -940,6 +1062,19 @@ export default function Canvas({
           )}
         </div>
 
+        {/* Size badge floating beside the bottom-right corner during resize. */}
+        {resizing && resizeRect && (
+          <div
+            className="resize-badge"
+            style={{
+              left: `${resizeRect.x + resizeRect.w}px`,
+              top: `${resizeRect.y + resizeRect.h}px`,
+            }}
+          >
+            {Math.round(resizeRect.w)} × {Math.round(resizeRect.h)}
+          </div>
+        )}
+
         {/* Vector shapes live in the frame-card so they pan and zoom with it. */}
         <div className="shapes-layer">
           {freeShapes.map(s => {
@@ -962,10 +1097,10 @@ export default function Canvas({
                 </svg>
                 {selected && (
                   <div className="vec-shape__select">
-                    <span className="shape-handle shape-handle--tl" />
-                    <span className="shape-handle shape-handle--tr" />
-                    <span className="shape-handle shape-handle--bl" />
-                    <span className="shape-handle shape-handle--br" />
+                    {s.kind !== 'path' && (['tl', 'tr', 'bl', 'br'] as const).map(c => (
+                      <span key={c} className={`shape-handle shape-handle--${c}`}
+                        onMouseDown={e => startResize(e, 'shape', s.key, c, { x: bb.x, y: bb.y, w, h })} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -1032,7 +1167,10 @@ export default function Canvas({
                   'text-el' +
                   (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
                 }
-                style={{ left: `${t.x}px`, top: `${t.y}px` }}
+                style={{
+                  left: `${t.x}px`, top: `${t.y}px`,
+                  width: t.width != null ? `${t.width}px` : undefined,
+                }}
               >
                 {editing ? (
                   <textarea
@@ -1060,10 +1198,19 @@ export default function Canvas({
                 )}
                 {selected && !editing && (
                   <>
-                    <span className="text-handle text-handle--tl" />
-                    <span className="text-handle text-handle--tr" />
-                    <span className="text-handle text-handle--bl" />
-                    <span className="text-handle text-handle--br" />
+                    {(['tl', 'tr', 'bl', 'br'] as const).map(c => {
+                      const r = (e: React.MouseEvent) => {
+                        const el = (e.currentTarget as HTMLElement).parentElement;
+                        if (!el) return;
+                        const br = el.getBoundingClientRect();
+                        startResize(e, 'text', t.key, c,
+                          { x: t.x, y: t.y, w: br.width / scale, h: br.height / scale },
+                          t.size ?? 16);
+                      };
+                      return (
+                        <span key={c} className={`text-handle text-handle--${c}`} onMouseDown={r} />
+                      );
+                    })}
                   </>
                 )}
               </div>
@@ -1094,6 +1241,23 @@ export default function Canvas({
               <div className="demo-element__callout">Drag this into the stack.</div>
             )}
             <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
+            {selectedEl === el.key && draggingKey !== el.key && (
+              <>
+                {(['tl', 'tr', 'bl', 'br'] as const).map(c => {
+                  const r = (e: React.MouseEvent) => {
+                    const wrap = (e.currentTarget as HTMLElement).parentElement;
+                    if (!wrap) return;
+                    const br = wrap.getBoundingClientRect();
+                    startResize(e, 'element', el.key, c,
+                      { x: el.x, y: el.y, w: br.width / scale, h: br.height / scale });
+                  };
+                  return (
+                    <span key={c} className={`shape-handle shape-handle--${c} demo-element__handle`}
+                      onMouseDown={r} />
+                  );
+                })}
+              </>
+            )}
           </div>
         ))}
       </div>

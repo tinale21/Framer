@@ -58,6 +58,12 @@ export default function App() {
   // Path tool: in-progress anchor points while drafting (click to add). Lives
   // in App so the keydown handler can pop the last point on Delete.
   const [pathDraft, setPathDraft] = useState<Pt[]>([]);
+  // Undo / redo history of the canvas content. Stored as JSON snapshots
+  // (lives in refs so it doesn't trigger re-renders).
+  const historyRef = useRef<string[]>([]);
+  const historyIdxRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+  const lastSnapshotRef = useRef('');
   // Switching away from the Path tool (e.g. Escape) drops the draft.
   if (vectorTool !== 'path' && pathDraft.length > 0) setPathDraft([]);
   // The demo stack's layout, set by the demo-7 Layout panel. Defaults match
@@ -241,6 +247,14 @@ export default function App() {
   const setShapeStroke = useCallback((key: number, stroke: VectorStroke) => {
     setShapes(prev => prev.map(s => (s.key === key ? { ...s, stroke } : s)));
   }, []);
+  // Resize a box shape (path is skipped — would need point-scaling).
+  const resizeShape = useCallback((key: number, x: number, y: number, w: number, h: number) => {
+    setShapes(prev => prev.map(s => {
+      if (s.key !== key) return s;
+      if (s.kind === 'path') return s;
+      return { ...s, x, y, w, h };
+    }));
+  }, []);
   const dropShapeInStack = useCallback((key: number) => {
     setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: true } : s)));
   }, []);
@@ -311,9 +325,52 @@ export default function App() {
     }
   }, []);
 
+  // Snapshot canvas content for undo whenever it settles (debounced 400ms).
+  // Skipped right after applying an undo so we don't push the restored state.
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    const t = window.setTimeout(() => {
+      const snap = JSON.stringify({ demoElements, texts, shapes });
+      if (snap === lastSnapshotRef.current) return;
+      lastSnapshotRef.current = snap;
+      const trimmed = historyRef.current.slice(0, historyIdxRef.current + 1);
+      trimmed.push(snap);
+      historyRef.current = trimmed.length > 100 ? trimmed.slice(-100) : trimmed;
+      historyIdxRef.current = historyRef.current.length - 1;
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [demoElements, texts, shapes]);
+
+  const restoreHistoryAt = useCallback((idx: number) => {
+    if (idx < 0 || idx >= historyRef.current.length) return;
+    const snap = historyRef.current[idx];
+    const prev = JSON.parse(snap);
+    skipHistoryRef.current = true;
+    lastSnapshotRef.current = snap;
+    historyIdxRef.current = idx;
+    setDemoElements(prev.demoElements);
+    setTexts(prev.texts);
+    setShapes(prev.shapes);
+    // Clear selections; the old keys may not exist anymore.
+    setSelectedEl(null);
+    setSelectedText(null);
+    setEditingText(null);
+    setSelectedShape(null);
+    setStackSelected(false);
+  }, []);
+  const undo = useCallback(() => restoreHistoryAt(historyIdxRef.current - 1), [restoreHistoryAt]);
+  const redo = useCallback(() => restoreHistoryAt(historyIdxRef.current + 1), [restoreHistoryAt]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
+      // Cmd/Ctrl + Z (Shift = redo) — undo works even when an input is
+      // focused so the user can undo right after typing.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
       if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack typing
       // Escape disarms the text tool and deselects everything — deselecting
       // the stack brings the Insert panel back (it's hidden, replaced by the
@@ -370,7 +427,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedEl, selectedText, selectedShape, stackSelected, pathDraft.length, clearCanvasState]);
+  }, [selectedEl, selectedText, selectedShape, stackSelected, pathDraft.length, clearCanvasState, undo, redo]);
 
   // The completion screen appears ~3s after the first layout adjustment.
   useEffect(() => {
@@ -515,6 +572,8 @@ export default function App() {
           onCreatePath={createPath}
           onSelectShape={selectShape}
           onMoveShape={moveShape}
+          onResizeShape={resizeShape}
+          onResizeText={(key, size) => setTextStyle(key, { size })}
           onDropShapeInStack={dropShapeInStack}
           onPopShapeFromStack={popShapeFromStack}
           pathDraft={pathDraft}

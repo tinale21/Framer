@@ -1085,9 +1085,13 @@ button {
   font-size: 17px;
   font-weight: 600;
 }
-.canvas-wrap { cursor: grab; user-select: none; }
+.canvas-wrap { cursor: default; user-select: none; }
+.canvas-wrap--pan,
+.canvas-wrap--pan .frame-card,
+.canvas-wrap--pan * { cursor: grab !important; }
 .canvas-wrap--dragging,
-.canvas-wrap--dragging .frame-card { cursor: grabbing; }
+.canvas-wrap--dragging .frame-card,
+.canvas-wrap--dragging * { cursor: grabbing !important; }
 .frame-card__title-row .plus-btn {
   background: #999999;
   color: #ffffff;
@@ -1722,17 +1726,17 @@ button {
 /* the 4 corner resize handles shown on a selected text box */
 .text-handle {
   position: absolute;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background: #ffffff;
   border: 1px solid var(--blue);
   border-radius: 1px;
-  pointer-events: none;
+  pointer-events: auto;
 }
-.text-handle--tl { top: -4px; left: -4px; }
-.text-handle--tr { top: -4px; right: -4px; }
-.text-handle--bl { bottom: -4px; left: -4px; }
-.text-handle--br { bottom: -4px; right: -4px; }
+.text-handle--tl { top: -4px; left: -4px; cursor: nwse-resize; }
+.text-handle--tr { top: -4px; right: -4px; cursor: nesw-resize; }
+.text-handle--bl { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.text-handle--br { bottom: -4px; right: -4px; cursor: nwse-resize; }
 .text-el__input,
 .text-el__static {
   font-family: inherit;
@@ -1810,16 +1814,33 @@ button {
 }
 .shape-handle {
   position: absolute;
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   background: #ffffff;
   border: 1px solid #0099ff;
   border-radius: 50%;
+  pointer-events: auto;
 }
-.shape-handle--tl { top: -4px; left: -4px; }
-.shape-handle--tr { top: -4px; right: -4px; }
-.shape-handle--bl { bottom: -4px; left: -4px; }
-.shape-handle--br { bottom: -4px; right: -4px; }
+.shape-handle--tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.shape-handle--tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.shape-handle--bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.shape-handle--br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.demo-element__handle { z-index: 2; }
+/* Size badge that floats next to the resizing element's bottom-right. */
+.resize-badge {
+  position: absolute;
+  transform: translate(8px, 4px);
+  background: #0099ff;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+}
 /* Live preview while drag-drawing a shape. */
 .vec-draw {
   position: absolute;
