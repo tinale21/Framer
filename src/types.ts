@@ -69,6 +69,7 @@ export type TextEl = {
   width?: number;            // explicit width in px (set by resize); undefined means auto-fit
   runs?: TextRun[];          // per-segment color overrides; absent = uniform color
   bullet?: boolean;          // render with the list-style bullet icon prefix
+  effect?: 'milk'; // text-effect preset (CSS class)
 };
 
 // A demo element instance: a unique key, the element type, a free

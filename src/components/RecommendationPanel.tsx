@@ -27,7 +27,7 @@ const RECS: Record<Category, RecCard[]> = {
   ],
   Text: [
     { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free', 'Beginner'], asset: 'text-list' },
-    { title: 'Advanced Text Effects', preview: 'text-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'] },
+    { title: 'Advanced Text Effects', preview: 'text-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'], asset: 'text-effects-grid' },
   ],
 };
 
@@ -128,7 +128,7 @@ export default function RecommendationPanel({
       <div className="divider" />
 
       <div className="editor-panel__section-title">Recommendation</div>
-      <div className="rec-subtitle">{cat === 'Vectors' ? 'Vector Components' : 'Header Components'} <HelpCircle /></div>
+      <div className="rec-subtitle">{cat === 'Vectors' ? 'Vector Components' : cat === 'Text' ? 'Text Components' : 'Header Components'} <HelpCircle /></div>
       <div className="rec-category">{cat}</div>
 
       <div className="rec-resources-row">

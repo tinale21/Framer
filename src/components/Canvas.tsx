@@ -84,14 +84,15 @@ type Props = {
   // Spawns a new free element at (x, y) with width `w` and the given
   // shape image, returning its key. Canvas calls this on mousedown
   // inside the recommendation component, then uses the returned key to
-  // start a drag on the new element so it follows the cursor. The
-  // pattern id of the torn rect is also reported so the source
-  // component can hide that cell.
-  onExtractComponentShape?: (href: string, x: number, y: number, w: number, patternId: string) => number;
+  // start a drag on the new element so it follows the cursor. `compKey`
+  // is the parent component instance's key — used to scope the hidden
+  // cell so a fresh drop of the same component starts with all cells
+  // visible again.
+  onExtractComponentShape?: (href: string, x: number, y: number, w: number, patternId: string, compKey: number) => number;
   // Tears off one row of the text-list dropdown as a new editable
   // bulleted TextEl at (x, y); returns the new text's key so Canvas
-  // can immediately initiate a text drag.
-  onTearTextListItem?: (x: number, y: number, rowId: string) => number;
+  // can immediately initiate a text drag. `compKey` scopes the hide.
+  onTearTextListItem?: (x: number, y: number, rowId: string, compKey: number) => number;
   // Pattern ids that have already been torn off — ComponentSvg hides
   // the matching rects in the inline SVG so torn shapes don't reappear.
   extractedPatterns?: Set<string>;
@@ -836,7 +837,7 @@ export default function Canvas({
   //     the cursor and start dragging it (matches Figma).
   // The actual decision is deferred to mousemove/mouseup so the user
   // gets a clean click-vs-drag distinction.
-  const handleComponentShapeMouseDown = (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => {
+  const handleComponentShapeMouseDown = (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string, compKey: number) => {
     e.stopPropagation();
     const fc = frameCardRef.current;
     if (!fc || !onExtractComponentShape) return;
@@ -856,7 +857,7 @@ export default function Canvas({
       const h = rect.height / scale;
       const gx = (ev.clientX - fr.left) / scale - w / 2;
       const gy = (ev.clientY - fr.top) / scale - h / 2;
-      const key = onExtractComponentShape(href, gx, gy, w, patternId);
+      const key = onExtractComponentShape(href, gx, gy, w, patternId, compKey);
       // moved:true so the existing free-element drag effect treats
       // this as already-dragging rather than firing onSelectEl on up.
       elementGrabRef.current = { gx, gy, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
@@ -866,7 +867,7 @@ export default function Canvas({
     const onUp = () => {
       if (consumed) return;
       cleanup();
-      onSelectCell?.(patternId);
+      onSelectCell?.(`${compKey}:${patternId}`);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -876,7 +877,7 @@ export default function Canvas({
   // for the text-list dropdown rows. Drag tears off a bulleted
   // editable TextEl (via App.tearTextListItem) and kicks off the
   // text-drag system so the new text follows the cursor.
-  const handleTextListItemMouseDown = (e: React.MouseEvent, rect: DOMRect, rowId: string) => {
+  const handleTextListItemMouseDown = (e: React.MouseEvent, rect: DOMRect, rowId: string, compKey: number) => {
     e.stopPropagation();
     const fc = frameCardRef.current;
     if (!fc || !onTearTextListItem) return;
@@ -896,7 +897,7 @@ export default function Canvas({
       const h = rect.height / scale;
       const tx = (ev.clientX - fr.left) / scale - w / 2;
       const ty = (ev.clientY - fr.top) / scale - h / 2;
-      const key = onTearTextListItem(tx, ty, rowId);
+      const key = onTearTextListItem(tx, ty, rowId, compKey);
       textGrabRef.current = { tx, ty, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
       setDraggingTextKey(key);
       onSelectCell?.(null);
@@ -904,7 +905,7 @@ export default function Canvas({
     const onUp = () => {
       if (consumed) return;
       cleanup();
-      onSelectCell?.(rowId);
+      onSelectCell?.(`${compKey}:${rowId}`);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -1322,6 +1323,7 @@ export default function Canvas({
                 className={
                   'text-el' +
                   (t.bullet ? ' text-el--bullet' : '') +
+                  (t.effect ? ` text-effect text-effect--${t.effect}` : '') +
                   (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
                 }
                 style={{
@@ -1403,18 +1405,21 @@ export default function Canvas({
             {el.id === 'recommendation' && el.src ? (
               <ComponentSvg
                 src={el.src}
+                compKey={el.key}
                 onShapeMouseDown={handleComponentShapeMouseDown}
                 hiddenPatterns={extractedPatterns}
                 selectedCellId={selectedCellId}
               />
             ) : el.id === 'recommendation-triangles' ? (
               <TrianglesGrid
+                compKey={el.key}
                 onShapeMouseDown={handleComponentShapeMouseDown}
                 hiddenPatterns={extractedPatterns}
                 selectedCellId={selectedCellId}
               />
             ) : el.id === 'recommendation-textlist' ? (
               <TextListDropdown
+                compKey={el.key}
                 onRowMouseDown={handleTextListItemMouseDown}
                 hiddenPatterns={extractedPatterns}
                 selectedCellId={selectedCellId}
@@ -1648,9 +1653,10 @@ const tearMapCache = new Map<string, Record<string, string>>();
 // resolves to a data URL for that cell and hands it + the event up
 // to Canvas, which spawns + drags a free copy in one motion
 // (Figma-style instance tear-off).
-function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }: {
+function ComponentSvg({ src, compKey, onShapeMouseDown, hiddenPatterns, selectedCellId }: {
   src: string;
-  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => void;
+  compKey: number;
+  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string, compKey: number) => void;
   hiddenPatterns?: Set<string>;
   selectedCellId?: string | null;
 }) {
@@ -1811,21 +1817,22 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }:
     if (!id || !measureEl) return;
     const href = tearMapCache.get(src)?.[id];
     if (!href) return;
-    onShapeMouseDown?.(e, href, measureEl.getBoundingClientRect(), id);
+    onShapeMouseDown?.(e, href, measureEl.getBoundingClientRect(), id, compKey);
   };
 
-  // Hide torn-off cells via a sibling <style> block rather than
-  // mutating the SVG DOM directly — the SVG is mounted via innerHTML
-  // and React can re-apply that HTML out from under any inline styles
-  // we'd set, but a declarative <style> always wins. Emit both
-  // pattern- and clip-style selectors per id; only one matches per
-  // asset, the other is inert.
-  const hideCss = hiddenPatterns && hiddenPatterns.size > 0
-    ? [...hiddenPatterns]
+  // Hide torn-off cells via a sibling <style> block, scoped to this
+  // component instance only (via [data-comp-key]) so a fresh drop of
+  // the same component starts with all cells visible.
+  const myPrefix = `${compKey}:`;
+  const myHidden = hiddenPatterns
+    ? [...hiddenPatterns].filter(s => s.startsWith(myPrefix)).map(s => s.slice(myPrefix.length))
+    : [];
+  const hideCss = myHidden.length > 0
+    ? myHidden
         .map(id =>
-          `.demo-element__svg rect[fill="url(#${id})"]{visibility:hidden}` +
-          `.demo-element__svg g[clip-path="url(#${id})"]{visibility:hidden}` +
-          `.demo-element__svg [data-tear-id="${id}"]{visibility:hidden}`)
+          `.demo-element__svg[data-comp-key="${compKey}"] rect[fill="url(#${id})"]{visibility:hidden}` +
+          `.demo-element__svg[data-comp-key="${compKey}"] g[clip-path="url(#${id})"]{visibility:hidden}` +
+          `.demo-element__svg[data-comp-key="${compKey}"] [data-tear-id="${id}"]{visibility:hidden}`)
         .join('')
     : '';
 
@@ -1837,7 +1844,12 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }:
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap || !selectedCellId) { setCellRect(null); return; }
-    const id = selectedCellId;
+    // selectedCellId is scoped `${compKey}:${id}`. Strip the prefix
+    // and only render handles if this instance is the one that owns
+    // the selected cell — otherwise other instances of the same
+    // asset would also draw handles on the matching cell.
+    if (!selectedCellId.startsWith(`${compKey}:`)) { setCellRect(null); return; }
+    const id = selectedCellId.slice(`${compKey}:`.length);
     let cell = wrap.querySelector(`rect[fill="url(#${id})"]`) as Element | null;
     if (!cell) cell = wrap.querySelector(`g[clip-path="url(#${id})"]`);
     if (!cell) cell = wrap.querySelector(`[data-tear-id="${id}"]`);
@@ -1862,6 +1874,7 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }:
       <div
         ref={wrapRef}
         className="demo-element__svg"
+        data-comp-key={compKey}
         onMouseDown={onMouseDown}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
@@ -1893,8 +1906,9 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }:
 // uses for pattern/clip cells, so torn copies behave identically.
 const TRIANGLE_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8', '10'];
 
-function TrianglesGrid({ onShapeMouseDown, hiddenPatterns, selectedCellId }: {
-  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, id: string) => void;
+function TrianglesGrid({ compKey, onShapeMouseDown, hiddenPatterns, selectedCellId }: {
+  compKey: number;
+  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, id: string, compKey: number) => void;
   hiddenPatterns?: Set<string>;
   selectedCellId?: string | null;
 }) {
@@ -1902,9 +1916,10 @@ function TrianglesGrid({ onShapeMouseDown, hiddenPatterns, selectedCellId }: {
     <div className="demo-element__tri-grid">
       {TRIANGLE_NAMES.map(n => {
         const id = `tri-${n}`;
+        const scoped = `${compKey}:${id}`;
         const src = `${import.meta.env.BASE_URL}recs/triangles/triangle_${n}.svg`;
-        const hidden = hiddenPatterns?.has(id);
-        const selected = selectedCellId === id;
+        const hidden = hiddenPatterns?.has(scoped);
+        const selected = selectedCellId === scoped;
         return (
           <div
             key={n}
@@ -1913,7 +1928,7 @@ function TrianglesGrid({ onShapeMouseDown, hiddenPatterns, selectedCellId }: {
             onMouseDown={e => {
               if (hidden) return;
               const r = e.currentTarget.getBoundingClientRect();
-              onShapeMouseDown?.(e, src, r, id);
+              onShapeMouseDown?.(e, src, r, id, compKey);
             }}
           >
             <img src={src} alt="" className="tri-cell__img" draggable={false} />
@@ -1954,8 +1969,9 @@ function ListBulletIcon() {
 // rename via the existing double-click-to-edit flow.
 const TEXT_LIST_ROWS = ['1', '2', '3', '4'];
 
-function TextListDropdown({ onRowMouseDown, hiddenPatterns, selectedCellId }: {
-  onRowMouseDown?: (e: React.MouseEvent, rect: DOMRect, rowId: string) => void;
+function TextListDropdown({ compKey, onRowMouseDown, hiddenPatterns, selectedCellId }: {
+  compKey: number;
+  onRowMouseDown?: (e: React.MouseEvent, rect: DOMRect, rowId: string, compKey: number) => void;
   hiddenPatterns?: Set<string>;
   selectedCellId?: string | null;
 }) {
@@ -1963,8 +1979,9 @@ function TextListDropdown({ onRowMouseDown, hiddenPatterns, selectedCellId }: {
     <div className="demo-element__text-list">
       {TEXT_LIST_ROWS.map(n => {
         const id = `text-row-${n}`;
-        const hidden = hiddenPatterns?.has(id);
-        const selected = selectedCellId === id;
+        const scoped = `${compKey}:${id}`;
+        const hidden = hiddenPatterns?.has(scoped);
+        const selected = selectedCellId === scoped;
         return (
           <div
             key={n}
@@ -1973,7 +1990,7 @@ function TextListDropdown({ onRowMouseDown, hiddenPatterns, selectedCellId }: {
             onMouseDown={e => {
               if (hidden) return;
               const r = e.currentTarget.getBoundingClientRect();
-              onRowMouseDown?.(e, r, id);
+              onRowMouseDown?.(e, r, id, compKey);
             }}
           >
             <ListBulletIcon />

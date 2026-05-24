@@ -2711,6 +2711,51 @@ select.typo__field {
   gap: 4px;
   width: auto;
 }
+
+/* Text-effect presets — applied to TextEls dropped by the Advanced
+   Text Effects recommendation so the editable characters take on the
+   look of the source SVG. The purple outline tags the element as a
+   Figma-style component instance, matching the other recommendation
+   drops. */
+.text-effect {
+  line-height: 1;
+  outline: 1.5px solid #9d4edd;
+  outline-offset: 4px;
+}
+/* The purple outline doubles as the selection indicator, so drop the
+   default blue border + restyle the corner handles to round purple
+   circles sitting on the outline corners. */
+.text-effect.text-el--selected { border-color: transparent; }
+.text-effect .text-handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border-color: #9d4edd;
+  box-sizing: border-box;
+}
+.text-effect .text-handle--tl { top: -9px; left: -9px; }
+.text-effect .text-handle--tr { top: -9px; right: -9px; }
+.text-effect .text-handle--bl { bottom: -9px; left: -9px; }
+.text-effect .text-handle--br { bottom: -9px; right: -9px; }
+
+/* Milk: white script with a thick black outline and a stacked
+   drop shadow that drifts down + right for a chunky 3D bubble feel. */
+.text-effect--milk .text-el__static,
+.text-effect--milk .text-el__input {
+  font-family: 'Leckerli One', cursive;
+  font-weight: 400;
+  color: #ffffff;
+  -webkit-text-stroke: 2px #000000;
+  paint-order: stroke fill;
+  letter-spacing: -0.01em;
+  text-shadow:
+    1px 1px 0 #000,
+    2px 2px 0 #000,
+    3px 3px 0 #000,
+    4px 4px 0 #000,
+    5px 8px 14px rgba(0, 0, 0, 0.45),
+    8px 14px 24px rgba(0, 0, 0, 0.35);
+}
 .rec-card--clickable:hover .rec-card__body { background: #eaeaea; }
 
 /* Element hover popout — uses the same frame size as the Grid popup

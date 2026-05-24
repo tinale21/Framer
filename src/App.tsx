@@ -857,6 +857,18 @@ export default function App() {
   // Kinds the user has applied at least one fix for. Drives which
   // categories the Recommendation panel shows once issues hit zero.
   const [recommendationKinds, setRecommendationKinds] = useState<Set<'Vectors' | 'Text'>>(new Set());
+  // Recommendation panel categories are per-cycle: once the issue list
+  // hits 0 and the panel shows, we keep the accumulated kinds visible
+  // until the user adds new fixable content (issues transition 0 → >0).
+  // At that transition we reset, so the next "all-clear" only lists
+  // what the user fixed in that round.
+  const prevIssueCountRef = useRef(0);
+  useEffect(() => {
+    const cur = visibleIssues.length;
+    const prev = prevIssueCountRef.current;
+    if (prev === 0 && cur > 0) setRecommendationKinds(new Set());
+    prevIssueCountRef.current = cur;
+  }, [visibleIssues.length]);
   // Drop a recommendation asset onto the canvas as a draggable
   // / resizable element (Figma-style component placement). Reuses the
   // existing DemoEl machinery — width is fixed, height is intrinsic
@@ -892,6 +904,23 @@ export default function App() {
       }]);
       return;
     }
+    // The text-effects "pack" is just the Milk preset now — skip the
+    // wrapper component and drop an editable styled TextEl directly,
+    // since there's nothing to tear off when there's only one item.
+    if (asset === 'text-effects-grid') {
+      const tkey = textKeyRef.current++;
+      setTexts(prev => [...prev, {
+        key: tkey,
+        x: 280,
+        y: 240,
+        text: 'Milk',
+        effect: 'milk',
+        size: 110,
+        weight: 400,
+        inStack: false,
+      }]);
+      return;
+    }
     // Most components drop at 360px wide (matches the original 3D
     // Default sized for the 3D Shapes / Triangle assets.
     setDemoElements(prev => [...prev, {
@@ -910,7 +939,7 @@ export default function App() {
   // (so the user can immediately edit the label) instead of a free
   // image element. Tracks the torn row id in extractedPatterns so the
   // source row hides — same hide channel as the shape components.
-  const tearTextListItem = useCallback((x: number, y: number, rowId: string) => {
+  const tearTextListItem = useCallback((x: number, y: number, rowId: string, compKey: number) => {
     const key = textKeyRef.current++;
     setTexts(prev => [...prev, {
       key,
@@ -922,11 +951,12 @@ export default function App() {
     }]);
     setExtractedPatterns(prev => {
       const n = new Set(prev);
-      n.add(rowId);
+      n.add(`${compKey}:${rowId}`);
       return n;
     });
     return key;
   }, []);
+
   // Mousedown on a shape inside a recommendation component → spawn a
   // free element at the cursor and hand its key back to Canvas, which
   // continues the drag seamlessly (Figma-style "tear off an instance").
@@ -934,8 +964,11 @@ export default function App() {
   // torn-off copy is the same size as the cell the user grabbed. The
   // pattern id of the torn rect gets added to `extractedPatterns` so
   // ComponentSvg can hide the now-empty cell in the source component.
+  // Entries are scoped per-component-instance: `${compKey}:${cellId}`.
+  // That way dropping a NEW instance of the same component starts
+  // with all cells visible — its compKey hasn't been used yet.
   const [extractedPatterns, setExtractedPatterns] = useState<Set<string>>(new Set());
-  const extractComponentShape = useCallback((href: string, x: number, y: number, w: number, patternId: string) => {
+  const extractComponentShape = useCallback((href: string, x: number, y: number, w: number, patternId: string, compKey: number) => {
     const key = elKeyRef.current++;
     setDemoElements(prev => [...prev, {
       key,
@@ -948,7 +981,7 @@ export default function App() {
     }]);
     setExtractedPatterns(prev => {
       const n = new Set(prev);
-      n.add(patternId);
+      n.add(`${compKey}:${patternId}`);
       return n;
     });
     return key;
@@ -998,7 +1031,15 @@ export default function App() {
     setEditorOpen(o => !o);
     setPreviewedFixIdx(null);
   }, []);
-  const selectFix = useCallback((i: number | null) => setPreviewedFixIdx(i), []);
+  const selectFix = useCallback((i: number | null) => {
+    setPreviewedFixIdx(i);
+    // Force the previewed text out of edit mode so the canvas can
+    // render the replaced text. EditableText is contentEditable and
+    // ignores `text` prop changes after mount, so without this the
+    // preview only becomes visible once the user clicks off the
+    // right sidebar.
+    if (i !== null) setEditingText(null);
+  }, []);
   const nextIssue = useCallback(() => {
     setPreviewedFixIdx(null);
     setCurrentIssueIdx(i => (visibleIssues.length === 0 ? 0 : (i + 1) % visibleIssues.length));
