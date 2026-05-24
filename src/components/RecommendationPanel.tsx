@@ -26,7 +26,7 @@ const RECS: Record<Category, RecCard[]> = {
     { title: '3D Shapes', preview: 'vectors-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'], asset: 'recs/3d-shapes.svg' },
   ],
   Text: [
-    { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free', 'Beginner'] },
+    { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free', 'Beginner'], asset: 'text-list' },
     { title: 'Advanced Text Effects', preview: 'text-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'] },
   ],
 };

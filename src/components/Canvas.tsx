@@ -88,6 +88,10 @@ type Props = {
   // pattern id of the torn rect is also reported so the source
   // component can hide that cell.
   onExtractComponentShape?: (href: string, x: number, y: number, w: number, patternId: string) => number;
+  // Tears off one row of the text-list dropdown as a new editable
+  // bulleted TextEl at (x, y); returns the new text's key so Canvas
+  // can immediately initiate a text drag.
+  onTearTextListItem?: (x: number, y: number, rowId: string) => number;
   // Pattern ids that have already been torn off — ComponentSvg hides
   // the matching rects in the inline SVG so torn shapes don't reappear.
   extractedPatterns?: Set<string>;
@@ -158,6 +162,7 @@ export default function Canvas({
   pathDraft = [],
   onAddPathPoint,
   onExtractComponentShape,
+  onTearTextListItem,
   extractedPatterns,
   selectedCellId,
   onSelectCell,
@@ -867,6 +872,44 @@ export default function Canvas({
     window.addEventListener('mouseup', onUp);
   };
 
+  // Same click-vs-drag gesture as handleComponentShapeMouseDown but
+  // for the text-list dropdown rows. Drag tears off a bulleted
+  // editable TextEl (via App.tearTextListItem) and kicks off the
+  // text-drag system so the new text follows the cursor.
+  const handleTextListItemMouseDown = (e: React.MouseEvent, rect: DOMRect, rowId: string) => {
+    e.stopPropagation();
+    const fc = frameCardRef.current;
+    if (!fc || !onTearTextListItem) return;
+    const sx = e.clientX, sy = e.clientY;
+    let consumed = false;
+    const cleanup = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (consumed) return;
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < DRAG_THRESHOLD) return;
+      consumed = true;
+      cleanup();
+      const fr = fc.getBoundingClientRect();
+      const w = rect.width / scale;
+      const h = rect.height / scale;
+      const tx = (ev.clientX - fr.left) / scale - w / 2;
+      const ty = (ev.clientY - fr.top) / scale - h / 2;
+      const key = onTearTextListItem(tx, ty, rowId);
+      textGrabRef.current = { tx, ty, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
+      setDraggingTextKey(key);
+      onSelectCell?.(null);
+    };
+    const onUp = () => {
+      if (consumed) return;
+      cleanup();
+      onSelectCell?.(rowId);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   // Press on a placed shape. With a box tool armed it starts a new draw; with
   // Path armed it lets the click bubble so a point gets dropped; otherwise it
   // begins a move (a press without a drag selects the shape).
@@ -1278,6 +1321,7 @@ export default function Canvas({
                 ref={t.key === draggingTextKey ? draggingTextElRef : undefined}
                 className={
                   'text-el' +
+                  (t.bullet ? ' text-el--bullet' : '') +
                   (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
                 }
                 style={{
@@ -1285,6 +1329,7 @@ export default function Canvas({
                   width: t.width != null ? `${t.width}px` : undefined,
                 }}
               >
+                {t.bullet && <ListBulletIcon />}
                 {editing ? (
                   <EditableText
                     textKey={t.key}
@@ -1341,7 +1386,7 @@ export default function Canvas({
               'demo-element' +
               (draggingKey === el.key ? ' demo-element--dragging' : '') +
               (selectedEl === el.key ? ' demo-element--selected' : '') +
-              (el.id === 'recommendation' || el.id === 'recommendation-shape' || el.id === 'recommendation-triangles' ? ' demo-element--component' : '') +
+              (el.id === 'recommendation' || el.id === 'recommendation-shape' || el.id === 'recommendation-triangles' || el.id === 'recommendation-textlist' ? ' demo-element--component' : '') +
               (el.id === 'recommendation-shape' ? ' demo-element--component-shape' : '')
             }
             style={{
@@ -1365,6 +1410,12 @@ export default function Canvas({
             ) : el.id === 'recommendation-triangles' ? (
               <TrianglesGrid
                 onShapeMouseDown={handleComponentShapeMouseDown}
+                hiddenPatterns={extractedPatterns}
+                selectedCellId={selectedCellId}
+              />
+            ) : el.id === 'recommendation-textlist' ? (
+              <TextListDropdown
+                onRowMouseDown={handleTextListItemMouseDown}
                 hiddenPatterns={extractedPatterns}
                 selectedCellId={selectedCellId}
               />
@@ -1866,6 +1917,67 @@ function TrianglesGrid({ onShapeMouseDown, hiddenPatterns, selectedCellId }: {
             }}
           >
             <img src={src} alt="" className="tri-cell__img" draggable={false} />
+            {selected && (
+              <>
+                <span className="tri-cell__handle tri-cell__handle--tl" />
+                <span className="tri-cell__handle tri-cell__handle--tr" />
+                <span className="tri-cell__handle tri-cell__handle--bl" />
+                <span className="tri-cell__handle tri-cell__handle--br" />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Bullet icon matching the source list.svg — 4 horizontal lines + a
+// vertical bar. Drawn as SVG so it scales with font size via 1em.
+function ListBulletIcon() {
+  return (
+    <svg
+      className="list-bullet"
+      viewBox="12.5 11 15 18"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="M17 12.5H27.5V14H17V12.5ZM17 17H24.5V18.5H17V17ZM17 21.5H27.5V23H17V21.5ZM17 26H24.5V27.5H17V26ZM12.5 11H14V29H12.5V11Z" />
+    </svg>
+  );
+}
+
+// Text-editor recommendation drop — four bulleted-text rows. Tap a
+// row to select it (handles render around it); drag past threshold
+// to tear off a new editable bulleted TextEl that the user can then
+// rename via the existing double-click-to-edit flow.
+const TEXT_LIST_ROWS = ['1', '2', '3', '4'];
+
+function TextListDropdown({ onRowMouseDown, hiddenPatterns, selectedCellId }: {
+  onRowMouseDown?: (e: React.MouseEvent, rect: DOMRect, rowId: string) => void;
+  hiddenPatterns?: Set<string>;
+  selectedCellId?: string | null;
+}) {
+  return (
+    <div className="demo-element__text-list">
+      {TEXT_LIST_ROWS.map(n => {
+        const id = `text-row-${n}`;
+        const hidden = hiddenPatterns?.has(id);
+        const selected = selectedCellId === id;
+        return (
+          <div
+            key={n}
+            className={'text-list-row' + (selected ? ' text-list-row--selected' : '')}
+            style={hidden ? { visibility: 'hidden' } : undefined}
+            onMouseDown={e => {
+              if (hidden) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              onRowMouseDown?.(e, r, id);
+            }}
+          >
+            <ListBulletIcon />
+            <span className="text-list-row__label">text</span>
             {selected && (
               <>
                 <span className="tri-cell__handle tri-cell__handle--tl" />

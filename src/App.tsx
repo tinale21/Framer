@@ -878,6 +878,22 @@ export default function App() {
       }]);
       return;
     }
+    // The text-list dropdown is a stack of bulleted-text rows. Rows
+    // tear off as editable TextEls (not free DemoEls) — Canvas renders
+    // a TextListDropdown when it sees id === 'recommendation-textlist'.
+    if (asset === 'text-list') {
+      setDemoElements(prev => [...prev, {
+        key,
+        id: 'recommendation-textlist',
+        x: 240,
+        y: 220,
+        width: 200,
+        inStack: false,
+      }]);
+      return;
+    }
+    // Most components drop at 360px wide (matches the original 3D
+    // Default sized for the 3D Shapes / Triangle assets.
     setDemoElements(prev => [...prev, {
       key,
       id: 'recommendation',
@@ -887,6 +903,29 @@ export default function App() {
       inStack: false,
       src: `${import.meta.env.BASE_URL}${asset}`,
     }]);
+  }, []);
+
+  // Tear off one row of the text-list dropdown as a new editable
+  // bulleted TextEl. Mirrors extractComponentShape but creates a text
+  // (so the user can immediately edit the label) instead of a free
+  // image element. Tracks the torn row id in extractedPatterns so the
+  // source row hides — same hide channel as the shape components.
+  const tearTextListItem = useCallback((x: number, y: number, rowId: string) => {
+    const key = textKeyRef.current++;
+    setTexts(prev => [...prev, {
+      key,
+      x,
+      y,
+      text: 'text',
+      bullet: true,
+      inStack: false,
+    }]);
+    setExtractedPatterns(prev => {
+      const n = new Set(prev);
+      n.add(rowId);
+      return n;
+    });
+    return key;
   }, []);
   // Mousedown on a shape inside a recommendation component → spawn a
   // free element at the cursor and hand its key back to Canvas, which
@@ -1074,20 +1113,34 @@ export default function App() {
           shapes={renderShapes}
           selectedShape={selectedShape}
           highlightedIssue={
-            // Drop the red wash while previewing a fix so the user sees the
-            // suggested color cleanly without the issue overlay on top.
-            editorOpen && currentIssue && previewedFixIdx === null
-              ? {
-                  kind: currentIssue.targetKind === 'text' ? 'text' : 'shape',
-                  key: currentIssue.targetKey,
-                  // Tell the text renderer which slice to wash: by color
-                  // (fill-contrast) or by character range (spelling /
-                  // grammar). Shapes ignore this field.
-                  runHighlight: currentIssue.targetKind !== 'text' ? undefined
-                    : currentIssue.kind === 'fill-contrast'
-                      ? { kind: 'color', color: currentIssue.currentColor!, textColor: undefined }
-                      : { kind: 'range', start: currentIssue.offset!, end: currentIssue.offset! + currentIssue.word!.length },
-                }
+            // Without a preview: red wash on the failing slice so the user
+            // sees what's wrong. With a spelling/grammar preview: green
+            // wash on the SUGGESTED slice (offset → offset + suggestion
+            // length) so the replacement is obviously visible on canvas.
+            // Contrast previews still drop the wash so the swapped color
+            // reads cleanly.
+            editorOpen && currentIssue
+              ? previewedFixIdx === null
+                ? {
+                    kind: currentIssue.targetKind === 'text' ? 'text' : 'shape',
+                    key: currentIssue.targetKey,
+                    runHighlight: currentIssue.targetKind !== 'text' ? undefined
+                      : currentIssue.kind === 'fill-contrast'
+                        ? { kind: 'color', color: currentIssue.currentColor!, textColor: undefined }
+                        : { kind: 'range', start: currentIssue.offset!, end: currentIssue.offset! + currentIssue.word!.length },
+                  }
+                : currentIssue.targetKind === 'text' && (currentIssue.kind === 'spelling' || currentIssue.kind === 'grammar')
+                  ? {
+                      kind: 'text',
+                      key: currentIssue.targetKey,
+                      runHighlight: {
+                        kind: 'range',
+                        start: currentIssue.offset!,
+                        end: currentIssue.offset! + (currentIssue.suggestions?.[previewedFixIdx]?.length ?? 0),
+                        preview: true,
+                      },
+                    }
+                  : null
               : null
           }
           onCreateShape={createShape}
@@ -1101,6 +1154,7 @@ export default function App() {
           pathDraft={pathDraft}
           onAddPathPoint={addPathPoint}
           onExtractComponentShape={extractComponentShape}
+          onTearTextListItem={tearTextListItem}
           extractedPatterns={extractedPatterns}
           selectedCellId={selectedCellId}
           onSelectCell={setSelectedCellId}

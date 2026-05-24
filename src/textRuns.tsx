@@ -8,7 +8,7 @@ import type { TextRun } from './types';
 // specific character range (spelling / grammar).
 export type RunHighlight =
   | { kind: 'color'; color: string; textColor?: string }
-  | { kind: 'range'; start: number; end: number };
+  | { kind: 'range'; start: number; end: number; preview?: boolean };
 
 export function renderRuns(
   text: string,
@@ -38,9 +38,10 @@ export function renderRuns(
       const b = Math.max(0, flagStart - rStart);
       const c = Math.max(0, flagEnd - rStart);
       const d = r.text.length;
+      const previewing = !!flag?.preview;
       const pushSeg = (seg: string, isFlagged: boolean) => {
         if (seg.length === 0) return;
-        const cls = isFlagged ? 'text-run--issue' : undefined;
+        const cls = isFlagged ? (previewing ? 'text-run--preview' : 'text-run--issue') : undefined;
         const st = styleFor(r.color);
         if (st || cls) {
           out.push(<span key={keyN++} className={cls} style={st}>{seg}</span>);

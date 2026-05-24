@@ -1848,6 +1848,14 @@ button {
   border-radius: 2px;
   padding: 0 1px;
 }
+/* Green wash on the suggested word while the user is previewing a
+   spelling / grammar fix — makes the replacement obvious on the
+   canvas (it's easy to miss a single-character edit otherwise). */
+.text-run--preview {
+  background: rgba(26, 160, 85, 0.32);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 /* Spelling marker chip on the Editor cards — uses the same shape as the
    color swatch so the row layout stays uniform. */
 .editor-panel__spell-mark {
@@ -2653,6 +2661,56 @@ select.typo__field {
 .tri-cell__handle--tr { top: -5px; right: -5px; }
 .tri-cell__handle--bl { bottom: -5px; left: -5px; }
 .tri-cell__handle--br { bottom: -5px; right: -5px; }
+
+/* Text-editor recommendation drop — vertical stack of bulleted rows.
+   Each row is its own select/drag target via the same handler chain
+   the other recommendation grids use. */
+.demo-element--component .demo-element__text-list {
+  box-shadow: none;
+  border-radius: 0;
+  outline: 1.5px solid #9d4edd;
+  outline-offset: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: transparent;
+  color: #212529;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.text-list-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  padding: 2px 0;
+}
+.text-list-row:active { cursor: grabbing; }
+.text-list-row--selected { outline: 1px solid #9d4edd; outline-offset: 2px; }
+.text-list-row__label { user-select: none; }
+
+/* Inline bullet glyph — sized to its em so it tracks font-size. */
+.list-bullet {
+  width: 0.95em;
+  height: 1.15em;
+  display: inline-block;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+/* Bulleted text element (torn from the dropdown) lays out the icon
+   to the left of the editable label so the user can click into the
+   text portion without disturbing the bullet. inline-flex shrinks
+   the wrapper to its content instead of letting the flex container's
+   default block behavior pad out the right side. */
+.text-el--bullet {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  width: auto;
+}
 .rec-card--clickable:hover .rec-card__body { background: #eaeaea; }
 
 /* Element hover popout — uses the same frame size as the Grid popup

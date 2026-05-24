@@ -68,6 +68,7 @@ export type TextEl = {
   color?: string;            // hex; undefined means the default text color
   width?: number;            // explicit width in px (set by resize); undefined means auto-fit
   runs?: TextRun[];          // per-segment color overrides; absent = uniform color
+  bullet?: boolean;          // render with the list-style bullet icon prefix
 };
 
 // A demo element instance: a unique key, the element type, a free
