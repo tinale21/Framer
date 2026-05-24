@@ -77,7 +77,14 @@ function CardPreview({ kind }: { kind: RecCard['preview'] }) {
   if (img) {
     return (
       <div className="rec-card__preview rec-card__preview--img">
-        <img src={`${import.meta.env.BASE_URL}${img}`} alt="" className="rec-card__preview-img" draggable={false} />
+        <img
+          src={`${import.meta.env.BASE_URL}${img}`}
+          alt=""
+          className="rec-card__preview-img"
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+        />
       </div>
     );
   }

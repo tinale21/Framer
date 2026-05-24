@@ -313,7 +313,7 @@ function InsertPanel({
       <div className="divider" />
 
       <div className={'insert-section' + (highlightTriple ? ' insert-section--demo' : '')}>
-      {highlightTriple && (
+      {highlightTriple && !textArmed && !vectorArmed && (
         <div className="insert-demo-callout">Add several elements into the stack.</div>
       )}
       <div className="section-title" style={{ marginTop: 6 }}>Insert</div>

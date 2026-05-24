@@ -34,6 +34,8 @@ type Props = {
   demoElements?: DemoEl[];
   selectedEl?: number | null;
   calloutEl?: number | null;
+  calloutShape?: number | null;
+  calloutText?: number | null;
   onSelectEl?: (key: number | null) => void;
   onMoveElement?: (key: number, x: number, y: number, width?: number) => void;
   onDropElementInStack?: (key: number) => void;
@@ -121,6 +123,8 @@ export default function Canvas({
   demoElements = [],
   selectedEl = null,
   calloutEl = null,
+  calloutShape = null,
+  calloutText = null,
   onSelectEl,
   onMoveElement,
   onDropElementInStack,
@@ -675,10 +679,11 @@ export default function Canvas({
     };
   };
 
-  // Stay inert during the active draw demo and the guided-on demo-6 step,
-  // but let the user dismiss selections everywhere else (including demo-6
-  // with the tutorial disabled and demo-final).
-  const demoBlocksDeselect = demoSpotlight || (demo6 && !stackTutorialDisabled);
+  // Stay inert during the active draw demo (demo-2). Demo-6 used to
+  // block frame/surround deselect, but that left vectors / texts the
+  // user dropped during practice stuck-selected with no way to clear
+  // them. Only the explicit draw step still suppresses deselect now.
+  const demoBlocksDeselect = demoSpotlight;
 
   const handleSurroundClick = (e: React.MouseEvent) => {
     if (vecDrewRef.current) return; // a vector draw just finished
@@ -989,7 +994,9 @@ export default function Canvas({
   const freeShapes = shapes.filter(s => !s.inStack || s.key === draggingShape);
   // demo-6: once 2+ items are in the stack, prompt the user to click it.
   // With the tutorial off, that guided prompt (and its redirect) is skipped.
-  const stackReady = demo6 && !stackTutorialDisabled && stackEls.length + stackTexts.length >= 2;
+  // Two-or-more items of ANY kind in the stack triggers the layout
+  // prompt — elements + texts + shapes all count.
+  const stackReady = demo6 && !stackTutorialDisabled && stackEls.length + stackTexts.length + stackShapes.length >= 2;
   // Once the stack is settled it can be clicked to select (then delete) it —
   // in the layout step, the finished canvas, and (tutorial off) while placing.
   const stackSelectable = scene === 'demo-7-layout-panel' || scene === 'demo-final'
@@ -1090,7 +1097,7 @@ export default function Canvas({
             : undefined
       }
     >
-      {stackReady && (
+      {stackReady && !vectorTool && !textMode && (
         <div className="demo-stack__callout">Click the stack to change its layout.</div>
       )}
       <div
@@ -1114,7 +1121,12 @@ export default function Canvas({
         {stackTexts.map(t => (
           <div
             key={t.key}
-            className={'demo-stack__text' + (selectedText === t.key ? ' demo-stack__text--selected' : '')}
+            className={
+              'demo-stack__text'
+              + (selectedText === t.key ? ' demo-stack__text--selected' : '')
+              + (t.bullet ? ' text-el--bullet' : '')
+              + (t.effect ? ` text-effect text-effect--${t.effect}` : '')
+            }
             data-text-editor={t.key}
             style={{
               ...textStyle(t),
@@ -1123,6 +1135,7 @@ export default function Canvas({
             onMouseDown={e => handleStackTextMouseDown(e, t)}
             onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
           >
+            {t.bullet && <ListBulletIcon />}
             {renderRuns(t.text, t.runs, runHighlightFor(t))}
           </div>
         ))}
@@ -1285,6 +1298,9 @@ export default function Canvas({
                 onMouseDown={e => handleShapeMouseDown(e, s)}
                 onClick={e => { if (vectorTool !== 'path') e.stopPropagation(); }}
               >
+                {calloutShape === s.key && !vectorTool && !textMode && (
+                  <div className="demo-element__callout">Drag this into the stack.</div>
+                )}
                 <svg width="100%" height="100%" style={{ overflow: 'visible', display: 'block' }}>
                   {renderShapeSvg(s, w, h)}
                   {flagged && renderShapeSvg(s, w, h, 'rgba(255, 59, 48, 0.35)')}
@@ -1368,6 +1384,9 @@ export default function Canvas({
                   width: t.width != null ? `${t.width}px` : undefined,
                 }}
               >
+                {calloutText === t.key && !vectorTool && !textMode && (
+                  <div className="demo-element__callout">Drag this into the stack.</div>
+                )}
                 {t.bullet && <ListBulletIcon />}
                 {editing ? (
                   <EditableText
@@ -1436,7 +1455,7 @@ export default function Canvas({
             onMouseDown={e => handleElementMouseDown(e, el)}
             onClick={e => e.stopPropagation()}
           >
-            {calloutEl === el.key && (
+            {calloutEl === el.key && !vectorTool && !textMode && (
               <div className="demo-element__callout">Drag this into the stack.</div>
             )}
             {el.id === 'recommendation' && el.src ? (

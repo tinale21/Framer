@@ -70,7 +70,14 @@ function Bookmark({ filled = false }: { filled?: boolean }) {
 function CardPreview({ src }: { src: string }) {
   return (
     <div className="rec-card__preview rec-card__preview--comm">
-      <img src={`${import.meta.env.BASE_URL}community/${src}`} alt="" className="rec-card__preview-img" draggable={false} />
+      <img
+        src={`${import.meta.env.BASE_URL}community/${src}`}
+        alt=""
+        className="rec-card__preview-img"
+        draggable={false}
+        loading="lazy"
+        decoding="async"
+      />
     </div>
   );
 }

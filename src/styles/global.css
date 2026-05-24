@@ -2772,9 +2772,12 @@ select.typo__field {
 .text-effect .text-handle--br { bottom: -9px; right: -9px; }
 
 /* Milk: white script with a thick black outline and a stacked
-   drop shadow that drifts down + right for a chunky 3D bubble feel. */
+   drop shadow that drifts down + right for a chunky 3D bubble feel.
+   Also applies when the text is dragged into the stack (uses the
+   .demo-stack__text wrapper instead of .text-el__static). */
 .text-effect--milk .text-el__static,
-.text-effect--milk .text-el__input {
+.text-effect--milk .text-el__input,
+.demo-stack__text.text-effect--milk {
   font-family: 'Leckerli One', cursive;
   font-weight: 400;
   color: #ffffff;

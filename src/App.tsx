@@ -255,6 +255,12 @@ export default function App() {
   const [demoElements, setDemoElements] = useState<DemoEl[]>([]);
   const [selectedEl, setSelectedEl] = useState<number | null>(null);
   const [calloutEl, setCalloutEl] = useState<number | null>(null);
+  // Same callout, but for a free shape created via the vector tool
+  // during the guided practice — "Drag this into the stack."
+  const [calloutShape, setCalloutShape] = useState<number | null>(null);
+  // Same callout for a free text placed via the text tool during
+  // the guided practice.
+  const [calloutText, setCalloutText] = useState<number | null>(null);
   const elKeyRef = useRef(0);
   // The file input lives here (App never unmounts) so it survives the OS
   // file dialog — the Element popout would unmount mid-dialog and lose it.
@@ -343,7 +349,13 @@ export default function App() {
     setVectorTool(null);
     // The callout is only for the guided demo step — picking an element
     // from the highlighted Insert section.
-    setCalloutEl(scene === 'demo-5-insert-highlighted' ? key : null);
+    // Pin the "Drag this into the stack." callout to the new item
+    // whenever the user is inside the practice demo — both on the
+    // initial pick from the highlighted Insert section AND on every
+    // subsequent pick during the place-element step, so the prompt
+    // follows each new piece they add.
+    const inPractice = scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element';
+    setCalloutEl(inPractice ? key : null);
     setScene('demo-6-place-element');
   };
   const requestImageUpload = () => fileInputRef.current?.click();
@@ -409,13 +421,21 @@ export default function App() {
   const armText = () => { setTextMode(m => !m); setVectorTool(null); };
   const placeText = useCallback((x: number, y: number) => {
     const key = textKeyRef.current++;
-    setTexts(prev => [...prev, { key, x, y, text: '', inStack: false }]);
-    setEditingText(key);
+    // During the practice demo, place a "Text" placeholder (not an
+    // empty contentEditable) and skip auto-edit-mode — the user
+    // needs the static text-el so they can drag it into the stack.
+    const isDemo = scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element';
+    setTexts(prev => [...prev, { key, x, y, text: isDemo ? 'Text' : '', inStack: false }]);
+    if (!isDemo) setEditingText(key);
     setSelectedText(key);
     setSelectedEl(null); // only one thing is selected at a time
     setSelectedShape(null);
     setTextMode(false); // the text tool is one-shot, like Figma
-  }, []);
+    if (isDemo) {
+      setCalloutText(key);
+      if (scene === 'demo-5-insert-highlighted') setScene('demo-6-place-element');
+    }
+  }, [scene]);
   // Arming a vector tool from the Vector popout disarms the text tool; the
   // next drag on the canvas draws the shape.
   const armVector = useCallback((kind: VectorKind) => {
@@ -439,8 +459,16 @@ export default function App() {
       setEditingText(null);
       setStackSelected(false);
       setVectorTool(null);
+      // Guided practice: pin the callout to the new shape whenever
+      // the user is inside the practice demo (initial pick OR another
+      // pick during the place-element step). Also advances scene from
+      // demo-5 to demo-6 if needed.
+      if (scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element') {
+        setCalloutShape(key);
+        if (scene === 'demo-5-insert-highlighted') setScene('demo-6-place-element');
+      }
     },
-    [],
+    [scene],
   );
   // Path is committed once the user closes it (clicking the first point) or
   // finishes it open (clicking the last point). Default look: thin grey
@@ -459,7 +487,11 @@ export default function App() {
     setStackSelected(false);
     setVectorTool(null);
     setPathDraft([]);
-  }, []);
+    if (scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element') {
+      setCalloutShape(key);
+      if (scene === 'demo-5-insert-highlighted') setScene('demo-6-place-element');
+    }
+  }, [scene]);
   const addPathPoint = useCallback((p: Pt) => {
     setPathDraft(prev => [...prev, p]);
   }, []);
@@ -1194,7 +1226,10 @@ export default function App() {
   const showDemoTint =
     scene === 'demo-1-stack-highlighted' ||
     (scene === 'demo-2-cursor' && !stackTutorialDisabled) ||
-    scene === 'demo-5-insert-highlighted' ||
+    // demo-5 also dims the canvas EXCEPT when a vector or text tool
+    // is armed — the user is about to draw, so the canvas needs to
+    // be reachable.
+    (scene === 'demo-5-insert-highlighted' && !vectorTool && !textMode) ||
     scene === 'demo-7-layout-prompt' ||
     (scene === 'demo-7-layout-panel' && !layoutTouched);
   const showStackTutorial = scene === 'stack-tutorial-modal';
@@ -1217,6 +1252,8 @@ export default function App() {
           demoElements={demoElements}
           selectedEl={selectedEl}
           calloutEl={calloutEl}
+          calloutShape={calloutShape}
+          calloutText={calloutText}
           onSelectEl={selectEl}
           onMoveElement={moveElement}
           onDropElementInStack={dropElementInStack}
