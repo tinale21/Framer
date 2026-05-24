@@ -32,6 +32,7 @@ type Props = InsertProps & {
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
   stackSelected: boolean;
+  selectedEl: number | null;
   selectedShapeEl: VectorEl | null;
   onSetShapeFill: (key: number, fill: VectorFill) => void;
   onSetShapeStroke: (key: number, stroke: VectorStroke) => void;
@@ -67,7 +68,7 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected,
+  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected, selectedEl,
   selectedShapeEl, onSetShapeFill, onSetShapeStroke,
   selectedTextEl, onSetTextStyle,
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
@@ -76,13 +77,21 @@ export default function RightSidebar({
   recommendationKinds, onApplyRecommendation, onUnhelpfulRecommendation,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
-  // With no remaining issues it switches to the Recommendation view.
+  // With no remaining issues it switches to the Recommendation view —
+  // unless the user has selected something on the canvas (a shape /
+  // text / stack / free element), in which case the recommendation
+  // panel yields to the normal selection panels so users can edit
+  // what they just selected without having to close the editor first.
   if (editorOpen) {
     if (issues.length === 0) {
-      return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
-    }
-    return (
-      <EditorPanel
+      const somethingSelected = !!(selectedShapeEl || selectedTextEl || stackSelected || selectedEl !== null);
+      if (!somethingSelected) {
+        return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
+      }
+      // fall through to the selection-based panels below
+    } else {
+      return (
+        <EditorPanel
         issues={issues}
         currentIdx={currentIssueIdx}
         previewedFixIdx={previewedFixIdx}
@@ -96,6 +105,7 @@ export default function RightSidebar({
         onOpenSettings={onOpenEditorSettings}
       />
     );
+    }
   }
   if (selectedShapeEl || selectedTextEl || stackSelected || FORCE_PROPS_SCENES.includes(scene)) {
     return (

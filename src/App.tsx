@@ -703,9 +703,20 @@ export default function App() {
   }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
-  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
-  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
-  const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
+  // Tapping on the canvas / workspace while the recommendation panel
+  // is open closes the editor so the right sidebar falls back to the
+  // Insert panel. (The recommendation panel is what shows when editor
+  // is open + no issues remain — when issues exist, the editor panel
+  // is doing real fix-this-now work and keeps precedence.)
+  const closeRecPanelIfShowing = () => {
+    if (editorOpen && visibleIssues.length === 0) {
+      setEditorOpen(false);
+      setPreviewedFixIdx(null);
+    }
+  };
+  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); closeRecPanelIfShowing(); };
+  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); closeRecPanelIfShowing(); };
+  const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); closeRecPanelIfShowing(); };
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   const selectedShapeEl: VectorEl | null = selectedShape !== null
@@ -1232,6 +1243,7 @@ export default function App() {
           onLayoutChange={changeLayout}
           layoutTouched={layoutTouched}
           stackSelected={stackSelected}
+          selectedEl={selectedEl}
           selectedShapeEl={selectedShapeEl}
           onSetShapeFill={setShapeFill}
           onSetShapeStroke={setShapeStroke}
