@@ -2475,6 +2475,111 @@ select.typo__field {
   font-family: inherit;
 }
 
+/* Recommendation panel — shown in the right sidebar when the Editor
+   is open with no remaining issues. Mirrors the user's reference SVG. */
+.rec-subtitle {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #666;
+  margin-top: 4px;
+}
+.rec-category {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+}
+.rec-resources-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px;
+}
+.rec-see-all { color: #0099ff; font-size: 12px; text-decoration: none; }
+.rec-see-all:hover { text-decoration: underline; }
+.rec-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.rec-card {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f4f4f4;
+}
+.rec-card__preview {
+  position: relative;
+  height: 96px;
+  padding: 14px;
+  color: #ffffff;
+  overflow: hidden;
+}
+.rec-card__preview--triangles {
+  background:
+    linear-gradient(135deg, #ff7a7a 0%, transparent 40%),
+    linear-gradient(225deg, #6fbcff 0%, transparent 40%),
+    linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
+}
+.rec-card__preview--shapes3d {
+  background: linear-gradient(135deg, #1f1340 0%, #3b237a 100%);
+}
+.rec-card__preview--rich {
+  background: linear-gradient(135deg, #ffe4e1 0%, #ffd9c6 100%);
+}
+.rec-card__preview--effects {
+  background: linear-gradient(135deg, #1c2a7a 0%, #4c2db8 100%);
+}
+.rec-card__preview-label {
+  font-size: 13px; font-weight: 700;
+  background: linear-gradient(90deg, #ffd84d, #ff6b9b, #6fbcff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.rec-card__preview-sub { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+.rec-card__preview-title {
+  font-size: 16px; font-weight: 700; line-height: 1.15;
+}
+.rec-card__preview-title--dark { color: #1a1a1a; }
+.rec-card__avatar {
+  position: absolute;
+  left: 14px;
+  top: 80px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff79c6, #ff4d9a);
+  border: 2px solid #ffffff;
+}
+.rec-card__body {
+  background: #f4f4f4;
+  padding: 18px 14px 12px;
+}
+.rec-card__row { display: flex; align-items: center; justify-content: space-between; }
+.rec-card__title { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.rec-card__bookmark {
+  background: none; border: none; cursor: pointer; color: #444; padding: 2px;
+}
+.rec-card__meta {
+  display: flex; gap: 14px;
+  margin-top: 6px;
+  font-size: 12px; color: #555;
+}
+.rec-card__meta span { display: inline-flex; align-items: center; gap: 4px; }
+.rec-card__tags { display: flex; gap: 6px; margin-top: 10px; }
+.rec-card__tag {
+  background: #d6d6d6;
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 14px;
+  padding: 3px 10px;
+}
+.rec-helpful {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: #1a1a1a;
+  margin-top: 8px;
+}
+.rec-helpful__actions { display: flex; gap: 12px; }
+.rec-helpful__actions button {
+  background: none; border: none; color: #0099ff; font-size: 13px; font-weight: 500;
+  cursor: pointer; padding: 4px 2px; font-family: inherit;
+}
+.rec-helpful__actions button:hover { text-decoration: underline; }
+
 /* Element hover popout — uses the same frame size as the Grid popup
    but renders the Elements SVG (with embedded image previews) and
    scrolls when the SVG overflows the frame height */

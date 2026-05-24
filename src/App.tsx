@@ -849,12 +849,16 @@ export default function App() {
   // currently previewed on the canvas.
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
+  // Kinds the user has applied at least one fix for. Drives which
+  // categories the Recommendation panel shows once issues hit zero.
+  const [recommendationKinds, setRecommendationKinds] = useState<Set<'Vectors' | 'Text'>>(new Set());
   const [currentIssueIdx, setCurrentIssueIdx] = useState(0);
   const [previewedFixIdx, setPreviewedFixIdx] = useState<number | null>(null);
   // Clamp the issue index when the list shrinks (e.g. after Apply / Ignore).
   if (currentIssueIdx > 0 && currentIssueIdx >= visibleIssues.length) setCurrentIssueIdx(Math.max(0, visibleIssues.length - 1));
-  // Close the editor entirely when no visible issues remain.
-  if (editorOpen && visibleIssues.length === 0 && previewedFixIdx === null) setEditorOpen(false);
+  // When no issues remain, the editor stays open and switches to the
+  // Recommendation view (RightSidebar handles the swap); only an
+  // explicit close from the user dismisses the panel.
   const currentIssue = visibleIssues[currentIssueIdx] ?? null;
 
   // The shapes / texts Canvas renders — with the previewed fix overlaid.
@@ -904,6 +908,10 @@ export default function App() {
   }, [visibleIssues.length]);
   const applyPreview = useCallback(() => {
     if (!currentIssue || previewedFixIdx === null) return;
+    // Remember which kinds of target we've fixed so the Recommendation
+    // panel only surfaces the relevant categories (Vectors / Text).
+    const recKind: 'Vectors' | 'Text' = currentIssue.targetKind === 'text' ? 'Text' : 'Vectors';
+    setRecommendationKinds(prev => prev.has(recKind) ? prev : new Set(prev).add(recKind));
     if (currentIssue.kind === 'spelling' || currentIssue.kind === 'grammar') {
       const suggestion = currentIssue.suggestions![previewedFixIdx];
       setTexts(prev => prev.map(t => (
@@ -1061,6 +1069,7 @@ export default function App() {
           onIgnoreAll={ignoreCurrentAll}
           onAddToExceptions={addCurrentToExceptions}
           onOpenEditorSettings={() => setEditorSettingsOpen(true)}
+          recommendationKinds={recommendationKinds}
         />
       </div>
       <BottomToolbar

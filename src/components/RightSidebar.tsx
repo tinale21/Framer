@@ -4,6 +4,7 @@ import type {
   TextEl,
 } from '../types';
 import EditorPanel from './EditorPanel';
+import RecommendationPanel from './RecommendationPanel';
 import {
   IconBase, IconGrid, IconText, IconVector, IconElement, IconComponent,
   ComponentBadge, Chevron,
@@ -48,6 +49,7 @@ type Props = InsertProps & {
   onIgnoreAll: () => void;
   onAddToExceptions: () => void;
   onOpenEditorSettings: () => void;
+  recommendationKinds: Set<'Vectors' | 'Text'>;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -69,9 +71,14 @@ export default function RightSidebar({
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
   onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenEditorSettings,
+  recommendationKinds,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
+  // With no remaining issues it switches to the Recommendation view.
   if (editorOpen) {
+    if (issues.length === 0) {
+      return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} />;
+    }
     return (
       <EditorPanel
         issues={issues}
