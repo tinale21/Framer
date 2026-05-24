@@ -697,8 +697,8 @@ export default function App() {
   }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
-  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); };
-  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); };
+  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); };
+  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); };
   const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); };
   const toggleDarkMode = () => setDarkMode(d => !d);
 
