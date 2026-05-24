@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { shapeBox } from '../types';
 import type { Scene, SceneSetter, DemoEl, TextEl, TextRun, LayoutOpts, VectorKind, VectorEl, Pt } from '../types';
 import type { RunHighlight } from '../textRuns';
@@ -91,6 +91,12 @@ type Props = {
   // Pattern ids that have already been torn off — ComponentSvg hides
   // the matching rects in the inline SVG so torn shapes don't reappear.
   extractedPatterns?: Set<string>;
+  // Selected cell within the active recommendation component.
+  // Selection is decoupled from tear-off: a click-without-drag on a
+  // cell selects it (handles render around the cell); a drag tears
+  // off a free copy and clears the selection.
+  selectedCellId?: string | null;
+  onSelectCell?: (id: string | null) => void;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter; stackTutorialDisabled?: boolean };
 
@@ -153,6 +159,8 @@ export default function Canvas({
   onAddPathPoint,
   onExtractComponentShape,
   extractedPatterns,
+  selectedCellId,
+  onSelectCell,
 }: Props) {
   // The early demo steps dim the frame chrome.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
@@ -815,19 +823,48 @@ export default function Canvas({
   // yet — we ask App to create it and hand back the new key. The
   // spawn width matches the source rect's measured on-canvas size so
   // the torn copy looks 1:1 with the cell the user grabbed.
+  // Two-phase gesture on a recommendation-component cell:
+  //   - mousedown alone (no movement past DRAG_THRESHOLD) → select
+  //     the cell within the component so resize handles render
+  //     around it. Same deselect rules as any other selection.
+  //   - mousedown + drag past threshold → tear off a free copy at
+  //     the cursor and start dragging it (matches Figma).
+  // The actual decision is deferred to mousemove/mouseup so the user
+  // gets a clean click-vs-drag distinction.
   const handleComponentShapeMouseDown = (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => {
     e.stopPropagation();
     const fc = frameCardRef.current;
     if (!fc || !onExtractComponentShape) return;
-    const fr = fc.getBoundingClientRect();
-    const w = rect.width / scale;
-    const h = rect.height / scale;
-    // Center the copy on the cursor so the grab feels anchored.
-    const gx = (e.clientX - fr.left) / scale - w / 2;
-    const gy = (e.clientY - fr.top) / scale - h / 2;
-    const key = onExtractComponentShape(href, gx, gy, w, patternId);
-    elementGrabRef.current = { gx, gy, sx: e.clientX, sy: e.clientY, moved: false, fromStack: false };
-    setDraggingKey(key);
+    const sx = e.clientX, sy = e.clientY;
+    let consumed = false;
+    const cleanup = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (consumed) return;
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < DRAG_THRESHOLD) return;
+      consumed = true;
+      cleanup();
+      const fr = fc.getBoundingClientRect();
+      const w = rect.width / scale;
+      const h = rect.height / scale;
+      const gx = (ev.clientX - fr.left) / scale - w / 2;
+      const gy = (ev.clientY - fr.top) / scale - h / 2;
+      const key = onExtractComponentShape(href, gx, gy, w, patternId);
+      // moved:true so the existing free-element drag effect treats
+      // this as already-dragging rather than firing onSelectEl on up.
+      elementGrabRef.current = { gx, gy, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
+      setDraggingKey(key);
+      onSelectCell?.(null);
+    };
+    const onUp = () => {
+      if (consumed) return;
+      cleanup();
+      onSelectCell?.(patternId);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
   // Press on a placed shape. With a box tool armed it starts a new draw; with
@@ -1304,7 +1341,7 @@ export default function Canvas({
               'demo-element' +
               (draggingKey === el.key ? ' demo-element--dragging' : '') +
               (selectedEl === el.key ? ' demo-element--selected' : '') +
-              (el.id === 'recommendation' || el.id === 'recommendation-shape' ? ' demo-element--component' : '') +
+              (el.id === 'recommendation' || el.id === 'recommendation-shape' || el.id === 'recommendation-triangles' ? ' demo-element--component' : '') +
               (el.id === 'recommendation-shape' ? ' demo-element--component-shape' : '')
             }
             style={{
@@ -1323,6 +1360,13 @@ export default function Canvas({
                 src={el.src}
                 onShapeMouseDown={handleComponentShapeMouseDown}
                 hiddenPatterns={extractedPatterns}
+                selectedCellId={selectedCellId}
+              />
+            ) : el.id === 'recommendation-triangles' ? (
+              <TrianglesGrid
+                onShapeMouseDown={handleComponentShapeMouseDown}
+                hiddenPatterns={extractedPatterns}
+                selectedCellId={selectedCellId}
               />
             ) : (
               <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
@@ -1538,22 +1582,26 @@ function EditableText({
   );
 }
 
-// Cache of fetched SVG texts + the pattern→image map, keyed by asset
-// path. Building the map is fast once we have the SVG text but
-// fetching the 14MB asset is heavy, so we hold onto it for life.
+// Cache of fetched SVG texts + the per-cell tear-off data, keyed by
+// asset path. Each cell's entry is the data URL the tear-off <img>
+// will use as src — either a base64 PNG (pattern-based assets, e.g.
+// 3D Shapes) or an inline-encoded SVG (clip-group-based assets, e.g.
+// Triangle). Parsing is fast but fetching the multi-MB asset is heavy,
+// so we hold onto it for life.
 const svgTextCache = new Map<string, string>();
-const patternImgCache = new Map<string, Record<string, string>>();
+const tearMapCache = new Map<string, Record<string, string>>();
 
-// Renders a recommendation-component asset (e.g. the 3D Shapes pack)
-// as inline SVG so individual <rect>s with pattern fills can take
-// pointer events. A mousedown on a pattern-filled rect bubbles up
-// here, we resolve the rect's pattern to its embedded base64 PNG, and
-// hand the event + href to Canvas, which spawns + starts dragging a
-// free copy in one motion (Figma-style instance tear-off).
-function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns }: {
+// Renders a recommendation-component asset as inline SVG so each
+// cell can take pointer events. A mousedown on a tearable cell
+// (either a <rect fill="url(#patternX)"> or a <g clip-path="url(#clipX)">)
+// resolves to a data URL for that cell and hands it + the event up
+// to Canvas, which spawns + drags a free copy in one motion
+// (Figma-style instance tear-off).
+function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }: {
   src: string;
   onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => void;
   hiddenPatterns?: Set<string>;
+  selectedCellId?: string | null;
 }) {
   const [svg, setSvg] = useState<string | null>(svgTextCache.get(src) ?? null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -1570,52 +1618,191 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns }: {
   }, [src, svg]);
 
   useEffect(() => {
-    if (!svg || patternImgCache.has(src)) return;
-    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
-    const hrefOf = (el: Element | null): string => {
-      if (!el) return '';
-      return el.getAttribute('href') || el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
-    };
-    // Patterns reference images via `<use xlink:href="#imageN">`. Walk
-    // pattern → use → image to get the base64 PNG for that shape.
-    const map: Record<string, string> = {};
-    doc.querySelectorAll('pattern').forEach(p => {
-      const id = p.getAttribute('id');
-      if (!id) return;
-      const child = p.querySelector('image, use');
-      if (!child) return;
-      let href = hrefOf(child);
-      if (child.tagName === 'use' && href.startsWith('#')) {
-        const ref = doc.getElementById(href.slice(1));
-        href = hrefOf(ref);
-      }
-      if (href) map[id] = href;
+    if (!svg) return;
+    const wrap = wrapRef.current;
+    // Build the tear-map (idempotent across mounts) from a fresh
+    // DOMParser parse so subsequent mutations to the rendered SVG
+    // don't leak into the cached tear-off markup.
+    if (!tearMapCache.has(src)) {
+      const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      const hrefOf = (el: Element | null): string => {
+        if (!el) return '';
+        return el.getAttribute('href') || el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
+      };
+      const map: Record<string, string> = {};
+
+      // Pattern-based assets (3D Shapes): patterns reference images
+      // via <use xlink:href="#imageN">. Walk pattern → use → image to
+      // get the base64 PNG for that shape.
+      doc.querySelectorAll('pattern').forEach(p => {
+        const id = p.getAttribute('id');
+        if (!id) return;
+        const child = p.querySelector('image, use');
+        if (!child) return;
+        let href = hrefOf(child);
+        if (child.tagName === 'use' && href.startsWith('#')) {
+          const ref = doc.getElementById(href.slice(1));
+          href = hrefOf(ref);
+        }
+        if (href) map[id] = href;
+      });
+
+      // Clip-group assets (Triangle): each <g clip-path="url(#clipN)">
+      // is a cell. Build a standalone mini-SVG per cell — viewBox set
+      // to the clipPath's translated rect bounds.
+      doc.querySelectorAll('g[clip-path]').forEach(g => {
+        const cp = g.getAttribute('clip-path') || '';
+        const m = cp.match(/url\(#([^)]+)\)/);
+        if (!m) return;
+        const clipId = m[1];
+        const clip = doc.getElementById(clipId);
+        const cr = clip?.querySelector('rect');
+        if (!cr) return;
+        const tr = cr.getAttribute('transform') || '';
+        const trM = tr.match(/translate\(\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)/);
+        const x = trM ? +trM[1] : +(cr.getAttribute('x') || 0);
+        const y = trM ? +trM[2] : +(cr.getAttribute('y') || 0);
+        const w = +(cr.getAttribute('width') || 0);
+        const h = +(cr.getAttribute('height') || 0);
+        if (!w || !h) return;
+        const tear =
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${w}" height="${h}">` +
+          `<defs>${clip.outerHTML}</defs>` +
+          g.outerHTML +
+          `</svg>`;
+        map[clipId] = `data:image/svg+xml;utf8,${encodeURIComponent(tear)}`;
+      });
+
+      tearMapCache.set(src, map);
+    }
+
+    // Inject a full-cell transparent hit overlay into each clip group
+    // in the rendered SVG. By default an SVG <g> only catches clicks
+    // where its child paths are actually painted, so users couldn't
+    // grab a sparse shape unless they clicked exactly on it. The
+    // overlay rect uses pointer-events="all" so the whole cell is
+    // grabbable. Marked once via data-hit-injected to stay idempotent.
+    if (!wrap) return;
+    wrap.querySelectorAll('g[clip-path]:not([data-hit-injected])').forEach(g => {
+      const cp = g.getAttribute('clip-path') || '';
+      const m = cp.match(/url\(#([^)]+)\)/);
+      if (!m) return;
+      const cr = wrap.querySelector(`clipPath#${m[1]} rect`);
+      if (!cr) return;
+      const tr = cr.getAttribute('transform') || '';
+      const trM = tr.match(/translate\(\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)/);
+      const x = trM ? +trM[1] : +(cr.getAttribute('x') || 0);
+      const y = trM ? +trM[2] : +(cr.getAttribute('y') || 0);
+      const w = +(cr.getAttribute('width') || 0);
+      const h = +(cr.getAttribute('height') || 0);
+      if (!w || !h) return;
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      hit.setAttribute('x', String(x));
+      hit.setAttribute('y', String(y));
+      hit.setAttribute('width', String(w));
+      hit.setAttribute('height', String(h));
+      hit.setAttribute('fill', 'transparent');
+      hit.setAttribute('pointer-events', 'all');
+      g.appendChild(hit);
+      g.setAttribute('data-hit-injected', '1');
     });
-    patternImgCache.set(src, map);
+
+    // Some assets have shapes as top-level <path> elements rather than
+    // inside <g clip-path> cells. Promote each such path to its own
+    // tear unit: tag with data-tear-id, build a mini-SVG keyed by
+    // that id, and pad each path's own bbox so even sparse paths are
+    // easy to grab (we ignore other paths' bboxes — a little overlap
+    // is fine, the click handler picks the topmost tear-id ancestor).
+    const root = wrap.querySelector('svg');
+    if (root) {
+      const map = tearMapCache.get(src) ?? {};
+      let idx = 0;
+      root.querySelectorAll(':scope > path').forEach(p => {
+        const path = p as SVGPathElement;
+        if (path.hasAttribute('data-tear-id')) return;
+        const id = `tear-path-${idx++}`;
+        path.setAttribute('data-tear-id', id);
+        // Make the whole bbox grabbable, not just the painted pixels.
+        path.setAttribute('pointer-events', 'bounding-box');
+        let b: { x: number; y: number; width: number; height: number };
+        try { b = path.getBBox(); } catch { return; }
+        if (!b.width || !b.height) return;
+        const tear =
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.x} ${b.y} ${b.width} ${b.height}" width="${b.width}" height="${b.height}">` +
+          path.outerHTML +
+          `</svg>`;
+        map[id] = `data:image/svg+xml;utf8,${encodeURIComponent(tear)}`;
+      });
+      tearMapCache.set(src, map);
+    }
   }, [svg, src]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    const t = (e.target as Element).closest('rect');
-    if (!t) return;
-    const fill = t.getAttribute('fill') || '';
-    const m = fill.match(/url\(#([^)]+)\)/);
-    if (!m) return;
-    const href = patternImgCache.get(src)?.[m[1]];
-    // Only intercept when we actually matched a pattern-filled rect; a
-    // mousedown on whitespace falls through so the parent component
-    // can still be dragged as a whole.
-    if (href) onShapeMouseDown?.(e, href, t.getBoundingClientRect(), m[1]);
+    const target = e.target as Element;
+    // Walk to the nearest tearable ancestor. Tear units are one of:
+    //   - <rect fill="url(#patternX)">         (3D Shapes)
+    //   - <g clip-path="url(#clipX)">          (Triangle clip cells)
+    //   - <path data-tear-id="...">            (Triangle standalone shapes)
+    const rect = target.closest('rect[fill^="url"]') as Element | null;
+    const group = !rect ? (target.closest('g[clip-path]') as Element | null) : null;
+    const path = !rect && !group ? (target.closest('[data-tear-id]') as Element | null) : null;
+    let id: string | null = null;
+    let measureEl: Element | null = null;
+    if (rect) {
+      const m = (rect.getAttribute('fill') || '').match(/url\(#([^)]+)\)/);
+      id = m?.[1] ?? null; measureEl = rect;
+    } else if (group) {
+      const m = (group.getAttribute('clip-path') || '').match(/url\(#([^)]+)\)/);
+      id = m?.[1] ?? null; measureEl = group;
+    } else if (path) {
+      id = path.getAttribute('data-tear-id'); measureEl = path;
+    }
+    if (!id || !measureEl) return;
+    const href = tearMapCache.get(src)?.[id];
+    if (!href) return;
+    onShapeMouseDown?.(e, href, measureEl.getBoundingClientRect(), id);
   };
 
   // Hide torn-off cells via a sibling <style> block rather than
   // mutating the SVG DOM directly — the SVG is mounted via innerHTML
   // and React can re-apply that HTML out from under any inline styles
-  // we'd set, but a declarative <style> always wins.
+  // we'd set, but a declarative <style> always wins. Emit both
+  // pattern- and clip-style selectors per id; only one matches per
+  // asset, the other is inert.
   const hideCss = hiddenPatterns && hiddenPatterns.size > 0
     ? [...hiddenPatterns]
-        .map(id => `.demo-element__svg rect[fill="url(#${id})"]{visibility:hidden}`)
+        .map(id =>
+          `.demo-element__svg rect[fill="url(#${id})"]{visibility:hidden}` +
+          `.demo-element__svg g[clip-path="url(#${id})"]{visibility:hidden}` +
+          `.demo-element__svg [data-tear-id="${id}"]{visibility:hidden}`)
         .join('')
     : '';
+
+  // Position of the currently-selected cell as a CSS-pixel rect
+  // (pre-transform), relative to the wrap div. Recomputed whenever
+  // the selection changes so handles render at the cell's corners
+  // even though the cell itself lives inside an inline SVG.
+  const [cellRect, setCellRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || !selectedCellId) { setCellRect(null); return; }
+    const id = selectedCellId;
+    let cell = wrap.querySelector(`rect[fill="url(#${id})"]`) as Element | null;
+    if (!cell) cell = wrap.querySelector(`g[clip-path="url(#${id})"]`);
+    if (!cell) cell = wrap.querySelector(`[data-tear-id="${id}"]`);
+    if (!cell) { setCellRect(null); return; }
+    const wr = wrap.getBoundingClientRect();
+    const cr = cell.getBoundingClientRect();
+    // wrap is rendered through the frame-card's transform; offsetWidth
+    // is the pre-transform CSS width, so this ratio backs that out.
+    const s = wr.width / (wrap.offsetWidth || 1);
+    setCellRect({
+      left: (cr.left - wr.left) / s,
+      top: (cr.top - wr.top) / s,
+      width: cr.width / s,
+      height: cr.height / s,
+    });
+  }, [selectedCellId, svg]);
 
   if (!svg) return null;
   return (
@@ -1627,7 +1814,70 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns }: {
         onMouseDown={onMouseDown}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
+      {cellRect && (
+        <div
+          className="component-cell-select"
+          style={{
+            position: 'absolute',
+            left: cellRect.left,
+            top: cellRect.top,
+            width: cellRect.width,
+            height: cellRect.height,
+            pointerEvents: 'none',
+          }}
+        >
+          <span className="tri-cell__handle tri-cell__handle--tl" />
+          <span className="tri-cell__handle tri-cell__handle--tr" />
+          <span className="tri-cell__handle tri-cell__handle--bl" />
+          <span className="tri-cell__handle tri-cell__handle--br" />
+        </div>
+      )}
     </>
+  );
+}
+
+// 9 individual triangle SVGs laid out as a 3x3 CSS grid. Each cell is
+// its own clean SVG so click targeting is rock-solid — no path-vs-svg
+// hit-testing weirdness. Tear-off reuses the same handler ComponentSvg
+// uses for pattern/clip cells, so torn copies behave identically.
+const TRIANGLE_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8', '10'];
+
+function TrianglesGrid({ onShapeMouseDown, hiddenPatterns, selectedCellId }: {
+  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, id: string) => void;
+  hiddenPatterns?: Set<string>;
+  selectedCellId?: string | null;
+}) {
+  return (
+    <div className="demo-element__tri-grid">
+      {TRIANGLE_NAMES.map(n => {
+        const id = `tri-${n}`;
+        const src = `${import.meta.env.BASE_URL}recs/triangles/triangle_${n}.svg`;
+        const hidden = hiddenPatterns?.has(id);
+        const selected = selectedCellId === id;
+        return (
+          <div
+            key={n}
+            className={'tri-cell' + (selected ? ' tri-cell--selected' : '')}
+            style={hidden ? { visibility: 'hidden' } : undefined}
+            onMouseDown={e => {
+              if (hidden) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              onShapeMouseDown?.(e, src, r, id);
+            }}
+          >
+            <img src={src} alt="" className="tri-cell__img" draggable={false} />
+            {selected && (
+              <>
+                <span className="tri-cell__handle tri-cell__handle--tl" />
+                <span className="tri-cell__handle tri-cell__handle--tr" />
+                <span className="tri-cell__handle tri-cell__handle--bl" />
+                <span className="tri-cell__handle tri-cell__handle--br" />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

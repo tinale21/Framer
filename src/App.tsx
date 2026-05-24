@@ -269,6 +269,11 @@ export default function App() {
   const [vectorTool, setVectorTool] = useState<VectorKind | null>(null);
   const [shapes, setShapes] = useState<VectorEl[]>([]);
   const [selectedShape, setSelectedShape] = useState<number | null>(null);
+  // Which cell inside the active recommendation component is currently
+  // selected (so handles render around just that cell, not the whole
+  // component). Null = nothing selected. Cleared by the same click-out
+  // helpers that clear other selections.
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const shapeKeyRef = useRef(0);
   // Path tool: in-progress anchor points while drafting (click to add). Lives
   // in App so the keydown handler can pop the last point on Delete.
@@ -697,9 +702,9 @@ export default function App() {
   }, [layoutTouched, scene]);
   const homeExpanded = selection !== 'none';
   const toggleHome = () => setSelection(s => (s === 'none' ? 'frame' : 'none'));
-  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); };
-  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); };
-  const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); };
+  const selectFrame = () => { setSelection('frame'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
+  const selectCanvas = () => { setSelection('canvas'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
+  const deselect = () => { setSelection('none'); setStackSelected(false); setSelectedShape(null); setSelectedEl(null); setSelectedCellId(null); };
   const toggleDarkMode = () => setDarkMode(d => !d);
 
   const selectedShapeEl: VectorEl | null = selectedShape !== null
@@ -859,6 +864,20 @@ export default function App() {
   const applyRecommendation = useCallback((asset: string | null) => {
     if (!asset) return;
     const key = elKeyRef.current++;
+    // The triangles pack is a CSS grid of 9 individual SVG files
+    // rather than one composite SVG with parsed cells — Canvas renders
+    // a TrianglesGrid when it sees id === 'recommendation-triangles'.
+    if (asset === 'triangles-grid') {
+      setDemoElements(prev => [...prev, {
+        key,
+        id: 'recommendation-triangles',
+        x: 240,
+        y: 220,
+        width: 360,
+        inStack: false,
+      }]);
+      return;
+    }
     setDemoElements(prev => [...prev, {
       key,
       id: 'recommendation',
@@ -1083,6 +1102,8 @@ export default function App() {
           onAddPathPoint={addPathPoint}
           onExtractComponentShape={extractComponentShape}
           extractedPatterns={extractedPatterns}
+          selectedCellId={selectedCellId}
+          onSelectCell={setSelectedCellId}
         />
         <RightSidebar
           scene={scene}

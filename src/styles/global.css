@@ -2606,6 +2606,53 @@ select.typo__field {
 }
 .demo-element__svg svg { display: block; width: 100%; height: auto; }
 .demo-element__svg rect[fill^="url"] { cursor: pointer; }
+/* Triangles "pack" — 3x3 grid of individual SVGs that each tear off
+   as a single shape. Treat the wrapper like .demo-element__svg so it
+   picks up the purple-outline component styling automatically. */
+.demo-element--component .demo-element__tri-grid {
+  box-shadow: none;
+  border-radius: 0;
+  outline: 1.5px solid #9d4edd;
+  outline-offset: 1px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  padding: 22px;
+  background: transparent;
+}
+.tri-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+.tri-cell:active { cursor: grabbing; }
+.tri-cell__img {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+/* Selection ring + corner handles when a cell is tapped (not dragged).
+   Matches the look of the free-element handles. */
+.tri-cell--selected,
+.component-cell-select { outline: 1px solid #9d4edd; outline-offset: 1px; }
+.tri-cell__handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border: 1.5px solid #9d4edd;
+  border-radius: 50%;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.tri-cell__handle--tl { top: -5px; left: -5px; }
+.tri-cell__handle--tr { top: -5px; right: -5px; }
+.tri-cell__handle--bl { bottom: -5px; left: -5px; }
+.tri-cell__handle--br { bottom: -5px; right: -5px; }
 .rec-card--clickable:hover .rec-card__body { background: #eaeaea; }
 
 /* Element hover popout — uses the same frame size as the Grid popup
