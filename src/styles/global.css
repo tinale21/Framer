@@ -2761,17 +2761,22 @@ select.typo__field {
 /* The completion modal borrows the "Using Stacks" modal's padding rule. */
 .modal--completed { max-width: 550px; padding: 32px 28px 24px; border-radius: 9px; }
 .modal--completed .btn { padding: 8px 15px; font-size: 13px; }
-.modal--overlays { max-width: 335px; }
+.modal--overlays,
 .modal--editor-settings {
-  max-width: 330px;
   padding: 22px 22px 18px;
   border-radius: 10px;
 }
+.modal--overlays { max-width: 335px; }
+.modal--editor-settings { max-width: 330px; }
+.modal--overlays .modal__title,
 .modal--editor-settings .modal__title { font-size: 18px; margin-bottom: 14px; }
+.modal--overlays .modal__close,
 .modal--editor-settings .modal__close { top: 14px; right: 14px; }
-/* Save button matches the Tutorial Overlays modal: tighter padding +
-   smaller font; extra top spacing pushes it away from the tree. */
+/* Tighter Save button + extra top spacing so the footer sits below
+   the content block (matches both modals). */
+.modal--overlays .modal__footer,
 .modal--editor-settings .modal__footer { margin-top: 22px; }
+.modal--overlays .modal__footer .btn,
 .modal--editor-settings .modal__footer .btn { padding: 8px 15px; font-size: 13px; }
 .es-tree { max-height: 460px; overflow-y: auto; padding-right: 4px; }
 .es-row {
