@@ -241,6 +241,11 @@ export default function Canvas({
     { x: number; y: number; w: number; h: number } | null
   >(null);
   const resizeJustEndedRef = useRef(false);
+  // Set when a drag-out from a recommendation component cell ends —
+  // the mouseup happens on canvas-content (since the drag finishes
+  // outside the source cell), which would otherwise fire a synthetic
+  // click → selectCanvas → close the editor.
+  const tearJustEndedRef = useRef(false);
   const spaceDownRef = useRef(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
   useEffect(() => {
@@ -678,6 +683,7 @@ export default function Canvas({
   const handleSurroundClick = (e: React.MouseEvent) => {
     if (vecDrewRef.current) return; // a vector draw just finished
     if (resizeJustEndedRef.current) return;
+    if (tearJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     if (demoBlocksDeselect || isDragging) return;
@@ -689,6 +695,7 @@ export default function Canvas({
     e.stopPropagation();
     if (vecDrewRef.current) return;
     if (resizeJustEndedRef.current) return;
+    if (tearJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     if (demoBlocksDeselect || isDragging) return;
@@ -700,6 +707,7 @@ export default function Canvas({
     e.stopPropagation();
     if (vecDrewRef.current) return;
     if (resizeJustEndedRef.current) return;
+    if (tearJustEndedRef.current) return;
     if (vectorTool === 'path') { handlePathClickAt(e); return; }
     if (textMode) { placeTextAt(e); return; }
     // Guided demo-6 only clears the element selection; the free variant
@@ -841,6 +849,15 @@ export default function Canvas({
     e.stopPropagation();
     const fc = frameCardRef.current;
     if (!fc || !onExtractComponentShape) return;
+    // Two-step gesture: a cell has to be selected before it can be
+    // torn off. First mousedown on an un-selected cell just selects
+    // it; the user releases and mousedowns again on the now-selected
+    // cell to drag a copy out. (Same rule as the Text Editor rows.)
+    const scoped = `${compKey}:${patternId}`;
+    if (selectedCellId !== scoped) {
+      onSelectCell?.(scoped);
+      return;
+    }
     const sx = e.clientX, sy = e.clientY;
     let consumed = false;
     const cleanup = () => {
@@ -863,6 +880,13 @@ export default function Canvas({
       elementGrabRef.current = { gx, gy, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
       setDraggingKey(key);
       onSelectCell?.(null);
+      // The mouseup that ends this drag will fire a synthetic click
+      // on the common ancestor (canvas-content / frame / surround).
+      // Set the flag at that mouseup so click handlers can skip.
+      window.addEventListener('mouseup', () => {
+        tearJustEndedRef.current = true;
+        window.setTimeout(() => { tearJustEndedRef.current = false; }, 0);
+      }, { once: true });
     };
     const onUp = () => {
       if (consumed) return;
@@ -881,6 +905,15 @@ export default function Canvas({
     e.stopPropagation();
     const fc = frameCardRef.current;
     if (!fc || !onTearTextListItem) return;
+    // Two-step gesture: a row has to be selected before it can be
+    // torn off. First mousedown on an un-selected row just selects
+    // it; the user must release and mousedown again on the now-
+    // selected row to drag it out.
+    const scoped = `${compKey}:${rowId}`;
+    if (selectedCellId !== scoped) {
+      onSelectCell?.(scoped);
+      return;
+    }
     const sx = e.clientX, sy = e.clientY;
     let consumed = false;
     const cleanup = () => {
@@ -901,6 +934,10 @@ export default function Canvas({
       textGrabRef.current = { tx, ty, sx: ev.clientX, sy: ev.clientY, moved: true, fromStack: false };
       setDraggingTextKey(key);
       onSelectCell?.(null);
+      window.addEventListener('mouseup', () => {
+        tearJustEndedRef.current = true;
+        window.setTimeout(() => { tearJustEndedRef.current = false; }, 0);
+      }, { once: true });
     };
     const onUp = () => {
       if (consumed) return;

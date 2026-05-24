@@ -794,6 +794,11 @@ export default function App() {
           });
         }
       }
+      // Bulleted text items dropped from the Text Editor recommendation
+      // start as the placeholder "text"; skip spelling + grammar scans
+      // while it's still the placeholder. Once the user types their
+      // own content, normal scanning resumes.
+      if (t.bullet && t.text === 'text') continue;
       if (editorSettings.spelling) {
         // Spelling: walk each word; words not in our English dictionary
         // (and not acronyms / numbers) become issues with up to 3
@@ -925,9 +930,10 @@ export default function App() {
         id: 'recommendation-triangles',
         x: 240,
         y: 220,
-        width: 360,
+        width: 280,
         inStack: false,
       }]);
+      setSelectedEl(key);
       return;
     }
     // The text-list dropdown is a stack of bulleted-text rows. Rows
@@ -942,6 +948,9 @@ export default function App() {
         width: 200,
         inStack: false,
       }]);
+      // Auto-select on drop so the user sees resize handles and can
+      // start moving the component right away.
+      setSelectedEl(key);
       return;
     }
     // The text-effects "pack" is just the Milk preset now — skip the
@@ -959,10 +968,11 @@ export default function App() {
         weight: 400,
         inStack: false,
       }]);
+      setSelectedText(tkey);
       return;
     }
     // Most components drop at 360px wide (matches the original 3D
-    // Default sized for the 3D Shapes / Triangle assets.
+    // Shapes asset).
     setDemoElements(prev => [...prev, {
       key,
       id: 'recommendation',
@@ -972,6 +982,7 @@ export default function App() {
       inStack: false,
       src: `${import.meta.env.BASE_URL}${asset}`,
     }]);
+    setSelectedEl(key);
   }, []);
 
   // Tear off one row of the text-list dropdown as a new editable
@@ -1253,7 +1264,6 @@ export default function App() {
           onLayoutChange={changeLayout}
           layoutTouched={layoutTouched}
           stackSelected={stackSelected}
-          selectedEl={selectedEl}
           selectedShapeEl={selectedShapeEl}
           onSetShapeFill={setShapeFill}
           onSetShapeStroke={setShapeStroke}

@@ -32,7 +32,6 @@ type Props = InsertProps & {
   onLayoutChange: (next: LayoutOpts) => void;
   layoutTouched: boolean;
   stackSelected: boolean;
-  selectedEl: number | null;
   selectedShapeEl: VectorEl | null;
   onSetShapeFill: (key: number, fill: VectorFill) => void;
   onSetShapeStroke: (key: number, stroke: VectorStroke) => void;
@@ -68,7 +67,7 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected, selectedEl,
+  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected,
   selectedShapeEl, onSetShapeFill, onSetShapeStroke,
   selectedTextEl, onSetTextStyle,
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
@@ -84,8 +83,14 @@ export default function RightSidebar({
   // what they just selected without having to close the editor first.
   if (editorOpen) {
     if (issues.length === 0) {
-      const somethingSelected = !!(selectedShapeEl || selectedTextEl || stackSelected || selectedEl !== null);
-      if (!somethingSelected) {
+      // Rec panel stays until the user picks something with its own
+      // panel (shape / text / stack -> PropsPanel) or clicks off
+      // entirely (closeRecPanelIfShowing in App closes the editor on
+      // canvas/workspace clicks). Free elements — recommendation
+      // component instances AND their torn-off shapes — count as
+      // part of the recommendation interaction and keep the panel.
+      const propsClaim = !!(selectedShapeEl || selectedTextEl || stackSelected);
+      if (!propsClaim) {
         return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
       }
       // fall through to the selection-based panels below
