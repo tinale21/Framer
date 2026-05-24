@@ -3,7 +3,7 @@ import type { Issue } from '../types';
 export default function EditorPanel({
   issues, currentIdx, previewedFixIdx,
   onSelectFix, onPrev, onNext, onClose,
-  onIgnoreOnce, onIgnoreAll, onAddToExceptions,
+  onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenSettings,
 }: {
   issues: Issue[];
   currentIdx: number;
@@ -15,6 +15,7 @@ export default function EditorPanel({
   onIgnoreOnce: () => void;
   onIgnoreAll: () => void;
   onAddToExceptions: () => void;
+  onOpenSettings: () => void;
 }) {
   const total = issues.length;
   const issue = issues[currentIdx] ?? null;
@@ -141,7 +142,7 @@ export default function EditorPanel({
         </div>
       )}
 
-      <button type="button" className="editor-panel__settings">
+      <button type="button" className="editor-panel__settings" onClick={onOpenSettings}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
           strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="8" cy="8" r="2.2" />

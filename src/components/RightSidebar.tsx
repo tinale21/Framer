@@ -47,6 +47,7 @@ type Props = InsertProps & {
   onIgnoreOnce: () => void;
   onIgnoreAll: () => void;
   onAddToExceptions: () => void;
+  onOpenEditorSettings: () => void;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -67,7 +68,7 @@ export default function RightSidebar({
   selectedTextEl, onSetTextStyle,
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
-  onIgnoreOnce, onIgnoreAll, onAddToExceptions,
+  onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenEditorSettings,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
   if (editorOpen) {
@@ -83,6 +84,7 @@ export default function RightSidebar({
         onIgnoreOnce={onIgnoreOnce}
         onIgnoreAll={onIgnoreAll}
         onAddToExceptions={onAddToExceptions}
+        onOpenSettings={onOpenEditorSettings}
       />
     );
   }

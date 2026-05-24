@@ -9,6 +9,7 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
+import EditorSettingsModal, { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from './components/modals/EditorSettingsModal';
 import {
   hexToHsva, hsvaToHex, hsvToHex, hexToRgb, vForContrast, contrastOverWhite,
 } from './components/ColorPicker';
@@ -708,6 +709,11 @@ export default function App() {
     ? texts.find(t => t.key === selectedText) ?? null
     : null;
 
+  // Which issue kinds the Editor should surface. Each toggle in the
+  // Editor Settings modal gates a branch of the scanner below: legibility
+  // controls fill-contrast, spelling / grammar control their checks.
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS);
+
   // Accessibility issues — fill-contrast checks against white for both
   // shape fills and text colors. For each failing target, suggest three
   // fixes (21 / 7 / 4.5), preserving hue + saturation + alpha.
@@ -720,88 +726,98 @@ export default function App() {
         const frgb = hexToRgb(hsvToHex(h, sa, nv));
         return { color, ratio: contrastOverWhite(frgb.r, frgb.g, frgb.b, a) };
       });
-    for (const s of shapes) {
-      if (s.fill === null) continue;
-      const { h, s: sa, v, a } = hexToHsva(s.fill);
-      const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
-      const ratio = contrastOverWhite(r, g, b, a);
-      if (ratio >= 4.5) continue;
-      out.push({
-        id: `${s.kind}-${s.key}`,
-        targetKind: s.kind,
-        targetKey: s.key,
-        kind: 'fill-contrast',
-        currentColor: s.fill,
-        currentRatio: ratio,
-        fixes: buildFixes(h, sa, a),
-      });
-    }
-    for (const t of texts) {
-      // Walk every distinct color in this text — default + any run override —
-      // and emit one issue per failing color so a rich text with two bad
-      // colors surfaces both. Issue id includes the color to keep them apart.
-      const seen = new Set<string>();
-      const colors: string[] = [];
-      const push = (c?: string) => {
-        if (!c) return;
-        const k = c.toLowerCase();
-        if (seen.has(k)) return;
-        seen.add(k); colors.push(c);
-      };
-      push(t.color);
-      if (t.runs) for (const r of t.runs) push(r.color);
-      for (const c of colors) {
-        const { h, s: sa, v, a } = hexToHsva(c);
+    // Fill-contrast is the "legibility" pillar of the accessibility group
+    // in Editor Settings. Skip entirely when the user has turned it off.
+    if (editorSettings.legibility) {
+      for (const s of shapes) {
+        if (s.fill === null) continue;
+        const { h, s: sa, v, a } = hexToHsva(s.fill);
         const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
         const ratio = contrastOverWhite(r, g, b, a);
         if (ratio >= 4.5) continue;
         out.push({
-          id: `text-${t.key}-${c.toLowerCase()}`,
-          targetKind: 'text',
-          targetKey: t.key,
+          id: `${s.kind}-${s.key}`,
+          targetKind: s.kind,
+          targetKey: s.key,
           kind: 'fill-contrast',
-          currentColor: c,
+          currentColor: s.fill,
           currentRatio: ratio,
           fixes: buildFixes(h, sa, a),
         });
       }
-      // Spelling: walk each word; words not in our English dictionary
-      // (and not acronyms / numbers) become issues with up to 3
-      // Levenshtein-distance suggestions.
-      const wordRe = /[a-zA-Z]+/g;
-      let m: RegExpExecArray | null;
-      while ((m = wordRe.exec(t.text)) !== null) {
-        if (!isLikelyMisspelled(m[0])) continue;
-        const suggestions = suggestCorrections(m[0].toLowerCase());
-        if (suggestions.length === 0) continue;
-        out.push({
-          id: `text-spell-${t.key}-${m.index}-${m[0].toLowerCase()}`,
-          targetKind: 'text',
-          targetKey: t.key,
-          kind: 'spelling',
-          word: m[0],
-          offset: m.index,
-          suggestions,
-        });
+    }
+    for (const t of texts) {
+      if (editorSettings.legibility) {
+        // Walk every distinct color in this text — default + any run override —
+        // and emit one issue per failing color so a rich text with two bad
+        // colors surfaces both. Issue id includes the color to keep them apart.
+        const seen = new Set<string>();
+        const colors: string[] = [];
+        const push = (c?: string) => {
+          if (!c) return;
+          const k = c.toLowerCase();
+          if (seen.has(k)) return;
+          seen.add(k); colors.push(c);
+        };
+        push(t.color);
+        if (t.runs) for (const r of t.runs) push(r.color);
+        for (const c of colors) {
+          const { h, s: sa, v, a } = hexToHsva(c);
+          const { r, g, b } = hexToRgb(hsvToHex(h, sa, v));
+          const ratio = contrastOverWhite(r, g, b, a);
+          if (ratio >= 4.5) continue;
+          out.push({
+            id: `text-${t.key}-${c.toLowerCase()}`,
+            targetKind: 'text',
+            targetKey: t.key,
+            kind: 'fill-contrast',
+            currentColor: c,
+            currentRatio: ratio,
+            fixes: buildFixes(h, sa, a),
+          });
+        }
       }
-      // Grammar: rule-based scan — duplicate words, a/an, "of" / "have",
-      // double spaces, missing capitalization, missing space after
-      // punctuation. Each hit becomes its own issue.
-      for (const hit of scanGrammar(t.text)) {
-        out.push({
-          id: `text-grammar-${t.key}-${hit.offset}-${hit.label}`,
-          targetKind: 'text',
-          targetKey: t.key,
-          kind: 'grammar',
-          word: hit.match,
-          offset: hit.offset,
-          suggestions: [hit.replacement],
-          label: hit.label,
-        });
+      if (editorSettings.spelling) {
+        // Spelling: walk each word; words not in our English dictionary
+        // (and not acronyms / numbers) become issues with up to 3
+        // Levenshtein-distance suggestions.
+        const wordRe = /[a-zA-Z]+/g;
+        let m: RegExpExecArray | null;
+        while ((m = wordRe.exec(t.text)) !== null) {
+          if (!isLikelyMisspelled(m[0])) continue;
+          const suggestions = suggestCorrections(m[0].toLowerCase());
+          if (suggestions.length === 0) continue;
+          out.push({
+            id: `text-spell-${t.key}-${m.index}-${m[0].toLowerCase()}`,
+            targetKind: 'text',
+            targetKey: t.key,
+            kind: 'spelling',
+            word: m[0],
+            offset: m.index,
+            suggestions,
+          });
+        }
+      }
+      if (editorSettings.grammar) {
+        // Grammar: rule-based scan — duplicate words, a/an, "of" / "have",
+        // double spaces, missing capitalization, missing space after
+        // punctuation. Each hit becomes its own issue.
+        for (const hit of scanGrammar(t.text)) {
+          out.push({
+            id: `text-grammar-${t.key}-${hit.offset}-${hit.label}`,
+            targetKind: 'text',
+            targetKey: t.key,
+            kind: 'grammar',
+            word: hit.match,
+            offset: hit.offset,
+            suggestions: [hit.replacement],
+            label: hit.label,
+          });
+        }
       }
     }
     return out;
-  }, [shapes, texts]);
+  }, [shapes, texts, editorSettings]);
 
   // Ignore state. Keyed per target-kind so a text exception doesn't silence
   // a shape with the same color (different design intent, separate review).
@@ -832,6 +848,7 @@ export default function App() {
   // Editor (right-panel) state — which issue is being viewed and which fix is
   // currently previewed on the canvas.
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
   const [currentIssueIdx, setCurrentIssueIdx] = useState(0);
   const [previewedFixIdx, setPreviewedFixIdx] = useState<number | null>(null);
   // Clamp the issue index when the list shrinks (e.g. after Apply / Ignore).
@@ -1043,6 +1060,7 @@ export default function App() {
           onIgnoreOnce={ignoreCurrentOnce}
           onIgnoreAll={ignoreCurrentAll}
           onAddToExceptions={addCurrentToExceptions}
+          onOpenEditorSettings={() => setEditorSettingsOpen(true)}
         />
       </div>
       <BottomToolbar
@@ -1080,6 +1098,13 @@ export default function App() {
           onSceneChange={setScene}
           stackTutorialDisabled={stackTutorialDisabled}
           onSetStackTutorialDisabled={setStackTutorialDisabled}
+        />
+      )}
+      {editorSettingsOpen && (
+        <EditorSettingsModal
+          initial={editorSettings}
+          onSave={s => { setEditorSettings(s); setEditorSettingsOpen(false); }}
+          onClose={() => setEditorSettingsOpen(false)}
         />
       )}
     </div>
