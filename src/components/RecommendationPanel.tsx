@@ -91,13 +91,14 @@ function CardPreview({ kind }: { kind: RecCard['preview'] }) {
 }
 
 export default function RecommendationPanel({
-  kinds, onClose, onOpenSettings, onApplyAsset, onUnhelpful,
+  kinds, onClose, onOpenSettings, onApplyAsset, onUnhelpful, onSeeAll,
 }: {
   kinds: Set<Category>;
   onClose: () => void;
   onOpenSettings: () => void;
   onApplyAsset: (asset: string | null) => void;
   onUnhelpful: () => void;
+  onSeeAll: () => void;
 }) {
   // Show only the categories the user has actually applied a fix for —
   // fall back to all categories if nothing's been applied yet (e.g.
@@ -141,7 +142,7 @@ export default function RecommendationPanel({
 
       <div className="rec-resources-row">
         <span className="editor-panel__section-title" style={{ margin: 0 }}>Recommended Resources</span>
-        <a href="#" className="rec-see-all" onClick={e => e.preventDefault()}>See All</a>
+        <a href="#" className="rec-see-all" onClick={e => { e.preventDefault(); onSeeAll(); }}>See All</a>
       </div>
 
       <div className="rec-cards">

@@ -3074,6 +3074,171 @@ select.typo__field {
   width: 90%;
 }
 .modal--narrow { max-width: 420px; }
+/* Community assets popup — renders the Community board SVG. The
+   source has its own drawn close glyph in the corner; our overlay
+   button sits on top of it (white pill background hides the drawn X
+   underneath). The body scrolls vertically when the modal is
+   shorter than the image. */
+.modal--community {
+  max-width: min(820px, 88vw);
+  width: 88vw;
+  padding: 0;
+  border-radius: 12px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+.community-board {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+}
+.community-board__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* Close overlay positioned over the drawn close icon in the SVG —
+   the SVG's X sits around 3% from the top-right corner of the
+   image; a white circular button at that spot is functional AND
+   masks the artwork below so only one X reads. */
+.community-board__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.community-board__close:hover { background: #f0f0f0; }
+
+/* HTML-rebuilt community popup. */
+.comm-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  z-index: 2;
+}
+.comm-close:hover { background: #f0f0f0; }
+.comm-popup {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 22px 28px 24px;
+}
+.comm-header { margin-bottom: 14px; }
+.comm-title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin: 0 0 4px; }
+.comm-subtitle { font-size: 13px; color: #767676; margin: 0 0 12px; }
+.comm-search {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #888;
+  margin-bottom: 12px;
+}
+.comm-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  background: transparent;
+  color: #1a1a1a;
+}
+.comm-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.comm-filter {
+  background: #f3f3f3;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.comm-filter:hover { background: #e8e8e8; }
+.comm-filter--active { background: #1a1a1a; color: #fff; }
+.comm-filter--active:hover { background: #1a1a1a; }
+.comm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .comm-grid { grid-template-columns: repeat(2, 1fr); }
+}
+/* Community card preview variants — extend .rec-card__preview's base
+   (96px tall, padding). Backgrounds only; the actual title/author
+   sit in .rec-card__body just like the Recommendation cards. */
+.rec-card__preview--comm { padding: 0; }
+.rec-card__preview--comm-gray         { background: linear-gradient(135deg, #d6d6d6, #c0c0c0); }
+.rec-card__preview--comm-dark         { background: #1a1a1a; }
+.rec-card__preview--comm-shapes       { background: linear-gradient(135deg, #cfe3f5, #ffd0d0); }
+.rec-card__preview--comm-embed        { background: #ffffff; border-bottom: 1px solid #ececec; }
+.rec-card__preview--comm-multilingual { background: linear-gradient(135deg, #f7c9c9, #d5b9f0, #cfe3f5); }
+.rec-card__preview--comm-segmentui    { background: #0a0c10; }
+.rec-card__preview--comm-scramble     { background: #f7f7f7; }
+.rec-card__preview--comm-template     { background: linear-gradient(135deg, #ff9966, #ff5e62); }
+.rec-card__preview--comm-gradient1    { background: linear-gradient(135deg, #43cea2, #185a9d); }
+.rec-card__preview--comm-gradient2    { background: linear-gradient(135deg, #fa709a, #fee140); }
+.rec-card__preview--comm-gradient3    { background: linear-gradient(135deg, #5ee7df, #b490ca); }
+.rec-card__preview--comm-gradient4    { background: linear-gradient(135deg, #c79081, #dfa579); }
+/* Community cards get more breathing room at the bottom than the
+   Recommendation panel cards. Tags can wrap if a card happens to
+   carry all three chips at the current grid width. */
+.modal--community .rec-card__body { padding: 18px 14px 24px; }
+/* Keep community card titles to a single line — long names truncate
+   with an ellipsis instead of pushing the rest of the card down. */
+.modal--community .rec-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modal--community .rec-card__tags { flex-wrap: wrap; row-gap: 6px; }
+.comm-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 32px 16px;
+  color: #888;
+  font-size: 13px;
+}
+/* Tag color variants used by the community modal (extend the
+   Recommendation panel color set). */
+.rec-card__tag--code-snippet { background: #d3e5f1; color: #1e5780; }
+.rec-card__tag--animation    { background: #f4dceb; color: #862a73; }
+.rec-card__tag--transition   { background: #d8e1f0; color: #344b91; }
+.rec-card__tag--template     { background: #d3e5f1; color: #1e5780; }
 /* The completion modal borrows the "Using Stacks" modal's padding rule. */
 .modal--completed { max-width: 550px; padding: 32px 28px 24px; border-radius: 9px; }
 .modal--completed .btn { padding: 8px 15px; font-size: 13px; }

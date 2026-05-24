@@ -9,6 +9,7 @@ import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
 import DisabledRecommendationsModal from './components/modals/DisabledRecommendationsModal';
+import CommunityModal from './components/modals/CommunityModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
 import EditorSettingsModal, { DEFAULT_EDITOR_SETTINGS, RECOMMENDATION_LEAVES, type EditorSettings } from './components/modals/EditorSettingsModal';
 import {
@@ -872,6 +873,7 @@ export default function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
   const [disabledRecsOpen, setDisabledRecsOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(false);
   // Flag: when Editor Settings was opened via "Manage" on the
   // Disabled Recommendations modal, saving should also close the
   // editor (mirrors Dismiss) so the right panel falls back to
@@ -1302,6 +1304,7 @@ export default function App() {
           showRecPanel={showRecPanel}
           onApplyRecommendation={applyRecommendation}
           onUnhelpfulRecommendation={() => setDisabledRecsOpen(true)}
+          onOpenCommunity={() => setCommunityOpen(true)}
         />
       </div>
       <BottomToolbar
@@ -1311,6 +1314,7 @@ export default function App() {
         editorOpen={editorOpen}
         onToggleEditor={toggleEditor}
         previewing={previewedFixIdx !== null}
+        onOpenCommunity={() => setCommunityOpen(true)}
         onApplyPreview={applyPreview}
         onCancelPreview={() => setPreviewedFixIdx(null)}
       />
@@ -1355,6 +1359,9 @@ export default function App() {
           }}
           onClose={() => { setEditorSettingsOpen(false); setManageFromDisabledRecs(false); }}
         />
+      )}
+      {communityOpen && (
+        <CommunityModal onClose={() => setCommunityOpen(false)} />
       )}
       {disabledRecsOpen && (
         <DisabledRecommendationsModal

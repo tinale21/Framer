@@ -53,6 +53,7 @@ type Props = InsertProps & {
   showRecPanel: boolean;
   onApplyRecommendation: (asset: string | null) => void;
   onUnhelpfulRecommendation: () => void;
+  onOpenCommunity: () => void;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -74,7 +75,7 @@ export default function RightSidebar({
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
   onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenEditorSettings,
-  recommendationKinds, showRecPanel, onApplyRecommendation, onUnhelpfulRecommendation,
+  recommendationKinds, showRecPanel, onApplyRecommendation, onUnhelpfulRecommendation, onOpenCommunity,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
   // With no remaining issues it switches to the Recommendation view —
@@ -98,7 +99,7 @@ export default function RightSidebar({
         // close. Otherwise — opening the editor with no errors —
         // show the blank empty state.
         if (showRecPanel && recommendationKinds.size > 0) {
-          return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
+          return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} onSeeAll={onOpenCommunity} />;
         }
         return (
           <aside className="right-sidebar editor-panel">
