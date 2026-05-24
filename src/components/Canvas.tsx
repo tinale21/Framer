@@ -1606,28 +1606,27 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns }: {
     if (href) onShapeMouseDown?.(e, href, t.getBoundingClientRect(), m[1]);
   };
 
-  // After each render, hide rects whose pattern has been torn off so
-  // empty slots stay empty. The SVG is mounted via innerHTML, so a
-  // direct DOM walk is the simplest way to apply visibility.
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap || !svg) return;
-    const ids = hiddenPatterns;
-    wrap.querySelectorAll('rect[fill^="url"]').forEach(r => {
-      const m = (r.getAttribute('fill') || '').match(/url\(#([^)]+)\)/);
-      const hide = !!(m && ids && ids.has(m[1]));
-      (r as SVGRectElement).style.visibility = hide ? 'hidden' : '';
-    });
-  }, [svg, hiddenPatterns]);
+  // Hide torn-off cells via a sibling <style> block rather than
+  // mutating the SVG DOM directly — the SVG is mounted via innerHTML
+  // and React can re-apply that HTML out from under any inline styles
+  // we'd set, but a declarative <style> always wins.
+  const hideCss = hiddenPatterns && hiddenPatterns.size > 0
+    ? [...hiddenPatterns]
+        .map(id => `.demo-element__svg rect[fill="url(#${id})"]{visibility:hidden}`)
+        .join('')
+    : '';
 
   if (!svg) return null;
   return (
-    <div
-      ref={wrapRef}
-      className="demo-element__svg"
-      onMouseDown={onMouseDown}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <>
+      {hideCss && <style>{hideCss}</style>}
+      <div
+        ref={wrapRef}
+        className="demo-element__svg"
+        onMouseDown={onMouseDown}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    </>
   );
 }
 
