@@ -897,8 +897,18 @@ export default function App() {
     const cur = visibleIssues.length;
     const prev = prevIssueCountRef.current;
     if (prev === 0 && cur > 0) setRecommendationKinds(new Set());
+    // Hitting "all clear" should surface the recommendation panel.
+    // RightSidebar yields it to PropsPanel when anything's selected,
+    // so the text/shape the user just applied a fix to would block
+    // the panel unless we clear those selections here.
+    if (prev > 0 && cur === 0 && editorOpen) {
+      setSelectedShape(null);
+      setSelectedText(null);
+      setSelectedEl(null);
+      setStackSelected(false);
+    }
     prevIssueCountRef.current = cur;
-  }, [visibleIssues.length]);
+  }, [visibleIssues.length, editorOpen]);
   // Drop a recommendation asset onto the canvas as a draggable
   // / resizable element (Figma-style component placement). Reuses the
   // existing DemoEl machinery — width is fixed, height is intrinsic
