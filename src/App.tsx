@@ -1336,6 +1336,22 @@ export default function App() {
           textArmed={textMode}
           onArmVector={armVector}
           vectorArmed={vectorTool !== null}
+          promptInsertAgain={(() => {
+            // Between drops during the practice demo: at least one
+            // item is in the stack AND nothing is currently waiting
+            // free on the canvas. Triggers the Insert highlight +
+            // "add another" callout without the demo-5 dimming tint.
+            // Stops once the stack has 2+ items — the user can move
+            // to the layout step instead of being prompted again.
+            if (scene !== 'demo-6-place-element') return false;
+            const stackCount =
+              demoElements.filter(el => el.inStack).length +
+              texts.filter(t => t.inStack).length +
+              shapes.filter(s => s.inStack).length;
+            if (stackCount < 1 || stackCount >= 2) return false;
+            const free = demoElements.some(el => !el.inStack) || texts.some(t => !t.inStack) || shapes.some(s => !s.inStack);
+            return !free;
+          })()}
           layoutOpts={layoutOpts}
           onLayoutChange={changeLayout}
           layoutTouched={layoutTouched}

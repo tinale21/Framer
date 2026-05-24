@@ -20,6 +20,11 @@ import ColorPicker from './ColorPicker';
 type InsertProps = {
   scene: Scene;
   onSceneChange: SceneSetter;
+  // True between drops during the practice demo — at least one item
+  // is in the stack and nothing is currently waiting on the canvas.
+  // Triggers the Insert highlight + "add another" callout WITHOUT
+  // the full demo-5 dimming tint.
+  promptInsertAgain?: boolean;
   onPickElement: (id: string, src?: string) => void;
   onRequestImageUpload: () => void;
   onArmText: () => void;
@@ -69,7 +74,7 @@ type InsertTab = typeof INSERT_TABS[number];
 
 export default function RightSidebar({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  onArmVector, vectorArmed, layoutOpts, onLayoutChange, layoutTouched, stackSelected,
+  onArmVector, vectorArmed, promptInsertAgain, layoutOpts, onLayoutChange, layoutTouched, stackSelected,
   selectedShapeEl, onSetShapeFill, onSetShapeStroke,
   selectedTextEl, onSetTextStyle,
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
@@ -157,13 +162,14 @@ export default function RightSidebar({
       textArmed={textArmed}
       onArmVector={onArmVector}
       vectorArmed={vectorArmed}
+      promptInsertAgain={promptInsertAgain}
     />
   );
 }
 
 function InsertPanel({
   scene, onSceneChange, onPickElement, onRequestImageUpload, onArmText, textArmed,
-  onArmVector, vectorArmed,
+  onArmVector, vectorArmed, promptInsertAgain,
 }: InsertProps) {
   const [activeTab, setActiveTab] = useState<InsertTab>('Design');
   const [gridHovered, setGridHovered] = useState(false);
@@ -286,7 +292,7 @@ function InsertPanel({
   }, [activeTab]);
 
   const baseHovered = scene === 'base-hover' || scene === 'stack-tutorial-modal' || scene === 'disabled-tutorial-modal';
-  const highlightTriple = scene === 'demo-5-insert-highlighted';
+  const highlightTriple = scene === 'demo-5-insert-highlighted' || !!promptInsertAgain;
 
   return (
     <aside className="right-sidebar">
@@ -312,7 +318,7 @@ function InsertPanel({
 
       <div className="divider" />
 
-      <div className={'insert-section' + (highlightTriple ? ' insert-section--demo' : '')}>
+      <div className={'insert-section' + (highlightTriple ? ' insert-section--demo' : '') + (promptInsertAgain ? ' insert-section--demo-quiet' : '')}>
       {highlightTriple && !textArmed && !vectorArmed && (
         <div className="insert-demo-callout">Add several elements into the stack.</div>
       )}
