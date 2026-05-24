@@ -1123,7 +1123,13 @@ export default function Canvas({
                   'demo-stack__element' +
                   (selectedEl === el.key ? ' demo-stack__element--selected' : '')
                 }
-                style={el.key === draggingKey ? { opacity: 0 } : undefined}
+                style={{
+                  // Respect the user's resized width so re-drops reflect
+                  // the latest size; fall back to the .demo-stack__element
+                  // CSS default when nothing has been set yet.
+                  ...(el.width != null ? { width: `${el.width}px` } : {}),
+                  ...(el.key === draggingKey ? { opacity: 0 } : {}),
+                }}
                 onMouseDown={e => handleElementMouseDown(e, el, true)}
                 onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
               />
