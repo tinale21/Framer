@@ -1313,6 +1313,7 @@ export default function Canvas({
               width: el.width != null ? `${el.width}px` : undefined,
             }}
             onMouseDown={e => handleElementMouseDown(e, el)}
+            onClick={e => e.stopPropagation()}
           >
             {calloutEl === el.key && (
               <div className="demo-element__callout">Drag this into the stack.</div>
