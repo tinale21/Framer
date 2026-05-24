@@ -891,6 +891,7 @@ function TypographyEditor({ text, onSet }: {
             <input
               type="text"
               placeholder="Auto"
+              spellCheck={false}
               value={lineInput}
               onChange={e => setLineInput(e.target.value)}
               onBlur={commitLine}

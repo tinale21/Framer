@@ -3872,3 +3872,99 @@ select.typo__field {
 .app--dark .editor-panel__empty,
 .app--dark .editor-panel__no-errors { color: #999999; }
 .app--dark .editor-panel__settings { color: #4db5ff; }
+
+/* ===== Variable overrides for chrome text/borders =====
+   Flipping the panel-text/border variables in one place catches every
+   class that uses var(--text-primary), var(--border), etc. without
+   having to enumerate them. Canvas surfaces stay white via their own
+   explicit rules. */
+.app--dark {
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --text-tertiary: #777777;
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+  --bg-pill-hover: #2a2a2a;
+  --bg-pill-selected: #353535;
+  --bg-search: #2a2a2a;
+}
+
+/* ===== Layout panel (Stack > Layout, popout, segmented controls) ===== */
+.app--dark .layout-popout {
+  background: #1f1f1f;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+.app--dark .layout-opt-row__label { color: #b3b3b3; }
+.app--dark .layout-seg { background: #2a2a2a; }
+.app--dark .layout-seg__btn { color: #999999; }
+.app--dark .layout-seg__btn--active {
+  background: #3a3a3a;
+  color: #4db5ff;
+  box-shadow: none;
+}
+.app--dark .layout-seg__divider { background: #3a3a3a; }
+.app--dark .layout-advanced,
+.app--dark .layout-dropdown__trigger,
+.app--dark .layout-field { background: #2a2a2a; }
+.app--dark .layout-dropdown__chev { color: #999999; }
+.app--dark .layout-dropdown__menu {
+  background: #2a2a2a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.app--dark .layout-dropdown__item:hover { background: #353535; }
+.app--dark .layout-dropdown__item--active { color: #4db5ff; }
+.app--dark .layout-pad-cell__label { color: #777777; }
+.app--dark .layout-field:focus-within,
+.app--dark .layout-pad-cell .layout-field:focus-within {
+  box-shadow: inset 0 0 0 1.5px #0099ff;
+}
+
+/* Props panel chevrons / shape header icons */
+.app--dark .props-layout__chev { color: #999999; }
+.app--dark .shape-header__icon { color: #cccccc; }
+
+/* Framer menu separator + similar light dividers */
+.app--dark .framer-menu__sep { background: #2a2a2a; }
+
+/* ===== Typography editor (right sidebar, Text selected) ===== */
+.app--dark .typo__title { color: #ffffff; }
+/* Use background-color (not the shorthand) so the chevron painted by
+   `select.typo__field` via background-image/repeat/position isn't
+   wiped out. The shorthand resets every background-* property and
+   was making the chevron tile across the whole field. */
+.app--dark .typo__field,
+.app--dark .typo__num-wrap,
+.app--dark .typo__icon-input,
+.app--dark .typo__align {
+  background-color: #2a2a2a;
+  border-color: #2a2a2a;
+}
+.app--dark .typo__field { color: #ffffff; }
+.app--dark .typo__field--num-input,
+.app--dark .typo__icon-input input { color: #ffffff; }
+.app--dark .typo__field:focus,
+.app--dark .typo__num-wrap:focus-within,
+.app--dark .typo__icon-input:focus-within { border-color: #0099ff; background-color: #2a2a2a; }
+.app--dark .typo__size-drop { color: #999999; }
+.app--dark .typo__size-drop:hover { background: #353535; color: #ffffff; }
+.app--dark .typo__icon-input svg { color: #999999; }
+.app--dark .typo__labeled { color: #999999; }
+.app--dark .typo__size-menu {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+.app--dark .typo__size-menu-item { color: #cccccc; }
+.app--dark .typo__size-menu-item:hover { background: #353535; }
+.app--dark .typo__size-menu-item--active { background: #0099ff; color: #ffffff; }
+.app--dark .typo__align-btn { color: #999999; }
+.app--dark .typo__align-btn:hover { background: #353535; }
+.app--dark .typo__align-btn--active {
+  background: #3a3a3a;
+  color: #4db5ff;
+  box-shadow: none;
+}
+/* Native select chevron — repaint with a light stroke so it shows on dark */
+.app--dark select.typo__field {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5' fill='none' stroke='%23bbb' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1l3 3 3-3'/></svg>");
+}
