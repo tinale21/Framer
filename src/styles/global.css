@@ -2750,15 +2750,16 @@ select.typo__field {
    look of the source SVG. The purple outline tags the element as a
    Figma-style component instance, matching the other recommendation
    drops. */
-.text-effect {
-  line-height: 1;
+.text-effect { line-height: 1; }
+/* Purple outline is the selection indicator: only show it when the
+   text-effect element is actually selected, and suppress the default
+   blue border so we don't double up. */
+.text-effect.text-el--selected,
+.text-effect.demo-stack__text--selected {
+  border-color: transparent;
   outline: 1.5px solid #9d4edd;
   outline-offset: 4px;
 }
-/* The purple outline doubles as the selection indicator, so drop the
-   default blue border + restyle the corner handles to round purple
-   circles sitting on the outline corners. */
-.text-effect.text-el--selected { border-color: transparent; }
 .text-effect .text-handle {
   width: 9px;
   height: 9px;
