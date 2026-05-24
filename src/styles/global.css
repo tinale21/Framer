@@ -2468,6 +2468,16 @@ select.typo__field {
 }
 .editor-panel__action:hover { background: #ebebeb; }
 .editor-panel__empty { color: #888888; font-size: 12px; padding: 8px 0; }
+/* Centered "No errors detected" message shown when the editor opens
+   with a clean canvas (no issues, no prior fixes to recap). */
+.editor-panel__no-errors {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888888;
+  font-size: 13px;
+}
 .editor-panel__settings {
   display: inline-flex;
   align-items: center;

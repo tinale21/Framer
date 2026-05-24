@@ -50,6 +50,7 @@ type Props = InsertProps & {
   onAddToExceptions: () => void;
   onOpenEditorSettings: () => void;
   recommendationKinds: Set<'Vectors' | 'Text'>;
+  showRecPanel: boolean;
   onApplyRecommendation: (asset: string | null) => void;
   onUnhelpfulRecommendation: () => void;
 };
@@ -73,7 +74,7 @@ export default function RightSidebar({
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
   onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenEditorSettings,
-  recommendationKinds, onApplyRecommendation, onUnhelpfulRecommendation,
+  recommendationKinds, showRecPanel, onApplyRecommendation, onUnhelpfulRecommendation,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
   // With no remaining issues it switches to the Recommendation view —
@@ -91,7 +92,24 @@ export default function RightSidebar({
       // part of the recommendation interaction and keep the panel.
       const propsClaim = !!(selectedShapeEl || selectedTextEl || stackSelected);
       if (!propsClaim) {
-        return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
+        // Recommendation panel only surfaces during the post-fix
+        // celebration — the gate (showRecPanel) is set when issues
+        // transition >0 → 0 via apply and clears on the next editor
+        // close. Otherwise — opening the editor with no errors —
+        // show the blank empty state.
+        if (showRecPanel && recommendationKinds.size > 0) {
+          return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
+        }
+        return (
+          <aside className="right-sidebar editor-panel">
+            <div className="editor-panel__header">
+              <span className="editor-panel__title">Editor</span>
+              <button type="button" className="editor-panel__close" aria-label="Close editor" onClick={onCloseEditor}>×</button>
+            </div>
+            <div className="divider" />
+            <div className="editor-panel__no-errors">No errors detected</div>
+          </aside>
+        );
       }
       // fall through to the selection-based panels below
     } else {

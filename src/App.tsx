@@ -892,6 +892,15 @@ export default function App() {
   // Kinds the user has applied at least one fix for. Drives which
   // categories the Recommendation panel shows once issues hit zero.
   const [recommendationKinds, setRecommendationKinds] = useState<Set<'Vectors' | 'Text'>>(new Set());
+  // The recommendation panel is a transient post-fix celebration —
+  // only true the moment issues hit 0 via an apply. Resets on any
+  // editor close so a later reopen with no errors shows the empty
+  // state instead of replaying the panel.
+  const [showRecPanel, setShowRecPanel] = useState(false);
+  // Any close of the editor (toggle, X, canvas-click, dismiss) clears
+  // the rec-panel gate — catches all paths in one place so we don't
+  // have to wire it into every close handler.
+  useEffect(() => { if (!editorOpen) setShowRecPanel(false); }, [editorOpen]);
   // Recommendation panel categories are per-cycle: once the issue list
   // hits 0 and the panel shows, we keep the accumulated kinds visible
   // until the user adds new fixable content (issues transition 0 → >0).
@@ -905,12 +914,15 @@ export default function App() {
     // Hitting "all clear" should surface the recommendation panel.
     // RightSidebar yields it to PropsPanel when anything's selected,
     // so the text/shape the user just applied a fix to would block
-    // the panel unless we clear those selections here.
+    // the panel unless we clear those selections here. We also flip
+    // the showRecPanel gate on so the panel surfaces — it'll reset
+    // on the next editor close.
     if (prev > 0 && cur === 0 && editorOpen) {
       setSelectedShape(null);
       setSelectedText(null);
       setSelectedEl(null);
       setStackSelected(false);
+      setShowRecPanel(true);
     }
     prevIssueCountRef.current = cur;
   }, [visibleIssues.length, editorOpen]);
@@ -999,6 +1011,11 @@ export default function App() {
       text: 'text',
       bullet: true,
       inStack: false,
+      // Match the source row's typography so the torn copy lands at
+      // the same visible size as the row in the dropdown.
+      size: 13,
+      weight: 400,
+      lineHeight: 1.2,
     }]);
     setExtractedPatterns(prev => {
       const n = new Set(prev);
@@ -1282,6 +1299,7 @@ export default function App() {
           onAddToExceptions={addCurrentToExceptions}
           onOpenEditorSettings={() => setEditorSettingsOpen(true)}
           recommendationKinds={recommendationKinds}
+          showRecPanel={showRecPanel}
           onApplyRecommendation={applyRecommendation}
           onUnhelpfulRecommendation={() => setDisabledRecsOpen(true)}
         />
