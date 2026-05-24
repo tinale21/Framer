@@ -128,7 +128,7 @@ export default function RecommendationPanel({
       <div className="divider" />
 
       <div className="editor-panel__section-title">Recommendation</div>
-      <div className="rec-subtitle">Header Components <HelpCircle /></div>
+      <div className="rec-subtitle">{cat === 'Vectors' ? 'Vector Components' : 'Header Components'} <HelpCircle /></div>
       <div className="rec-category">{cat}</div>
 
       <div className="rec-resources-row">
