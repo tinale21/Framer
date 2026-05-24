@@ -51,6 +51,7 @@ type Props = InsertProps & {
   onOpenEditorSettings: () => void;
   recommendationKinds: Set<'Vectors' | 'Text'>;
   onApplyRecommendation: (asset: string | null) => void;
+  onUnhelpfulRecommendation: () => void;
 };
 
 // The Shape (props) panel is shown when the stack is selected; the demo
@@ -72,13 +73,13 @@ export default function RightSidebar({
   editorOpen, issues, currentIssueIdx, previewedFixIdx,
   onSelectFix, onPrevIssue, onNextIssue, onCloseEditor,
   onIgnoreOnce, onIgnoreAll, onAddToExceptions, onOpenEditorSettings,
-  recommendationKinds, onApplyRecommendation,
+  recommendationKinds, onApplyRecommendation, onUnhelpfulRecommendation,
 }: Props) {
   // The Editor panel takes precedence over everything else when open.
   // With no remaining issues it switches to the Recommendation view.
   if (editorOpen) {
     if (issues.length === 0) {
-      return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} />;
+      return <RecommendationPanel kinds={recommendationKinds} onClose={onCloseEditor} onOpenSettings={onOpenEditorSettings} onApplyAsset={onApplyRecommendation} onUnhelpful={onUnhelpfulRecommendation} />;
     }
     return (
       <EditorPanel

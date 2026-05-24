@@ -2552,6 +2552,11 @@ select.typo__field {
   background: linear-gradient(135deg, #ff79c6, #ff4d9a);
   border: 2px solid #ffffff;
 }
+.rec-card__avatar--img {
+  background: #fff;
+  object-fit: cover;
+  display: block;
+}
 .rec-card__body {
   background: #f4f4f4;
   padding: 18px 14px 12px;
@@ -2576,12 +2581,30 @@ select.typo__field {
   border-radius: 14px;
   padding: 3px 10px;
 }
+/* Color-coded variants. Three axes — kind (Component / Asset / Pack),
+   price (Free / Pro), skill (Beginner / Intermediate / Advanced) —
+   each axis gets its own hue range so cards read at a glance. */
+.rec-card__tag--component    { background: #d3e5f1; color: #1e5780; }
+.rec-card__tag--asset        { background: #e0d3f1; color: #4a2580; }
+.rec-card__tag--pack         { background: #cfe9dc; color: #1a5e3a; }
+.rec-card__tag--free         { background: #d8ecc0; color: #3a6b1a; }
+.rec-card__tag--pro          { background: #f0deb0; color: #7a5215; }
+.rec-card__tag--beginner     { background: #f1d3e0; color: #8a2960; }
+.rec-card__tag--intermediate { background: #f0dcc5; color: #8a5520; }
+.rec-card__tag--advanced     { background: #f1d0d0; color: #8a2929; }
 .rec-helpful {
   display: flex; align-items: center; justify-content: space-between;
   font-size: 13px; color: #1a1a1a;
   margin-top: 8px;
 }
 .rec-helpful__actions { display: flex; gap: 12px; }
+/* Confirmation shown in place of the Yes / No row after the user
+   marks the recommendation helpful. */
+.rec-helpful--thanks {
+  justify-content: flex-start;
+  color: #1aa055;
+  font-weight: 400;
+}
 .rec-helpful__actions button {
   background: none; border: none; color: #0099ff; font-size: 13px; font-weight: 500;
   cursor: pointer; padding: 4px 2px; font-family: inherit;

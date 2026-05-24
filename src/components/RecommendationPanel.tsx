@@ -18,16 +18,19 @@ type RecCard = {
   // Asset path (relative to BASE_URL) rendered onto the canvas when the
   // card is clicked — `null` for cards that don't have a demo yet.
   asset?: string;
+  // PFP filename inside public/recs/pfps/ — one per author so the cards
+  // don't all read as the same person.
+  pfp?: string;
 };
 
 const RECS: Record<Category, RecCard[]> = {
   Vectors: [
-    { title: 'Unique Shapes', preview: 'vectors-1', hearts: '1K+', comments: 21, tags: ['Template', 'Free', 'Beginner'], asset: 'triangles-grid' },
-    { title: '3D Shapes', preview: 'vectors-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'], asset: 'recs/3d-shapes.svg' },
+    { title: 'Unique Shapes', preview: 'vectors-1', hearts: '1K+', comments: 21, tags: ['Component', 'Beginner'], asset: 'triangles-grid', pfp: 'pfp-1.svg' },
+    { title: '3D Shapes', preview: 'vectors-2', hearts: '521', comments: 11, tags: ['Component', 'Pro'], asset: 'recs/3d-shapes.svg', pfp: 'pfp-2.svg' },
   ],
   Text: [
-    { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free', 'Beginner'], asset: 'text-list' },
-    { title: 'Advanced Text Effects', preview: 'text-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'], asset: 'text-effects-grid' },
+    { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free'], asset: 'text-list', pfp: 'pfp-3.svg' },
+    { title: 'Advanced Text Effects', preview: 'text-2', hearts: '521', comments: 11, tags: ['Component', 'Advanced'], asset: 'text-effects-grid', pfp: 'pfp-4.svg' },
   ],
 };
 
@@ -88,18 +91,23 @@ function CardPreview({ kind }: { kind: RecCard['preview'] }) {
 }
 
 export default function RecommendationPanel({
-  kinds, onClose, onOpenSettings, onApplyAsset,
+  kinds, onClose, onOpenSettings, onApplyAsset, onUnhelpful,
 }: {
   kinds: Set<Category>;
   onClose: () => void;
   onOpenSettings: () => void;
   onApplyAsset: (asset: string | null) => void;
+  onUnhelpful: () => void;
 }) {
   // Show only the categories the user has actually applied a fix for —
   // fall back to all categories if nothing's been applied yet (e.g.
   // they opened the panel with zero issues to begin with).
   const visibleCats = kinds.size > 0 ? CATEGORIES.filter(c => kinds.has(c)) : CATEGORIES;
   const [idx, setIdx] = useState(0);
+  // null = waiting for response, 'yes' = swap question for a thank-you.
+  // "No" opens a confirmation modal via onUnhelpful and doesn't change
+  // local state (the modal owns the next step from here).
+  const [feedback, setFeedback] = useState<'yes' | null>(null);
   const safeIdx = Math.min(idx, visibleCats.length - 1);
   const total = visibleCats.length;
   const cat = visibleCats[safeIdx];
@@ -145,7 +153,9 @@ export default function RecommendationPanel({
             role={c.asset ? 'button' : undefined}
           >
             <CardPreview kind={c.preview} />
-            <div className="rec-card__avatar" />
+            {c.pfp
+              ? <img src={`${import.meta.env.BASE_URL}recs/pfps/${c.pfp}`} alt="" className="rec-card__avatar rec-card__avatar--img" />
+              : <div className="rec-card__avatar" />}
             <div className="rec-card__body">
               <div className="rec-card__row">
                 <span className="rec-card__title">{c.title}</span>
@@ -156,7 +166,7 @@ export default function RecommendationPanel({
                 <span><Comment /> {c.comments}</span>
               </div>
               <div className="rec-card__tags">
-                {c.tags.map(t => <span key={t} className="rec-card__tag">{t}</span>)}
+                {c.tags.map(t => <span key={t} className={`rec-card__tag rec-card__tag--${t.toLowerCase()}`}>{t}</span>)}
               </div>
             </div>
           </div>
@@ -164,13 +174,17 @@ export default function RecommendationPanel({
       </div>
 
       <div className="divider" style={{ marginTop: 14 }} />
-      <div className="rec-helpful">
-        <span>Was this helpful?</span>
-        <span className="rec-helpful__actions">
-          <button type="button">Yes</button>
-          <button type="button">No</button>
-        </span>
-      </div>
+      {feedback === 'yes' ? (
+        <div className="rec-helpful rec-helpful--thanks">Thank you for your feedback!</div>
+      ) : (
+        <div className="rec-helpful">
+          <span>Was this helpful?</span>
+          <span className="rec-helpful__actions">
+            <button type="button" onClick={() => setFeedback('yes')}>Yes</button>
+            <button type="button" onClick={onUnhelpful}>No</button>
+          </span>
+        </div>
+      )}
 
       <button type="button" className="editor-panel__settings" onClick={onOpenSettings}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"

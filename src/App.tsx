@@ -8,8 +8,9 @@ import BasePopout from './components/BasePopout';
 import StackTutorialModal from './components/modals/StackTutorialModal';
 import StackDemoCompletedModal from './components/modals/StackDemoCompletedModal';
 import DisabledStackTutorialModal from './components/modals/DisabledStackTutorialModal';
+import DisabledRecommendationsModal from './components/modals/DisabledRecommendationsModal';
 import TutorialOverlaysModal from './components/modals/TutorialOverlaysModal';
-import EditorSettingsModal, { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from './components/modals/EditorSettingsModal';
+import EditorSettingsModal, { DEFAULT_EDITOR_SETTINGS, RECOMMENDATION_LEAVES, type EditorSettings } from './components/modals/EditorSettingsModal';
 import {
   hexToHsva, hsvaToHex, hsvToHex, hexToRgb, vForContrast, contrastOverWhite,
 } from './components/ColorPicker';
@@ -854,6 +855,24 @@ export default function App() {
   // currently previewed on the canvas.
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
+  const [disabledRecsOpen, setDisabledRecsOpen] = useState(false);
+  // Flag: when Editor Settings was opened via "Manage" on the
+  // Disabled Recommendations modal, saving should also close the
+  // editor (mirrors Dismiss) so the right panel falls back to
+  // Insert regardless of what the user toggled.
+  const [manageFromDisabledRecs, setManageFromDisabledRecs] = useState(false);
+  // Recommendation panel is suppressed when every "Recommendation
+  // Prompting" leaf is off — dismissing the disabled-recommendations
+  // modal flips them all off, and the user can also toggle them
+  // manually in Editor Settings. With it off, an all-clear editor
+  // collapses back to Insert instead of showing the panel.
+  const recommendationsEnabled = RECOMMENDATION_LEAVES.some(k => editorSettings[k]);
+  useEffect(() => {
+    if (editorOpen && visibleIssues.length === 0 && !recommendationsEnabled) {
+      setEditorOpen(false);
+      setPreviewedFixIdx(null);
+    }
+  }, [editorOpen, visibleIssues.length, recommendationsEnabled]);
   // Kinds the user has applied at least one fix for. Drives which
   // categories the Recommendation panel shows once issues hit zero.
   const [recommendationKinds, setRecommendationKinds] = useState<Set<'Vectors' | 'Text'>>(new Set());
@@ -1232,6 +1251,7 @@ export default function App() {
           onOpenEditorSettings={() => setEditorSettingsOpen(true)}
           recommendationKinds={recommendationKinds}
           onApplyRecommendation={applyRecommendation}
+          onUnhelpfulRecommendation={() => setDisabledRecsOpen(true)}
         />
       </div>
       <BottomToolbar
@@ -1274,8 +1294,35 @@ export default function App() {
       {editorSettingsOpen && (
         <EditorSettingsModal
           initial={editorSettings}
-          onSave={s => { setEditorSettings(s); setEditorSettingsOpen(false); }}
-          onClose={() => setEditorSettingsOpen(false)}
+          onSave={s => {
+            setEditorSettings(s);
+            setEditorSettingsOpen(false);
+            if (manageFromDisabledRecs) {
+              setEditorOpen(false);
+              setPreviewedFixIdx(null);
+              setManageFromDisabledRecs(false);
+            }
+          }}
+          onClose={() => { setEditorSettingsOpen(false); setManageFromDisabledRecs(false); }}
+        />
+      )}
+      {disabledRecsOpen && (
+        <DisabledRecommendationsModal
+          onClose={() => setDisabledRecsOpen(false)}
+          onManage={() => { setDisabledRecsOpen(false); setEditorSettingsOpen(true); setManageFromDisabledRecs(true); }}
+          // Dismiss closes the editor + uncheckes Recommendation
+          // Prompting so future all-clear cycles don't show the panel
+          // until the user re-enables it in Editor Settings.
+          onDismiss={() => {
+            setDisabledRecsOpen(false);
+            setEditorOpen(false);
+            setPreviewedFixIdx(null);
+            setEditorSettings(s => {
+              const n = { ...s };
+              for (const k of RECOMMENDATION_LEAVES) n[k] = false;
+              return n;
+            });
+          }}
         />
       )}
     </div>

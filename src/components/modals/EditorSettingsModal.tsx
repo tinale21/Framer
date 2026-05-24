@@ -15,7 +15,7 @@ export type EditorSettings = Record<LeafKey, boolean>;
 const SPELLING_GRAMMAR_LEAVES: LeafKey[] = ['spelling', 'grammar'];
 const ACCESSIBILITY_LEAVES: LeafKey[] = ['legibility', 'readability', 'operability'];
 const ERROR_CHECKING_LEAVES: LeafKey[] = [...SPELLING_GRAMMAR_LEAVES, ...ACCESSIBILITY_LEAVES];
-const RECOMMENDATION_LEAVES: LeafKey[] = ['designLayout', 'communityResources', 'plugins', 'helpAndSupport'];
+export const RECOMMENDATION_LEAVES: LeafKey[] = ['designLayout', 'communityResources', 'plugins', 'helpAndSupport'];
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   spelling: true, grammar: true,
