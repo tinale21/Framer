@@ -81,6 +81,16 @@ type Props = {
   onPopShapeFromStack?: (key: number) => void;
   pathDraft?: Pt[];
   onAddPathPoint?: (p: Pt) => void;
+  // Spawns a new free element at (x, y) with width `w` and the given
+  // shape image, returning its key. Canvas calls this on mousedown
+  // inside the recommendation component, then uses the returned key to
+  // start a drag on the new element so it follows the cursor. The
+  // pattern id of the torn rect is also reported so the source
+  // component can hide that cell.
+  onExtractComponentShape?: (href: string, x: number, y: number, w: number, patternId: string) => number;
+  // Pattern ids that have already been torn off — ComponentSvg hides
+  // the matching rects in the inline SVG so torn shapes don't reappear.
+  extractedPatterns?: Set<string>;
 };
 type ContentProps = { scene: Scene; onSceneChange: SceneSetter; stackTutorialDisabled?: boolean };
 
@@ -141,6 +151,8 @@ export default function Canvas({
   onPopShapeFromStack,
   pathDraft = [],
   onAddPathPoint,
+  onExtractComponentShape,
+  extractedPatterns,
 }: Props) {
   // The early demo steps dim the frame chrome.
   const chromeDimmed = CHROME_DIMMED.includes(scene) && !layoutTouched;
@@ -797,6 +809,27 @@ export default function Canvas({
     setDraggingKey(el.key);
   };
 
+  // Mousedown on a shape inside the recommendation component →
+  // spawn a free copy at the cursor and start dragging it. Same flow
+  // as handleElementMouseDown but for an element that doesn't exist
+  // yet — we ask App to create it and hand back the new key. The
+  // spawn width matches the source rect's measured on-canvas size so
+  // the torn copy looks 1:1 with the cell the user grabbed.
+  const handleComponentShapeMouseDown = (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => {
+    e.stopPropagation();
+    const fc = frameCardRef.current;
+    if (!fc || !onExtractComponentShape) return;
+    const fr = fc.getBoundingClientRect();
+    const w = rect.width / scale;
+    const h = rect.height / scale;
+    // Center the copy on the cursor so the grab feels anchored.
+    const gx = (e.clientX - fr.left) / scale - w / 2;
+    const gy = (e.clientY - fr.top) / scale - h / 2;
+    const key = onExtractComponentShape(href, gx, gy, w, patternId);
+    elementGrabRef.current = { gx, gy, sx: e.clientX, sy: e.clientY, moved: false, fromStack: false };
+    setDraggingKey(key);
+  };
+
   // Press on a placed shape. With a box tool armed it starts a new draw; with
   // Path armed it lets the click bubble so a point gets dropped; otherwise it
   // begins a move (a press without a drag selects the shape).
@@ -1270,7 +1303,9 @@ export default function Canvas({
             className={
               'demo-element' +
               (draggingKey === el.key ? ' demo-element--dragging' : '') +
-              (selectedEl === el.key ? ' demo-element--selected' : '')
+              (selectedEl === el.key ? ' demo-element--selected' : '') +
+              (el.id === 'recommendation' || el.id === 'recommendation-shape' ? ' demo-element--component' : '') +
+              (el.id === 'recommendation-shape' ? ' demo-element--component-shape' : '')
             }
             style={{
               left: `${el.x}px`,
@@ -1282,7 +1317,15 @@ export default function Canvas({
             {calloutEl === el.key && (
               <div className="demo-element__callout">Drag this into the stack.</div>
             )}
-            <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
+            {el.id === 'recommendation' && el.src ? (
+              <ComponentSvg
+                src={el.src}
+                onShapeMouseDown={handleComponentShapeMouseDown}
+                hiddenPatterns={extractedPatterns}
+              />
+            ) : (
+              <img src={el.src ?? elemSrc(el.id)} alt="" className="demo-element__img" />
+            )}
             {selectedEl === el.key && draggingKey !== el.key && (
               <>
                 {(['tl', 'tr', 'bl', 'br'] as const).map(c => {
@@ -1490,6 +1533,100 @@ function EditableText({
       onMouseDown={e => { e.stopPropagation(); onSelectionChange?.(null); }}
       onClick={e => e.stopPropagation()}
       onKeyDown={e => { if (e.key === 'Escape') (e.currentTarget as HTMLElement).blur(); }}
+    />
+  );
+}
+
+// Cache of fetched SVG texts + the pattern→image map, keyed by asset
+// path. Building the map is fast once we have the SVG text but
+// fetching the 14MB asset is heavy, so we hold onto it for life.
+const svgTextCache = new Map<string, string>();
+const patternImgCache = new Map<string, Record<string, string>>();
+
+// Renders a recommendation-component asset (e.g. the 3D Shapes pack)
+// as inline SVG so individual <rect>s with pattern fills can take
+// pointer events. A mousedown on a pattern-filled rect bubbles up
+// here, we resolve the rect's pattern to its embedded base64 PNG, and
+// hand the event + href to Canvas, which spawns + starts dragging a
+// free copy in one motion (Figma-style instance tear-off).
+function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns }: {
+  src: string;
+  onShapeMouseDown?: (e: React.MouseEvent, href: string, rect: DOMRect, patternId: string) => void;
+  hiddenPatterns?: Set<string>;
+}) {
+  const [svg, setSvg] = useState<string | null>(svgTextCache.get(src) ?? null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (svg) return;
+    let cancelled = false;
+    fetch(src).then(r => r.text()).then(text => {
+      if (cancelled) return;
+      svgTextCache.set(src, text);
+      setSvg(text);
+    }).catch(() => { /* noop */ });
+    return () => { cancelled = true; };
+  }, [src, svg]);
+
+  useEffect(() => {
+    if (!svg || patternImgCache.has(src)) return;
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+    const hrefOf = (el: Element | null): string => {
+      if (!el) return '';
+      return el.getAttribute('href') || el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '';
+    };
+    // Patterns reference images via `<use xlink:href="#imageN">`. Walk
+    // pattern → use → image to get the base64 PNG for that shape.
+    const map: Record<string, string> = {};
+    doc.querySelectorAll('pattern').forEach(p => {
+      const id = p.getAttribute('id');
+      if (!id) return;
+      const child = p.querySelector('image, use');
+      if (!child) return;
+      let href = hrefOf(child);
+      if (child.tagName === 'use' && href.startsWith('#')) {
+        const ref = doc.getElementById(href.slice(1));
+        href = hrefOf(ref);
+      }
+      if (href) map[id] = href;
+    });
+    patternImgCache.set(src, map);
+  }, [svg, src]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    const t = (e.target as Element).closest('rect');
+    if (!t) return;
+    const fill = t.getAttribute('fill') || '';
+    const m = fill.match(/url\(#([^)]+)\)/);
+    if (!m) return;
+    const href = patternImgCache.get(src)?.[m[1]];
+    // Only intercept when we actually matched a pattern-filled rect; a
+    // mousedown on whitespace falls through so the parent component
+    // can still be dragged as a whole.
+    if (href) onShapeMouseDown?.(e, href, t.getBoundingClientRect(), m[1]);
+  };
+
+  // After each render, hide rects whose pattern has been torn off so
+  // empty slots stay empty. The SVG is mounted via innerHTML, so a
+  // direct DOM walk is the simplest way to apply visibility.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || !svg) return;
+    const ids = hiddenPatterns;
+    wrap.querySelectorAll('rect[fill^="url"]').forEach(r => {
+      const m = (r.getAttribute('fill') || '').match(/url\(#([^)]+)\)/);
+      const hide = !!(m && ids && ids.has(m[1]));
+      (r as SVGRectElement).style.visibility = hide ? 'hidden' : '';
+    });
+  }, [svg, hiddenPatterns]);
+
+  if (!svg) return null;
+  return (
+    <div
+      ref={wrapRef}
+      className="demo-element__svg"
+      onMouseDown={onMouseDown}
+      dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
 }

@@ -852,6 +852,49 @@ export default function App() {
   // Kinds the user has applied at least one fix for. Drives which
   // categories the Recommendation panel shows once issues hit zero.
   const [recommendationKinds, setRecommendationKinds] = useState<Set<'Vectors' | 'Text'>>(new Set());
+  // Drop a recommendation asset onto the canvas as a draggable
+  // / resizable element (Figma-style component placement). Reuses the
+  // existing DemoEl machinery — width is fixed, height is intrinsic
+  // from the image's aspect ratio.
+  const applyRecommendation = useCallback((asset: string | null) => {
+    if (!asset) return;
+    const key = elKeyRef.current++;
+    setDemoElements(prev => [...prev, {
+      key,
+      id: 'recommendation',
+      x: 240,
+      y: 220,
+      width: 360,
+      inStack: false,
+      src: `${import.meta.env.BASE_URL}${asset}`,
+    }]);
+  }, []);
+  // Mousedown on a shape inside a recommendation component → spawn a
+  // free element at the cursor and hand its key back to Canvas, which
+  // continues the drag seamlessly (Figma-style "tear off an instance").
+  // The width comes from the rect's measured on-canvas size so the
+  // torn-off copy is the same size as the cell the user grabbed. The
+  // pattern id of the torn rect gets added to `extractedPatterns` so
+  // ComponentSvg can hide the now-empty cell in the source component.
+  const [extractedPatterns, setExtractedPatterns] = useState<Set<string>>(new Set());
+  const extractComponentShape = useCallback((href: string, x: number, y: number, w: number, patternId: string) => {
+    const key = elKeyRef.current++;
+    setDemoElements(prev => [...prev, {
+      key,
+      id: 'recommendation-shape',
+      x,
+      y,
+      width: w,
+      inStack: false,
+      src: href,
+    }]);
+    setExtractedPatterns(prev => {
+      const n = new Set(prev);
+      n.add(patternId);
+      return n;
+    });
+    return key;
+  }, []);
   const [currentIssueIdx, setCurrentIssueIdx] = useState(0);
   const [previewedFixIdx, setPreviewedFixIdx] = useState<number | null>(null);
   // Clamp the issue index when the list shrinks (e.g. after Apply / Ignore).
@@ -1038,6 +1081,8 @@ export default function App() {
           onPopShapeFromStack={popShapeFromStack}
           pathDraft={pathDraft}
           onAddPathPoint={addPathPoint}
+          onExtractComponentShape={extractComponentShape}
+          extractedPatterns={extractedPatterns}
         />
         <RightSidebar
           scene={scene}
@@ -1070,6 +1115,7 @@ export default function App() {
           onAddToExceptions={addCurrentToExceptions}
           onOpenEditorSettings={() => setEditorSettingsOpen(true)}
           recommendationKinds={recommendationKinds}
+          onApplyRecommendation={applyRecommendation}
         />
       </div>
       <BottomToolbar

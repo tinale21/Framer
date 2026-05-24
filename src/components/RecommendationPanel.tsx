@@ -15,12 +15,15 @@ type RecCard = {
   hearts: string;
   comments: number;
   tags: string[];
+  // Asset path (relative to BASE_URL) rendered onto the canvas when the
+  // card is clicked — `null` for cards that don't have a demo yet.
+  asset?: string;
 };
 
 const RECS: Record<Category, RecCard[]> = {
   Vectors: [
     { title: 'Unique Shapes', preview: 'vectors-1', hearts: '1K+', comments: 21, tags: ['Template', 'Free', 'Beginner'] },
-    { title: '3D Shapes', preview: 'vectors-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'] },
+    { title: '3D Shapes', preview: 'vectors-2', hearts: '521', comments: 11, tags: ['Template', 'Free', 'Beginner'], asset: 'recs/3d-shapes.svg' },
   ],
   Text: [
     { title: 'Text Editor', preview: 'text-1', hearts: '1K+', comments: 21, tags: ['Component', 'Free', 'Beginner'] },
@@ -85,11 +88,12 @@ function CardPreview({ kind }: { kind: RecCard['preview'] }) {
 }
 
 export default function RecommendationPanel({
-  kinds, onClose, onOpenSettings,
+  kinds, onClose, onOpenSettings, onApplyAsset,
 }: {
   kinds: Set<Category>;
   onClose: () => void;
   onOpenSettings: () => void;
+  onApplyAsset: (asset: string | null) => void;
 }) {
   // Show only the categories the user has actually applied a fix for —
   // fall back to all categories if nothing's been applied yet (e.g.
@@ -134,7 +138,12 @@ export default function RecommendationPanel({
 
       <div className="rec-cards">
         {cards.map(c => (
-          <div className="rec-card" key={c.title}>
+          <div
+            className={'rec-card' + (c.asset ? ' rec-card--clickable' : '')}
+            key={c.title}
+            onClick={() => c.asset && onApplyAsset(c.asset)}
+            role={c.asset ? 'button' : undefined}
+          >
             <CardPreview kind={c.preview} />
             <div className="rec-card__avatar" />
             <div className="rec-card__body">

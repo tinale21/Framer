@@ -2580,6 +2580,34 @@ select.typo__field {
 }
 .rec-helpful__actions button:hover { text-decoration: underline; }
 
+.rec-card--clickable { cursor: pointer; }
+
+/* Recommendation-applied items render as Figma-style components.
+   Drop the default element drop-shadow + radius so the asset reads
+   as a flat placed component, not a card. */
+.demo-element--component .demo-element__img,
+.demo-element--component .demo-element__svg {
+  box-shadow: none;
+  border-radius: 0;
+  outline: 1.5px solid #9d4edd;
+  outline-offset: 1px;
+}
+/* Extracted-shape PNGs ship with a white background — `multiply`
+   blends that white into the canvas's own white so just the shape
+   reads. (Multiply leaves white identical to the background and
+   keeps darker / colored pixels intact.) */
+.demo-element--component-shape .demo-element__img {
+  mix-blend-mode: multiply;
+}
+.demo-element--component.demo-element--selected .demo-element__img,
+.demo-element--component.demo-element--selected .demo-element__svg {
+  outline-color: #9d4edd;
+  outline-width: 2px;
+}
+.demo-element__svg svg { display: block; width: 100%; height: auto; }
+.demo-element__svg rect[fill^="url"] { cursor: pointer; }
+.rec-card--clickable:hover .rec-card__body { background: #eaeaea; }
+
 /* Element hover popout — uses the same frame size as the Grid popup
    but renders the Elements SVG (with embedded image previews) and
    scrolls when the SVG overflows the frame height */
