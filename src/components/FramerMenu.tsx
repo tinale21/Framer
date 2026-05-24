@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import type { SceneSetter } from '../types';
 import { Search, Chevron } from '../icons';
 
@@ -8,7 +8,9 @@ type Item = {
   disabled?: boolean;
   divider?: boolean;
   sub?: boolean;
-  action?: boolean;
+  // Named action so we can wire several "action" items in the same
+  // submenu to different parent callbacks.
+  action?: 'tutorialOverlays' | 'editorSettings';
 };
 type Entry = {
   label: string;
@@ -32,9 +34,9 @@ const PREF_ITEMS: Item[] = [
   { label: 'Show Templates on New Project', checked: true },
   { divider: true },
   { label: 'Reset Default Frame Fill', disabled: true },
-  { label: 'Nudge Amount' },
   { label: 'Performance Mode' },
-  { label: 'Tutorial Overlays', action: true },
+  { label: 'Tutorial Overlays', action: 'tutorialOverlays' },
+  { label: 'Editor Settings', action: 'editorSettings' },
 ];
 
 const SECTIONS: Entry[] = [
@@ -164,14 +166,21 @@ const CheckMark = () => (
   </svg>
 );
 
-export default function FramerMenu({ onClose, onSceneChange }: {
+export default function FramerMenu({ onClose, onSceneChange, onOpenEditorSettings }: {
   onClose: () => void;
   onSceneChange: SceneSetter;
+  onOpenEditorSettings: () => void;
 }) {
-  // `active` tracks which section is hovered and the y-offset of its row,
-  // so the submenu can open next to it instead of always at the top.
-  const [active, setActive] = useState<{ label: string; top: number } | null>(null);
+  // `active` tracks which section is hovered, the y-offset of its row,
+  // and the row's height, so the submenu can open next to it instead of
+  // always at the top — and so a "bottom-aligned" submenu (Preferences)
+  // can land flush with the row's bottom.
+  const [active, setActive] = useState<{ label: string; top: number; height: number } | null>(null);
   const [query, setQuery] = useState('');
+  // Measured height of the currently rendered submenu — used to bottom-align
+  // the Preferences submenu against the Preferences row.
+  const submenuRef = useRef<HTMLDivElement>(null);
+  const [submenuTop, setSubmenuTop] = useState<number | null>(null);
 
   const q = query.trim().toLowerCase();
   const results = q ? ENTRIES.filter(e => entryMatch(e, q)) : null;
@@ -183,6 +192,25 @@ export default function FramerMenu({ onClose, onSceneChange }: {
     onClose();
     onSceneChange('tutorial-overlays-settings');
   };
+  const openEditorSettings = () => {
+    onClose();
+    onOpenEditorSettings();
+  };
+  const runAction = (name?: Item['action']) => {
+    if (name === 'tutorialOverlays') openTutorialOverlays();
+    else if (name === 'editorSettings') openEditorSettings();
+  };
+
+  // After the Preferences submenu mounts, measure it and bottom-align it
+  // with the Preferences row so there's no leftover gap below.
+  useLayoutEffect(() => {
+    if (!submenuRef.current || !active || activeSection?.label !== 'Preferences') {
+      setSubmenuTop(null);
+      return;
+    }
+    const h = submenuRef.current.offsetHeight;
+    setSubmenuTop(active.top + active.height - h);
+  }, [active, activeSection?.label]);
 
   const renderEntry = (e: Entry) => (
     <button
@@ -194,7 +222,9 @@ export default function FramerMenu({ onClose, onSceneChange }: {
         + (highlighted === e.label ? ' framer-menu__item--active' : '')
       }
       onMouseEnter={ev => setActive(
-        e.items ? { label: e.label, top: ev.currentTarget.offsetTop } : null
+        e.items
+          ? { label: e.label, top: ev.currentTarget.offsetTop, height: ev.currentTarget.offsetHeight }
+          : null
       )}
     >
       {e.label}
@@ -236,11 +266,16 @@ export default function FramerMenu({ onClose, onSceneChange }: {
 
       {activeSection && activeSection.items && active && (
         <div
+          ref={submenuRef}
           className="framer-menu__panel framer-menu__submenu"
-          style={{
-            top: active.top - 8,
-            maxHeight: `calc(100vh - 67px - ${active.top}px)`,
-          }}
+          style={
+            // Preferences sits near the bottom of the parent menu, so its
+            // submenu opens *upward* and we bottom-align it with the
+            // Preferences row (Framer-style — no gap below).
+            activeSection.label === 'Preferences'
+              ? { top: submenuTop ?? 0, maxHeight: `calc(100vh - 67px)` }
+              : { top: active.top - 8, maxHeight: `calc(100vh - 67px - ${active.top}px)` }
+          }
         >
           {activeSection.items.map((it, i) => it.divider ? (
             <div key={i} className="framer-menu__sep" />
@@ -249,7 +284,7 @@ export default function FramerMenu({ onClose, onSceneChange }: {
               key={i}
               type="button"
               className={'framer-menu__item' + (it.disabled ? ' framer-menu__item--disabled' : '')}
-              onClick={it.action ? openTutorialOverlays : undefined}
+              onClick={it.action ? () => runAction(it.action) : undefined}
             >
               {activeSection.checkable && (
                 <span className="framer-menu__check">{it.checked && <CheckMark />}</span>

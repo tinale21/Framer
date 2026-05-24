@@ -5,7 +5,7 @@ import FramerMenu from './FramerMenu';
 
 const ICONS = ['globe', 'hexagon', 'signal', 'play'] as const;
 
-export default function TopBar({ onSceneChange }: { onSceneChange: SceneSetter }) {
+export default function TopBar({ onSceneChange, onOpenEditorSettings }: { onSceneChange: SceneSetter; onOpenEditorSettings: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +34,7 @@ export default function TopBar({ onSceneChange }: { onSceneChange: SceneSetter }
           <span className="topbar__logo-chev"><Chevron dir="down" size={13} /></span>
         </button>
         {menuOpen && (
-          <FramerMenu onClose={() => setMenuOpen(false)} onSceneChange={onSceneChange} />
+          <FramerMenu onClose={() => setMenuOpen(false)} onSceneChange={onSceneChange} onOpenEditorSettings={onOpenEditorSettings} />
         )}
       </div>
       <div className="topbar__right">

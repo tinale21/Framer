@@ -2761,7 +2761,7 @@ select.typo__field {
 /* The completion modal borrows the "Using Stacks" modal's padding rule. */
 .modal--completed { max-width: 550px; padding: 32px 28px 24px; border-radius: 9px; }
 .modal--completed .btn { padding: 8px 15px; font-size: 13px; }
-.modal--overlays { max-width: 370px; }
+.modal--overlays { max-width: 335px; }
 .modal--editor-settings {
   max-width: 330px;
   padding: 22px 22px 18px;

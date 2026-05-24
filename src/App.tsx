@@ -964,7 +964,7 @@ export default function App() {
 
   return (
     <div className={'app' + (darkMode ? ' app--dark' : '')}>
-      <TopBar onSceneChange={setScene} />
+      <TopBar onSceneChange={setScene} onOpenEditorSettings={() => setEditorSettingsOpen(true)} />
       <div className="main">
         <LeftSidebar homeExpanded={homeExpanded} onToggleHome={toggleHome} />
         <Canvas
