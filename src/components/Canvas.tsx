@@ -1657,7 +1657,7 @@ function ComponentSvg({ src, onShapeMouseDown, hiddenPatterns, selectedCellId }:
         const clipId = m[1];
         const clip = doc.getElementById(clipId);
         const cr = clip?.querySelector('rect');
-        if (!cr) return;
+        if (!clip || !cr) return;
         const tr = cr.getAttribute('transform') || '';
         const trM = tr.match(/translate\(\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)/);
         const x = trM ? +trM[1] : +(cr.getAttribute('x') || 0);
