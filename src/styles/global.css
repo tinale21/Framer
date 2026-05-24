@@ -2920,6 +2920,17 @@ select.typo__field {
   border-color: #2a2a2a;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
+/* Items match the grid popout's dark treatment: dark pill, white label,
+   muted icon, blue hover. */
+.app--dark .popout-vector__item {
+  background: #2a2a2a;
+  border-color: #2a2a2a;
+  color: #ffffff;
+  box-shadow: none;
+}
+.app--dark .popout-vector__item:hover { background: #0099ff; color: #ffffff; }
+.app--dark .popout-vector__item-icon { color: #a6a6a6; }
+.app--dark .popout-vector__item:hover .popout-vector__item-icon { color: #ffffff; }
 
 /* Component popout — single pill cropped from a card SVG */
 .popout-component {
@@ -2957,10 +2968,18 @@ select.typo__field {
   transition: outline-color 0.15s ease;
 }
 .popout-component__zone:hover { outline-color: #0099ff; }
+/* Matches the grid popout's dark treatment. The SVG's outer card fill
+   was removed so the popout container reads as the surface, and the
+   inner "Create new" pill gets inverted to match the vector popout's
+   dark pill + white text — brightness(1.1) lifts the inverted black
+   close to #2a2a2a so the pill reads as a raised surface. */
 .app--dark .popout-component {
   background: #1f1f1f;
   border-color: #2a2a2a;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+.app--dark .popout-component__strip-img {
+  filter: invert(1) hue-rotate(180deg) brightness(1.1);
 }
 
 /* Base hover popout — each tile stacked full-width, vertical scroll */
@@ -3008,6 +3027,9 @@ select.typo__field {
   border-color: #2a2a2a;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
+/* Tone the baked white tile images down to a light gray so they don't
+   glare against the dark popup. */
+.app--dark .popout-base-hover__tile-img { filter: brightness(0.82); }
 
 /* Dark mode for element popout */
 .app--dark .popout-element {
@@ -3015,6 +3037,11 @@ select.typo__field {
   border-color: #2a2a2a;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
+.app--dark .popout-element__label { color: #cccccc; }
+/* Tone the baked white card backgrounds down to a light gray so they
+   don't glare against the dark popup, but leave the colored element
+   previews intact. */
+.app--dark .popout-element__strip-img { filter: brightness(0.82); }
 
 /* ===== Popouts / Overlays ===== */
 .popout-base {
@@ -3598,6 +3625,16 @@ select.typo__field {
   border-bottom-color: #2a2a2a;
 }
 .app--dark .topbar__logo { filter: invert(1); }
+/* Logo button stays white in light mode; in dark mode darken it so
+   the inverted (now white) logo has a dark surface to read against. */
+.app--dark .topbar__logo-btn {
+  background: #2a2a2a;
+  border-color: #2a2a2a;
+  box-shadow: none;
+}
+.app--dark .topbar__logo-btn:hover,
+.app--dark .topbar__logo-btn--active { background: #353535; }
+.app--dark .topbar__logo-chev { color: #999999; }
 .app--dark .topbar__btn {
   background: #2a2a2a;
   color: #ffffff;
@@ -3730,3 +3767,108 @@ select.typo__field {
   background: #3a3a3a;
   box-shadow: none;
 }
+
+/* ===== Modals + popups ===== */
+.app--dark .modal {
+  background: #1f1f1f;
+  color: #ffffff;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+.app--dark .modal__title { color: #ffffff; }
+.app--dark .modal__body { color: #cccccc; }
+.app--dark .modal__close { color: #cccccc; }
+.app--dark .modal__close:hover { background: #2a2a2a; }
+.app--dark .btn { background: transparent; color: #4db5ff; border-color: #4db5ff; }
+.app--dark .btn:hover { background: rgba(77, 181, 255, 0.1); }
+.app--dark .btn--primary { background: #0099ff; color: #ffffff; border-color: #0099ff; }
+.app--dark .btn--primary:hover { background: #0088e5; }
+.app--dark .es-row { color: #ffffff; }
+.app--dark .es-row__icon { color: #999999; }
+.app--dark .es-row__icon:hover { color: #ffffff; }
+
+/* Community popup */
+.app--dark .comm-close { color: #cccccc; }
+.app--dark .comm-close:hover { background: #2a2a2a; }
+.app--dark .comm-title { color: #ffffff; }
+.app--dark .comm-subtitle { color: #999999; }
+.app--dark .comm-search { border-color: #2a2a2a; background: #2a2a2a; color: #999999; }
+.app--dark .comm-search input { color: #ffffff; }
+.app--dark .comm-search input::placeholder { color: #777777; }
+.app--dark .comm-filter { background: #2a2a2a; color: #cccccc; }
+.app--dark .comm-filter:hover { background: #353535; }
+.app--dark .comm-filter--active { background: #ffffff; color: #1a1a1a; }
+.app--dark .comm-filter--active:hover { background: #ffffff; }
+
+/* Recommendation cards (sidebar + community) */
+.app--dark .rec-card { background: #2a2a2a; }
+.app--dark .rec-card__body { background: #2a2a2a; }
+.app--dark .rec-card__title { color: #ffffff; }
+.app--dark .rec-card__bookmark { color: #999999; }
+.app--dark .rec-card__bookmark:hover { color: #cccccc; }
+.app--dark .modal--community .rec-card__bookmark--on { color: #f5b400; }
+.app--dark .rec-card__meta { color: #999999; }
+.app--dark .rec-helpful { color: #ffffff; }
+.app--dark .rec-helpful__actions button { color: #4db5ff; }
+.app--dark .rec-card__preview--comm,
+.app--dark .rec-card__preview--img { background: #1a1a1a; }
+/* Pastel tag chips: keep the hue so they still read at a glance,
+   but darken the base + lift the text so they don't glare on the
+   dark card body. */
+.app--dark .rec-card__tag             { background: #3a3a3a; color: #e0e0e0; }
+.app--dark .rec-card__tag--component  { background: #1e3a55; color: #9ed3ff; }
+.app--dark .rec-card__tag--asset      { background: #3a2855; color: #d4b5ff; }
+.app--dark .rec-card__tag--pack       { background: #1f4536; color: #9ee0bd; }
+.app--dark .rec-card__tag--free       { background: #2f4520; color: #c5e896; }
+.app--dark .rec-card__tag--pro        { background: #4a3a1a; color: #f0d090; }
+.app--dark .rec-card__tag--beginner   { background: #4a2540; color: #f0a8cf; }
+.app--dark .rec-card__tag--intermediate { background: #4a3520; color: #f0c598; }
+.app--dark .rec-card__tag--advanced   { background: #4a2525; color: #f0a8a8; }
+.app--dark .rec-card__tag--animation  { background: #2a3a55; color: #9eb8ff; }
+.app--dark .rec-card__tag--code-snippet { background: #3a2a55; color: #c5a8ff; }
+.app--dark .rec-card__tag--transition { background: #1a4040; color: #8edada; }
+.app--dark .rec-card__tag--template   { background: #3a3a1f; color: #e0d890; }
+
+/* Insert section demo highlight (sidebar) — white box on dark
+   sidebar reads as a blinding flashlight; tone it down to a raised
+   surface that still feels like the user's focus. */
+.app--dark .insert-section--demo {
+  background: #2a2a2a;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.app--dark .insert-demo-callout {
+  background: #2f2f2f;
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.app--dark .insert-demo-callout::after { border-left-color: #2f2f2f; }
+
+/* Editor (error checker) panel */
+.app--dark .editor-panel__title { color: #ffffff; }
+.app--dark .editor-panel__close { color: #999999; }
+.app--dark .editor-panel__close:hover { color: #ffffff; }
+.app--dark .editor-panel__section-title { color: #ffffff; }
+.app--dark .editor-panel__check-row { color: #cccccc; }
+.app--dark .editor-panel__info { color: #888888; }
+.app--dark .editor-panel__card {
+  background: #2a2a2a;
+  border-color: #2a2a2a;
+}
+.app--dark .editor-panel__card:hover { background: #353535; border-color: #3a3a3a; }
+.app--dark .editor-panel__card--active {
+  background: #14304a;
+  border-color: #0099ff;
+}
+.app--dark .editor-panel__card--active:hover { background: #1a3d5e; }
+.app--dark .editor-panel__card-label { color: #ffffff; }
+.app--dark .editor-panel__swatch { border-color: #3a3a3a; }
+.app--dark .editor-panel__pager-arrows button { color: #cccccc; }
+.app--dark .editor-panel__pager-arrows button:disabled { color: #555555; }
+.app--dark .editor-panel__action {
+  background: #2a2a2a;
+  border-color: #2a2a2a;
+  color: #ffffff;
+}
+.app--dark .editor-panel__action:hover { background: #353535; }
+.app--dark .editor-panel__empty,
+.app--dark .editor-panel__no-errors { color: #999999; }
+.app--dark .editor-panel__settings { color: #4db5ff; }
