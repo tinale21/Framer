@@ -283,6 +283,10 @@ export default function App() {
   // helpers that clear other selections.
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const shapeKeyRef = useRef(0);
+  // Monotonic counter stamped on every drop-into-stack so the Canvas
+  // can render stack items in the order the user dragged them in,
+  // across all three types (elements, texts, shapes).
+  const stackOrderRef = useRef(0);
   // Path tool: in-progress anchor points while drafting (click to add). Lives
   // in App so the keydown handler can pop the last point on Delete.
   const [pathDraft, setPathDraft] = useState<Pt[]>([]);
@@ -375,7 +379,8 @@ export default function App() {
       : el)));
   }, []);
   const dropElementInStack = useCallback((key: number) => {
-    setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: true } : el)));
+    const order = stackOrderRef.current++;
+    setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: true, stackOrder: order } : el)));
   }, []);
   const popElementFromStack = useCallback((key: number) => {
     setDemoElements(prev => prev.map(el => (el.key === key ? { ...el, inStack: false } : el)));
@@ -515,7 +520,8 @@ export default function App() {
     }));
   }, []);
   const dropShapeInStack = useCallback((key: number) => {
-    setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: true } : s)));
+    const order = stackOrderRef.current++;
+    setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: true, stackOrder: order } : s)));
   }, []);
   const popShapeFromStack = useCallback((key: number) => {
     setShapes(prev => prev.map(s => (s.key === key ? { ...s, inStack: false } : s)));
@@ -590,7 +596,8 @@ export default function App() {
     setTextStyle(key, patch);
   }, [setTextStyle]);
   const dropTextInStack = useCallback((key: number) => {
-    setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true } : t)));
+    const order = stackOrderRef.current++;
+    setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: true, stackOrder: order } : t)));
   }, []);
   const popTextFromStack = useCallback((key: number) => {
     setTexts(prev => prev.map(t => (t.key === key ? { ...t, inStack: false } : t)));

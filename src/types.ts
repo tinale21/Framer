@@ -74,6 +74,9 @@ export type TextEl = {
   // the user enters edit mode. Otherwise the contentEditable inherits
   // the placeholder's width and wraps when typing past 4 chars.
   placeholder?: boolean;
+  // Sequence number stamped when the text was dropped into the stack;
+  // used to render stack items in drag-in order across types.
+  stackOrder?: number;
 };
 
 // A demo element instance: a unique key, the element type, a free
@@ -89,6 +92,8 @@ export type DemoEl = {
   // On-screen width to render at while free — set when pulled out of the
   // stack so the element keeps the size it had inside it.
   width?: number;
+  // Sequence number stamped when dropped into the stack — see TextEl.
+  stackOrder?: number;
 };
 
 // A vector shape drawn on the canvas with the Vector tool. The geometric
@@ -101,7 +106,7 @@ export type Pt = { x: number; y: number };
 export type VectorFill = string | null;
 export type VectorStroke = { color: string; width: number } | null;
 type VectorStyle = { fill: VectorFill; stroke: VectorStroke };
-type InStackFlag = { inStack: boolean };
+type InStackFlag = { inStack: boolean; stackOrder?: number };
 export type VectorEl =
   | ({ key: number; kind: 'rectangle' | 'oval' | 'polygon' | 'star';
        x: number; y: number; w: number; h: number } & VectorStyle & InStackFlag)

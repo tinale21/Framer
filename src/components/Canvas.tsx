@@ -1104,49 +1104,63 @@ export default function Canvas({
         className={'demo-stack__col demo-stack__col--blue' + (stackRow ? ' demo-stack__col--row' : '')}
         style={stackColStyle}
       >
-        {stackEls.map(el => (
-          <img
-            key={el.key}
-            src={el.src ?? elemSrc(el.id)}
-            alt=""
-            className={
-              'demo-stack__element' +
-              (selectedEl === el.key ? ' demo-stack__element--selected' : '')
-            }
-            style={el.key === draggingKey ? { opacity: 0 } : undefined}
-            onMouseDown={e => handleElementMouseDown(e, el, true)}
-            onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
-          />
-        ))}
-        {stackTexts.map(t => (
-          <div
-            key={t.key}
-            className={
-              'demo-stack__text'
-              + (selectedText === t.key ? ' demo-stack__text--selected' : '')
-              + (t.bullet ? ' text-el--bullet' : '')
-              + (t.effect ? ` text-effect text-effect--${t.effect}` : '')
-            }
-            data-text-editor={t.key}
-            style={{
-              ...textStyle(t),
-              ...(t.key === draggingTextKey ? { opacity: 0 } : {}),
-            }}
-            onMouseDown={e => handleStackTextMouseDown(e, t)}
-            onClick={e => { e.stopPropagation(); onSelectText?.(t.key); }}
-          >
-            {t.bullet && <ListBulletIcon />}
-            {renderRuns(t.text, t.runs, runHighlightFor(t))}
-          </div>
-        ))}
-        {stackShapes.map(s => {
+        {/* Merge all three stack types into one list sorted by the
+            sequence number stamped at drop time, so items render in
+            the order the user dragged them in. */}
+        {([
+          ...stackEls.map(el => ({ t: 'el' as const, order: el.stackOrder ?? 0, key: `el-${el.key}`, data: el })),
+          ...stackTexts.map(tx => ({ t: 'tx' as const, order: tx.stackOrder ?? 0, key: `tx-${tx.key}`, data: tx })),
+          ...stackShapes.map(s => ({ t: 'sh' as const, order: s.stackOrder ?? 0, key: `sh-${s.key}`, data: s })),
+        ]).sort((a, b) => a.order - b.order).map(item => {
+          if (item.t === 'el') {
+            const el = item.data;
+            return (
+              <img
+                key={item.key}
+                src={el.src ?? elemSrc(el.id)}
+                alt=""
+                className={
+                  'demo-stack__element' +
+                  (selectedEl === el.key ? ' demo-stack__element--selected' : '')
+                }
+                style={el.key === draggingKey ? { opacity: 0 } : undefined}
+                onMouseDown={e => handleElementMouseDown(e, el, true)}
+                onClick={e => { e.stopPropagation(); onSelectEl?.(el.key); }}
+              />
+            );
+          }
+          if (item.t === 'tx') {
+            const tx = item.data;
+            return (
+              <div
+                key={item.key}
+                className={
+                  'demo-stack__text'
+                  + (selectedText === tx.key ? ' demo-stack__text--selected' : '')
+                  + (tx.bullet ? ' text-el--bullet' : '')
+                  + (tx.effect ? ` text-effect text-effect--${tx.effect}` : '')
+                }
+                data-text-editor={tx.key}
+                style={{
+                  ...textStyle(tx),
+                  ...(tx.key === draggingTextKey ? { opacity: 0 } : {}),
+                }}
+                onMouseDown={e => handleStackTextMouseDown(e, tx)}
+                onClick={e => { e.stopPropagation(); onSelectText?.(tx.key); }}
+              >
+                {tx.bullet && <ListBulletIcon />}
+                {renderRuns(tx.text, tx.runs, runHighlightFor(tx))}
+              </div>
+            );
+          }
+          const s = item.data;
           const bb = shapeBox(s);
           const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
           const selected = selectedShape === s.key;
           const flagged = highlightedIssue?.kind === 'shape' && highlightedIssue.key === s.key;
           return (
             <div
-              key={s.key}
+              key={item.key}
               className={
                 'demo-stack__shape vec-shape--' + s.kind +
                 (selected ? ' demo-stack__shape--selected vec-shape--selected' : '') +
