@@ -425,7 +425,12 @@ export default function App() {
     // empty contentEditable) and skip auto-edit-mode — the user
     // needs the static text-el so they can drag it into the stack.
     const isDemo = scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element';
-    setTexts(prev => [...prev, { key, x, y, text: isDemo ? 'Text' : '', inStack: false }]);
+    setTexts(prev => [...prev, {
+      key, x, y,
+      text: isDemo ? 'Text' : '',
+      placeholder: isDemo || undefined,
+      inStack: false,
+    }]);
     if (!isDemo) setEditingText(key);
     setSelectedText(key);
     setSelectedEl(null); // only one thing is selected at a time
@@ -598,6 +603,14 @@ export default function App() {
     setSelectedShape(null);
   }, []);
   const editText = useCallback((key: number) => {
+    // Clear the demo "Text" placeholder on first edit so the
+    // contentEditable opens empty and grows naturally as the user
+    // types — otherwise it's locked to the placeholder's 4-char width.
+    setTexts(prev => prev.map(t => (
+      t.key === key && t.placeholder
+        ? { ...t, text: '', placeholder: undefined }
+        : t
+    )));
     setSelectedText(key);
     setEditingText(key);
     setSelectedEl(null); // only one thing is selected at a time
@@ -605,8 +618,25 @@ export default function App() {
     setSelectedShape(null);
   }, []);
   const deselectText = useCallback(() => {
+    // If the user is exiting an editing text that's empty, drop the
+    // text element (and any callout pinned to it) — otherwise the
+    // invisible empty wrapper would still render its demo callout.
+    setEditingText(cur => {
+      if (cur !== null) {
+        setTexts(prev => {
+          const t = prev.find(x => x.key === cur);
+          // Browser may leave a trailing <br> after backspacing all chars,
+          // so t.text can be '\n' even though the box looks empty — trim().
+          if (t && t.text.trim() === '') {
+            setCalloutText(c => (c === cur ? null : c));
+            return prev.filter(x => x.key !== cur);
+          }
+          return prev;
+        });
+      }
+      return null;
+    });
     setSelectedText(null);
-    setEditingText(null);
     setTextSelection(null);
   }, []);
   const endTextEdit = useCallback((key: number, isEmpty: boolean) => {
@@ -616,6 +646,7 @@ export default function App() {
       // Drop a text box the user placed but never typed into.
       setTexts(prev => prev.filter(t => t.key !== key));
       setSelectedText(s => (s === key ? null : s));
+      setCalloutText(c => (c === key ? null : c));
     } else {
       setSelectedText(key); // stays selected (blue) after committing
     }
@@ -712,15 +743,18 @@ export default function App() {
       }
       if (selectedEl !== null) {
         setDemoElements(prev => prev.filter(el => el.key !== selectedEl));
+        setCalloutEl(c => (c === selectedEl ? null : c));
         setSelectedEl(null);
       }
       if (selectedText !== null) {
         setTexts(prev => prev.filter(t => t.key !== selectedText));
+        setCalloutText(c => (c === selectedText ? null : c));
         setSelectedText(null);
         setEditingText(null);
       }
       if (selectedShape !== null) {
         setShapes(prev => prev.filter(s => s.key !== selectedShape));
+        setCalloutShape(c => (c === selectedShape ? null : c));
         setSelectedShape(null);
       }
     };

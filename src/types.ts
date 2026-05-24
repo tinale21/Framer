@@ -70,6 +70,10 @@ export type TextEl = {
   runs?: TextRun[];          // per-segment color overrides; absent = uniform color
   bullet?: boolean;          // render with the list-style bullet icon prefix
   effect?: 'milk'; // text-effect preset (CSS class)
+  // Demo-seeded placeholder ("Text") that should be cleared as soon as
+  // the user enters edit mode. Otherwise the contentEditable inherits
+  // the placeholder's width and wraps when typing past 4 chars.
+  placeholder?: boolean;
 };
 
 // A demo element instance: a unique key, the element type, a free

@@ -1377,6 +1377,7 @@ export default function Canvas({
                   'text-el' +
                   (t.bullet ? ' text-el--bullet' : '') +
                   (t.effect ? ` text-effect text-effect--${t.effect}` : '') +
+                  (t.width != null ? ' text-el--wrapped' : '') +
                   (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
                 }
                 style={{
@@ -1689,7 +1690,16 @@ function EditableText({
       }}
       onMouseDown={e => { e.stopPropagation(); onSelectionChange?.(null); }}
       onClick={e => e.stopPropagation()}
-      onKeyDown={e => { if (e.key === 'Escape') (e.currentTarget as HTMLElement).blur(); }}
+      onKeyDown={e => {
+        if (e.key === 'Escape') { (e.currentTarget as HTMLElement).blur(); return; }
+        // Backspace/Delete on an empty editor exits edit mode so the
+        // empty text box (and its callout) get cleaned up, instead of
+        // trapping the user with no chars left to delete.
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          const el = e.currentTarget as HTMLElement;
+          if (el.innerText.trim() === '') { e.preventDefault(); el.blur(); }
+        }
+      }}
     />
   );
 }

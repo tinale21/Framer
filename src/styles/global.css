@@ -1759,7 +1759,14 @@ button {
   font-weight: 500;
   line-height: 1.4;
   color: #1a1a1a;
+  /* Default: don't wrap — grow with content. Only wrap when the user
+     has explicitly resized the box (handled by .text-el--wrapped). */
+  white-space: pre;
+}
+.text-el--wrapped .text-el__input,
+.text-el--wrapped .text-el__static {
   white-space: pre-wrap;
+  word-break: break-word;
 }
 .text-el__input {
   display: block; /* match the static div so editing/selected boxes are equal size */
