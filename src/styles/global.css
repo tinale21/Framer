@@ -3196,35 +3196,39 @@ select.typo__field {
 @media (max-width: 720px) {
   .comm-grid { grid-template-columns: repeat(2, 1fr); }
 }
-/* Community card preview variants — extend .rec-card__preview's base
-   (96px tall, padding). Backgrounds only; the actual title/author
-   sit in .rec-card__body just like the Recommendation cards. */
-.rec-card__preview--comm { padding: 0; }
-.rec-card__preview--comm-gray         { background: linear-gradient(135deg, #d6d6d6, #c0c0c0); }
-.rec-card__preview--comm-dark         { background: #1a1a1a; }
-.rec-card__preview--comm-shapes       { background: linear-gradient(135deg, #cfe3f5, #ffd0d0); }
-.rec-card__preview--comm-embed        { background: #ffffff; border-bottom: 1px solid #ececec; }
-.rec-card__preview--comm-multilingual { background: linear-gradient(135deg, #f7c9c9, #d5b9f0, #cfe3f5); }
-.rec-card__preview--comm-segmentui    { background: #0a0c10; }
-.rec-card__preview--comm-scramble     { background: #f7f7f7; }
-.rec-card__preview--comm-template     { background: linear-gradient(135deg, #ff9966, #ff5e62); }
-.rec-card__preview--comm-gradient1    { background: linear-gradient(135deg, #43cea2, #185a9d); }
-.rec-card__preview--comm-gradient2    { background: linear-gradient(135deg, #fa709a, #fee140); }
-.rec-card__preview--comm-gradient3    { background: linear-gradient(135deg, #5ee7df, #b490ca); }
-.rec-card__preview--comm-gradient4    { background: linear-gradient(135deg, #c79081, #dfa579); }
+/* Image-backed preview blocks (community modal + Recommendation
+   panel covers). The image fills the 96px-tall .rec-card__preview
+   and is cropped via object-fit so it never distorts. */
+.rec-card__preview--comm,
+.rec-card__preview--img { padding: 0; background: #ececec; }
+.rec-card__preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 /* Community cards get more breathing room at the bottom than the
    Recommendation panel cards. Tags can wrap if a card happens to
    carry all three chips at the current grid width. */
-.modal--community .rec-card__body { padding: 18px 14px 24px; }
+.modal--community .rec-card__body { padding: 18px 14px 20px; }
+/* Filled bookmark when the user has saved the card — standard
+   gold/yellow so it reads clearly against the card body. */
+.modal--community .rec-card__bookmark--on { color: #f5b400; }
 /* Keep community card titles to a single line — long names truncate
-   with an ellipsis instead of pushing the rest of the card down. */
+   with an ellipsis instead of pushing the rest of the card down.
+   Extra right padding gives breathing room between the ellipsis
+   and the bookmark icon. */
 .modal--community .rec-card__title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-right: 8px;
 }
+.modal--community .rec-card__row { gap: 8px; }
 .modal--community .rec-card__tags { flex-wrap: wrap; row-gap: 6px; }
 .comm-empty {
   grid-column: 1 / -1;

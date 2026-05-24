@@ -874,6 +874,15 @@ export default function App() {
   const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
   const [disabledRecsOpen, setDisabledRecsOpen] = useState(false);
   const [communityOpen, setCommunityOpen] = useState(false);
+  // Persisted across modal open/close so favorites stick.
+  const [communityBookmarks, setCommunityBookmarks] = useState<Set<string>>(new Set());
+  const toggleCommunityBookmark = useCallback((title: string) => {
+    setCommunityBookmarks(prev => {
+      const n = new Set(prev);
+      if (n.has(title)) n.delete(title); else n.add(title);
+      return n;
+    });
+  }, []);
   // Flag: when Editor Settings was opened via "Manage" on the
   // Disabled Recommendations modal, saving should also close the
   // editor (mirrors Dismiss) so the right panel falls back to
@@ -1151,20 +1160,31 @@ export default function App() {
     setPreviewedFixIdx(null);
   }, [currentIssue, previewedFixIdx, setShapeFill, setTextStyle]);
   // Dismiss the current issue at one of three scopes.
+  // Ignore actions also count toward the recommendation panel —
+  // resolving an issue (even by dismissing it) makes the next
+  // all-clear cycle surface the rec panel just like an apply would.
+  const noteRecKindForIssue = (i: typeof currentIssue) => {
+    if (!i) return;
+    const recKind: 'Vectors' | 'Text' = i.targetKind === 'text' ? 'Text' : 'Vectors';
+    setRecommendationKinds(prev => prev.has(recKind) ? prev : new Set(prev).add(recKind));
+  };
   const ignoreCurrentOnce = useCallback(() => {
     if (!currentIssue) return;
+    noteRecKindForIssue(currentIssue);
     const k = onceKey(currentIssue);
     setIgnoredOnce(prev => { const n = new Set(prev); n.add(k); return n; });
     setPreviewedFixIdx(null);
   }, [currentIssue]);
   const ignoreCurrentAll = useCallback(() => {
     if (!currentIssue) return;
+    noteRecKindForIssue(currentIssue);
     const k = colorKey(currentIssue);
     setIgnoredAll(prev => { const n = new Set(prev); n.add(k); return n; });
     setPreviewedFixIdx(null);
   }, [currentIssue]);
   const addCurrentToExceptions = useCallback(() => {
     if (!currentIssue) return;
+    noteRecKindForIssue(currentIssue);
     const k = colorKey(currentIssue);
     setExceptions(prev => { const n = new Set(prev); n.add(k); return n; });
     setPreviewedFixIdx(null);
@@ -1361,7 +1381,11 @@ export default function App() {
         />
       )}
       {communityOpen && (
-        <CommunityModal onClose={() => setCommunityOpen(false)} />
+        <CommunityModal
+          onClose={() => setCommunityOpen(false)}
+          bookmarked={communityBookmarks}
+          onToggleBookmark={toggleCommunityBookmark}
+        />
       )}
       {disabledRecsOpen && (
         <DisabledRecommendationsModal

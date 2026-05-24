@@ -65,29 +65,29 @@ function HelpCircle() {
 }
 
 function CardPreview({ kind }: { kind: RecCard['preview'] }) {
-  // Mini design mockups — each one a different gradient + a stylized
-  // headline so the cards feel distinct without bundling real images.
+  // 3D Shapes / Text Editor / Advanced Text Effects use real cover
+  // images; Unique Shapes keeps the stylized CSS mockup since we
+  // don't have an image asset for it yet.
+  const imgMap: Partial<Record<RecCard['preview'], string>> = {
+    'vectors-2': 'recs/cover-3d-shapes.png',
+    'text-1':    'recs/cover-text-editor.png',
+    'text-2':    'recs/cover-text-effects.png',
+  };
+  const img = imgMap[kind];
+  if (img) {
+    return (
+      <div className="rec-card__preview rec-card__preview--img">
+        <img src={`${import.meta.env.BASE_URL}${img}`} alt="" className="rec-card__preview-img" draggable={false} />
+      </div>
+    );
+  }
   if (kind === 'vectors-1') return (
     <div className="rec-card__preview rec-card__preview--triangles">
       <div className="rec-card__preview-label">Triangle</div>
       <div className="rec-card__preview-sub">Total: 14</div>
     </div>
   );
-  if (kind === 'vectors-2') return (
-    <div className="rec-card__preview rec-card__preview--shapes3d">
-      <div className="rec-card__preview-title">3D shapes<br/>for anything</div>
-    </div>
-  );
-  if (kind === 'text-1') return (
-    <div className="rec-card__preview rec-card__preview--rich">
-      <div className="rec-card__preview-title rec-card__preview-title--dark">Rich <span style={{ background: '#bbdaff', padding: '0 6px' }}>Text Editor</span></div>
-    </div>
-  );
-  return (
-    <div className="rec-card__preview rec-card__preview--effects">
-      <div className="rec-card__preview-title">Advanced<br/>text effects</div>
-    </div>
-  );
+  return null;
 }
 
 export default function RecommendationPanel({
