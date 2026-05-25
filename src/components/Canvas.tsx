@@ -1204,10 +1204,12 @@ export default function Canvas({
     (scene === 'demo-5-insert-highlighted' || demo6 ||
       scene === 'demo-7-layout-prompt' || scene === 'demo-7-layout-panel' ||
       scene === 'demo-completed-modal' || scene === 'demo-final' ||
-      // Behind the disabled-tutorial popup, show the stack only if the user
-      // saved (kept content) — after Discard the canvas stays blank.
-      (scene === 'disabled-tutorial-modal' &&
-        (demoElements.length > 0 || texts.length > 0))) &&
+      // Behind the disabled-tutorial popup AND the tutorial-overlays
+      // settings popup, show the stack as long as there's any content.
+      // Without these the canvas reads as "wiped" while either modal
+      // is open even though the user's items are still in state.
+      ((scene === 'disabled-tutorial-modal' || scene === 'tutorial-overlays-settings') &&
+        (demoElements.length > 0 || texts.length > 0 || shapes.length > 0))) &&
     demoRect.w > 0;
 
   return (

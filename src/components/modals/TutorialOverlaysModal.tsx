@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import type { SceneSetter } from '../../types';
+import type { Scene, SceneSetter } from '../../types';
 import { Close, CheckSquare, Chevron } from '../../icons';
 
 const ROWS = ['Frame', 'Stack', 'Grid', 'Masonry', 'Vectors', 'Components', 'Effects', 'Breakpoints'];
 
-export default function TutorialOverlaysModal({ onSceneChange, stackTutorialDisabled, onSetStackTutorialDisabled }: {
+export default function TutorialOverlaysModal({ onSceneChange, returnScene, stackTutorialDisabled, onSetStackTutorialDisabled }: {
   onSceneChange: SceneSetter;
+  // Where to land when the user closes or saves — usually the scene
+  // they were on before opening the modal (e.g. demo-final). Without
+  // this, closing always went to 'base', which hides the user's stack.
+  returnScene: Scene;
   stackTutorialDisabled: boolean;
   onSetStackTutorialDisabled: (v: boolean) => void;
 }) {
@@ -38,7 +42,7 @@ export default function TutorialOverlaysModal({ onSceneChange, stackTutorialDisa
   return (
     <div className="modal-backdrop">
       <div className="modal modal--completed modal--overlays">
-        <button className="modal__close" onClick={() => onSceneChange('base')}><Close /></button>
+        <button className="modal__close" onClick={() => onSceneChange(returnScene)}><Close /></button>
         <h2 className="modal__title">Tutorial Overlays</h2>
 
         <div className="overlay-toolbar">
@@ -71,7 +75,7 @@ export default function TutorialOverlaysModal({ onSceneChange, stackTutorialDisa
         <div className="modal__footer">
           <button
             className="btn btn--primary"
-            onClick={() => { onSetStackTutorialDisabled(!enabled.Stack); onSceneChange('base'); }}
+            onClick={() => { onSetStackTutorialDisabled(!enabled.Stack); onSceneChange(returnScene); }}
           >
             Save
           </button>

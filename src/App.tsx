@@ -323,6 +323,14 @@ export default function App() {
   // guided steps are skipped — clicking Stack goes straight to the
   // drag-to-create step so the user still draws the stack themselves.
   const [stackTutorialDisabled, setStackTutorialDisabled] = useState(false);
+  // Track the scene the user was on before opening Tutorial Overlays
+  // so closing/saving returns there. Otherwise the modal would always
+  // land on 'base', which hides the stack rect (keepUserStack=false)
+  // and makes any in-stack items look "wiped" from the user's canvas.
+  const prevSceneRef = useRef<Scene>('base');
+  useEffect(() => {
+    if (scene !== 'tutorial-overlays-settings') prevSceneRef.current = scene;
+  }, [scene]);
   if (scene === 'stack-tutorial-modal' && stackTutorialDisabled) setScene('demo-2-cursor');
   // The "Disabled Stacks Tutorial" popup is a confirmation — whenever it's
   // shown the tutorial is actually off (this also covers the "Using Stacks"
@@ -1463,6 +1471,7 @@ export default function App() {
       {showOverlaysSettings && (
         <TutorialOverlaysModal
           onSceneChange={setScene}
+          returnScene={prevSceneRef.current}
           stackTutorialDisabled={stackTutorialDisabled}
           onSetStackTutorialDisabled={setStackTutorialDisabled}
         />
