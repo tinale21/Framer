@@ -1401,6 +1401,12 @@ export default function Canvas({
                   (editing ? ' text-el--editing' : selected ? ' text-el--selected' : '')
                 }
                 style={{
+                  // Spread the typography here so siblings of the
+                  // contentEditable (the ListBulletIcon, which uses em
+                  // units) scale with t.size. Without this the wrapper
+                  // falls back to 16px and the bullet stays a fixed
+                  // size while the text grows/shrinks around it.
+                  ...textStyle(t),
                   left: `${t.x}px`, top: `${t.y}px`,
                   width: t.width != null ? `${t.width}px` : undefined,
                 }}

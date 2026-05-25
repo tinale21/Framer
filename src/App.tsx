@@ -327,7 +327,15 @@ export default function App() {
   // The "Disabled Stacks Tutorial" popup is a confirmation — whenever it's
   // shown the tutorial is actually off (this also covers the "Using Stacks"
   // popup's "Don't Show Again" button, which routes straight here).
-  if (scene === 'disabled-tutorial-modal' && !stackTutorialDisabled) setStackTutorialDisabled(true);
+  if (scene === 'disabled-tutorial-modal' && !stackTutorialDisabled) {
+    setStackTutorialDisabled(true);
+    // Reaching disabled-tutorial-modal while the tutorial is still
+    // on can only happen via "Don't Show Again" on the Using-Stacks
+    // popup — which means the user was on their way to draw a stack.
+    // Land Dismiss on demo-2-cursor (stack-plus cursor armed) so they
+    // can immediately draw without going back to the grid.
+    setDemoEndScene('demo-2-cursor');
+  }
   // The stack stays selectable in the layout-panel step, the finished canvas,
   // and — with the tutorial off — while placing elements into it.
   const stackSelectScene = scene === 'demo-7-layout-panel' || scene === 'demo-final'
