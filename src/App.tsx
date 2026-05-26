@@ -376,7 +376,11 @@ export default function App() {
     // follows each new piece they add.
     const inPractice = scene === 'demo-5-insert-highlighted' || scene === 'demo-6-place-element';
     setCalloutEl(inPractice ? key : null);
-    setScene('demo-6-place-element');
+    // Only advance to demo-6 if we're continuing the guided demo. With
+    // the tutorial off (scene = demo-final etc.) the user is doing real
+    // work — don't drop them back into the practice flow and re-trigger
+    // every callout.
+    if (scene === 'demo-5-insert-highlighted') setScene('demo-6-place-element');
   };
   const requestImageUpload = () => fileInputRef.current?.click();
   const handleImageFile = (e: ChangeEvent<HTMLInputElement>) => {
