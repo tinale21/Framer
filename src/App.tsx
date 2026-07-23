@@ -508,7 +508,7 @@ export default function App() {
     setShapes(prev => [
       ...prev,
       { key, kind: 'path', points, closed,
-        fill: null, stroke: { color: '#aaaaaa', width: 1 }, inStack: false },
+        fill: '#cccccc', stroke: null, inStack: false },
     ]);
     setSelectedShape(key);
     setSelectedEl(null);
